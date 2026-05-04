@@ -50,6 +50,26 @@ def test_apply_patches_fatal_miss_raises():
         apply_patches("js", ["a"], ctx, registry=registry)
 
 
+def test_apply_patches_fatal_miss_preserves_notes():
+    def _apply(js, ctx):
+        return PatchOutcome(js=js, status="missed", notes=("missing nested gate",))
+
+    registry = {
+        "a": Patch(
+            id="a",
+            name="a",
+            group="ui",
+            versions_supported=">=0.0.0,<99",
+            versions_tested=(">=0.0.0,<99",),
+            apply=_apply,
+        )
+    }
+    ctx = PatchContext(claude_version=None)
+
+    with pytest.raises(PatchAnchorMissError, match="missing nested gate"):
+        apply_patches("js", ["a"], ctx, registry=registry)
+
+
 def test_apply_patches_warn_miss_warns_and_continues():
     registry = {"a": _make_patch("a", status="missed", on_miss="warn"),
                 "b": _make_patch("b")}

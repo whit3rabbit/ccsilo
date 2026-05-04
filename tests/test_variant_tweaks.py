@@ -236,3 +236,10 @@ def test_apply_variant_tweaks_warns_on_untested_version():
             force=True,  # bypass unsupported-version error so we can observe the warning
         )
     assert any("1.0.0" in str(w.message) for w in caught)
+
+
+def test_apply_variant_tweaks_anchor_miss_includes_patch_detail():
+    js = 'function enabled(){return gate("tengu_session_memory",!1)}'
+
+    with pytest.raises(TweakPatchError, match="missing past sessions gate"):
+        apply_variant_tweaks(js, tweak_ids=["session-memory"])

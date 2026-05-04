@@ -135,11 +135,15 @@ def apply_patches(
         elif outcome.status == "skipped":
             skipped.append(patch_id)
         elif outcome.status == "missed":
+            detail = "; ".join(outcome.notes)
             if patch.on_miss == "fatal":
-                raise PatchAnchorMissError(patch_id)
+                raise PatchAnchorMissError(patch_id, detail)
             if patch.on_miss == "warn":
+                warning = f"patch {patch_id!r}: anchor not found"
+                if detail:
+                    warning = f"{warning}: {detail}"
                 warnings.warn(
-                    f"patch {patch_id!r}: anchor not found",
+                    warning,
                     UserWarning,
                     stacklevel=2,
                 )

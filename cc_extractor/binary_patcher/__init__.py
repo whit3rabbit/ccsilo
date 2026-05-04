@@ -1,6 +1,7 @@
 """Binary patching: theme, prompt, entry JS, and repack."""
 
 from .codesign import AdhocSignResult, try_adhoc_sign
+from .bun_compat import BUN_NODE_COMPAT_MARKER, ensure_bun_node_compat, has_bun_node_compat
 from .index import PatchFailure, PatchInputs, PatchSuccess, apply_patches
 from .prompts import OVERLAY_MARKERS, PromptResult, apply_prompts
 from .replace_entry import ReplaceEntryResult, replace_entry_js
@@ -13,6 +14,7 @@ from .unpack_and_patch import UnpackAndPatchError, UnpackAndPatchInputs, UnpackA
 __all__ = [
     "AdhocSignResult",
     "BunWrapperNotFound",
+    "BUN_NODE_COMPAT_MARKER",
     "OVERLAY_MARKERS",
     "PatchFailure",
     "PatchInputs",
@@ -30,6 +32,8 @@ __all__ = [
     "apply_patches",
     "apply_prompts",
     "apply_theme",
+    "ensure_bun_node_compat",
+    "has_bun_node_compat",
     "patch_unpacked_entry",
     "replace_entry_js",
     "repack_binary",

@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
 
+from ..binary_patcher.bun_compat import has_bun_node_compat
 from .._utils import safe_read_json as _safe_read_json, utc_now as _utc_now
 from ..providers import build_provider_env, get_provider, normalize_mcp_ids, provider_default_variant_name
 from ..workspace import NativeArtifact, read_json, workspace_root
@@ -230,10 +231,12 @@ def doctor_variant(name: Optional[str] = None, *, all_variants: bool = False, ro
         if runtime == "node":
             entry = Path(paths.get("entryPath", ""))
             unpacked_dir = Path(paths.get("unpackedDir", ""))
+            bun_compat_ok = _node_entry_bun_compat_ok(entry)
             checks.extend(
                 [
                     {"name": "binary", "ok": binary.is_file(), "path": str(binary)},
                     {"name": "node-entry", "ok": entry.is_file(), "path": str(entry)},
+                    {"name": "node-bun-compat", "ok": bun_compat_ok, "path": str(entry)},
                     {"name": "package-json", "ok": (unpacked_dir / "package.json").is_file(), "path": str(unpacked_dir / "package.json")},
                     {"name": "node-modules", "ok": (unpacked_dir / "node_modules").is_dir(), "path": str(unpacked_dir / "node_modules")},
                 ]
@@ -259,6 +262,13 @@ def doctor_variant(name: Optional[str] = None, *, all_variants: bool = False, ro
         ok = all(check["ok"] for check in checks)
         reports.append({"id": variant.variant_id, "name": variant.name, "ok": ok, "checks": checks})
     return reports
+
+def _node_entry_bun_compat_ok(entry: Path) -> bool:
+    try:
+        js = entry.read_text(encoding="latin1")
+    except OSError:
+        return False
+    return "Bun." not in js or has_bun_node_compat(js)
 
 def run_variant(name: str, args: Optional[List[str]] = None, root=None) -> int:
     variant_id = variant_id_from_name(name)

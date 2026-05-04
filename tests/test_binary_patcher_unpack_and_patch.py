@@ -10,6 +10,7 @@ from cc_extractor.binary_patcher.unpack_and_patch import (
     UnpackAndPatchInputs,
     unpack_and_patch,
 )
+from cc_extractor.binary_patcher.bun_compat import BUN_NODE_COMPAT_MARKER
 from cc_extractor.binary_patcher.prompts import OVERLAY_MARKERS
 from tests.helpers.bun_fixture import build_bun_fixture
 
@@ -75,6 +76,7 @@ def test_unpack_and_patch_extracts_patches_package_json_and_runs_npm(tmp_path, m
     assert result.entry_path == str(entry_path)
     written = entry_path.read_text(encoding="latin1")
     assert not written.startswith("// @bun")
+    assert written.count(BUN_NODE_COMPAT_MARKER) == 1
     assert 'case"zai-gold":return{"bashBorder":"#daa"}' in written
     assert OVERLAY_MARKERS["start"] in written
     package_json = json.loads((unpacked_dir / "package.json").read_text(encoding="utf-8"))

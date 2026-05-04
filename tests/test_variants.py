@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from cc_extractor.binary_patcher.bun_compat import BUN_NODE_COMPAT_MARKER
 from cc_extractor.bun_extract import parse_bun_binary
 from cc_extractor.variants import (
     VariantBuildError,
@@ -488,7 +489,7 @@ def test_macos_non_native_regex_tweak_uses_unpacked_node_runtime_not_in_place_bi
         unpacked_dir = Path(kwargs["unpacked_dir"])
         entry_path = unpacked_dir / "src" / "cli.js"
         entry_path.parent.mkdir(parents=True, exist_ok=True)
-        entry_path.write_text(ENTRY_JS, encoding="latin1")
+        entry_path.write_text(f"{BUN_NODE_COMPAT_MARKER}\n{ENTRY_JS}", encoding="latin1")
         (unpacked_dir / "package.json").write_text("{}", encoding="utf-8")
         (unpacked_dir / "node_modules").mkdir()
         return SimpleNamespace(
@@ -520,6 +521,7 @@ def test_macos_non_native_regex_tweak_uses_unpacked_node_runtime_not_in_place_bi
     assert "unpack node runtime" in stage_names
     assert "patch binary" not in stage_names
     assert unpack_calls[0]["pristine_binary_path"] == str(artifact.path)
+    assert entry_js.count(BUN_NODE_COMPAT_MARKER) == 1
     assert "(Claude Code, CC Router variant)" in entry_js
     assert result.variant.manifest["patchResults"]["appliedTweaks"] == ["patches-applied-indication"]
 
@@ -665,6 +667,64 @@ def test_doctor_variant_fails_stored_secret_with_unsafe_mode(tmp_path):
     assert report["ok"] is False
     assert checks["secrets-mode"]["ok"] is False
     assert checks["secrets-safe"]["ok"] is False
+
+
+def test_doctor_variant_passes_marked_node_bun_compat_entry(tmp_path):
+    root = _write_node_variant(tmp_path, f"{BUN_NODE_COMPAT_MARKER}\nBun.stringWidth('abc');")
+
+    report = doctor_variant("node-compat", root=root)[0]
+    checks = {check["name"]: check for check in report["checks"]}
+
+    assert report["ok"] is True
+    assert checks["node-bun-compat"]["ok"] is True
+
+
+def test_doctor_variant_fails_unmarked_node_entry_with_bun_globals(tmp_path):
+    root = _write_node_variant(tmp_path, "Bun.stringWidth('abc');")
+
+    report = doctor_variant("node-compat", root=root)[0]
+    checks = {check["name"]: check for check in report["checks"]}
+
+    assert report["ok"] is False
+    assert checks["node-bun-compat"]["ok"] is False
+
+
+def _write_node_variant(tmp_path, entry_js):
+    root = tmp_path / ".cc-extractor"
+    variant_dir = root / "variants" / "node-compat"
+    entry_path = variant_dir / "unpacked" / "src" / "cli.js"
+    wrapper = root / "bin" / "node-compat"
+    config = variant_dir / "config" / "settings.json"
+    binary = variant_dir / "native" / "claude"
+    package_json = variant_dir / "unpacked" / "package.json"
+    node_modules = variant_dir / "unpacked" / "node_modules"
+    for path in (entry_path.parent, wrapper.parent, config.parent, binary.parent, node_modules):
+        path.mkdir(parents=True, exist_ok=True)
+    entry_path.write_text(entry_js, encoding="latin1")
+    wrapper.write_text("#!/bin/sh\n", encoding="utf-8")
+    config.write_text("{}\n", encoding="utf-8")
+    binary.write_text("binary\n", encoding="utf-8")
+    package_json.write_text("{}\n", encoding="utf-8")
+    manifest = {
+        "schemaVersion": 1,
+        "id": "node-compat",
+        "name": "Node Compat",
+        "provider": {"key": "mirror", "label": "Mirror"},
+        "source": {"version": "2.1.128"},
+        "runtime": "node",
+        "paths": {
+            "root": str(variant_dir),
+            "wrapper": str(wrapper),
+            "configDir": str(config.parent),
+            "binary": str(binary),
+            "entryPath": str(entry_path),
+            "unpackedDir": str(variant_dir / "unpacked"),
+        },
+        "createdAt": "2026-05-04T00:00:00Z",
+        "updatedAt": "2026-05-04T00:00:00Z",
+    }
+    (variant_dir / "variant.json").write_text(json.dumps(manifest), encoding="utf-8")
+    return root
 
 
 def test_write_wrapper_rejects_unsafe_env_key(tmp_path):

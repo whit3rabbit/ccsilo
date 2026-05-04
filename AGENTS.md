@@ -182,6 +182,8 @@ Important distinctions:
 * Bun CJS entry modules must keep a valid `// @bun ... @bun-cjs` function wrapper. Same-size shrink padding must not be appended after the closing wrapper.
 * Mach-O signing is explicit and soft-failing through `binary_patcher/codesign.py`.
 * Unpacked fallback supports both Python `.bundle_manifest.json` and TS-style `manifest.json`.
+* Unpacked Node runtime entry JS must be passed through `binary_patcher.bun_compat.ensure_bun_node_compat` after stripping the Bun wrapper and after any later variant-only JS tweak writes. Preserve the `cc-extractor:bun-node-compat` marker.
+* `variant doctor` includes a `node-bun-compat` check for stale Node-runtime entries that still reference `Bun.*` without the compat marker. Reapply or update the setup to regenerate the entry.
 * PE resize requires `.bun` to be the last raw-data section.
 * On non-Windows, written binaries/wrappers should be chmodded executable.
 
@@ -200,6 +202,7 @@ Important distinctions:
 * `validate_variant_manifest` is the manifest authority. Do not bypass it.
 * Runtime may be `native` or `node`.
 * Node runtime wrappers require a Node version with explicit resource management support and allow `NODE=/path/to/node` override.
+* If a Node-runtime setup fails `node-bun-compat`, run `.venv/bin/python -m cc_extractor variant apply <name-or-id> --json` instead of hand-editing generated unpacked files.
 * `DEFAULT_TWEAK_IDS` are selected on create.
 * `ENV_TWEAK_IDS` affect wrapper environment rather than patching JS.
 * In-place rebuild optimization applies only to supported theme/prompt/env tweak changes; otherwise rebuild from source.

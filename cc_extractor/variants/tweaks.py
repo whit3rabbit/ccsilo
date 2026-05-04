@@ -350,7 +350,10 @@ def apply_variant_tweaks(
                 registry=_PATCH_REGISTRY,
             )
         except PatchAnchorMissError as e:
-            raise TweakPatchError(tweak_id, "failed to find anchor") from e
+            detail = "failed to find anchor"
+            if e.detail:
+                detail = f"{detail}: {e.detail}"
+            raise TweakPatchError(tweak_id, detail) from e
         js = sub.js
         if sub.applied:
             applied.append(tweak_id)

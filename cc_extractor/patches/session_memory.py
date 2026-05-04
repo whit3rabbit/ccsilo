@@ -5,9 +5,26 @@ import re
 from . import Patch, PatchContext, PatchOutcome
 
 
+def _is_new_file_memory_system(js: str) -> bool:
+    return (
+        "CLAUDE_COWORK_MEMORY_GUIDELINES" in js
+        and "CLAUDE_CODE_DISABLE_AUTO_MEMORY" in js
+        and "tengu_session_memory" not in js
+    )
+
+
 def _patch_extraction(js: str) -> str:
     match = re.search(r'function [$\w]+\(\)\{return [$\w]+\("tengu_session_memory"', js)
     if not match:
+        match = re.search(
+            r"function [$\w]+\(\)\{if\([$\w]+\(\)\)return!1;let [$\w]+=process\.env\.CLAUDE_CODE_DISABLE_AUTO_MEMORY;",
+            js,
+        )
+    if not match:
+        if re.search(r'function [$\w]+\(\)\{return true;return [$\w]+\("tengu_session_memory"', js):
+            return js
+        if re.search(r"function [$\w]+\(\)\{return true;if\([$\w]+\(\)\)return!1;let [$\w]+=process\.env\.CLAUDE_CODE_DISABLE_AUTO_MEMORY;", js):
+            return js
         raise ValueError("extraction gate")
     insert_at = match.start() + match.group(0).index("{") + 1
     return js[:insert_at] + "return true;" + js[insert_at:]
@@ -17,6 +34,8 @@ def _patch_past_sessions(js: str) -> str:
     match = re.search(r'if\([$\w]+\("tengu_coral_fern",!1\)\)\{', js)
     if match:
         return js[:match.start()] + "if(true){" + js[match.end():]
+    if "if(true){" in js and "tengu_coral_fern" in js:
+        return js
     match = re.search(r'if\(![$\w]+\("tengu_coral_fern",!1\)\)return\s*(?:null|\[\]);', js)
     if match:
         return js[:match.start()] + js[match.end():]
@@ -57,14 +76,27 @@ def _patch_update_thresholds(js: str) -> str:
 
 
 def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
+    notes = []
     try:
         new_js = _patch_extraction(js)
         new_js = _patch_past_sessions(new_js)
-        new_js = _patch_token_limits(new_js)
-        new_js = _patch_update_thresholds(new_js)
+        try:
+            new_js = _patch_token_limits(new_js)
+        except ValueError as exc:
+            if not _is_new_file_memory_system(new_js):
+                raise
+            notes.append(f"skipped obsolete {exc}")
+        try:
+            new_js = _patch_update_thresholds(new_js)
+        except ValueError as exc:
+            if not _is_new_file_memory_system(new_js):
+                raise
+            notes.append(f"skipped obsolete {exc}")
     except ValueError as exc:
         return PatchOutcome(js=js, status="missed", notes=(f"missing {exc}",))
-    return PatchOutcome(js=new_js, status="applied")
+    if new_js == js:
+        return PatchOutcome(js=js, status="skipped", notes=tuple(notes))
+    return PatchOutcome(js=new_js, status="applied", notes=tuple(notes))
 
 
 PATCH = Patch(
@@ -72,7 +104,7 @@ PATCH = Patch(
     name="Session memory",
     group="prompts",
     versions_supported=">=2.1.0,<3",
-    versions_tested=(">=2.1.0,<2.2",),
+    versions_tested=(">=2.1.0,<=2.1.128",),
     apply=_apply,
     description="Enable session memory extraction and past-session search with environment-configurable thresholds.",
 )

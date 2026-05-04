@@ -3,10 +3,16 @@
 import re
 
 from . import Patch, PatchContext, PatchOutcome
-from ._pinned_default import DEFAULT_VERSION_RANGES
 
 
 def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
+    already = re.search(
+        r"function [$\w]+\(\{content:([$\w]+),startLine:[$\w]+\}\)\{if\(!\1\)return\"\";return \1\}",
+        js,
+    )
+    if already:
+        return PatchOutcome(js=js, status="skipped")
+
     # First pattern: simple split and map form
     sig = re.search(
         r"\{content:([$\w]+),startLine:[$\w]+\}\)\{if\(!\1\)return\"\";"
@@ -55,7 +61,22 @@ def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
             new_js = js[:match_end] + f"return {content_var}" + js[pos:]
             return PatchOutcome(js=new_js, status="applied")
 
-    return PatchOutcome(js=js, status="missed")
+    # Fourth pattern: indexOf loop with a dedicated line formatter helper
+    indexof = re.search(
+        r"function ([$\w]+)\(\{content:([$\w]+),startLine:([$\w]+)\}\)\{"
+        r"if\(!\2\)return\"\";let [\s\S]{0,500}?Rqq\([\s\S]{0,250}?\.join\(`\s*`\)\}",
+        js,
+    )
+    if indexof:
+        name, content_var, start_line_var = indexof.groups()
+        replacement = (
+            f"function {name}({{content:{content_var},startLine:{start_line_var}}})"
+            f"{{if(!{content_var})return\"\";return {content_var}}}"
+        )
+        new_js = js[:indexof.start()] + replacement + js[indexof.end():]
+        return PatchOutcome(js=new_js, status="applied")
+
+    return PatchOutcome(js=js, status="missed", notes=("line-number formatter",))
 
 
 PATCH = Patch(
@@ -63,7 +84,7 @@ PATCH = Patch(
     name="Suppress line numbers in file reads",
     group="ui",
     versions_supported=">=2.0.0,<3",
-    versions_tested=DEFAULT_VERSION_RANGES,
+    versions_tested=(">=2.0.20,<2.1", ">=2.1.0,<=2.1.128"),
     apply=_apply,
     description="Strip per-line line-number prefixes from file-read output.",
 )

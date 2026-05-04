@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from .._utils import atomic_write_text_no_symlink, utc_now as _utc_now
+from ..binary_patcher.bun_compat import ensure_bun_node_compat
 from ..binary_patcher import PatchInputs
 from ..binary_patcher.codesign import try_adhoc_sign
 from ..providers import get_provider, provider_patch_config, provider_prompt_overlays
@@ -397,7 +398,7 @@ def _unpack_node_runtime_variant(
             provider_label=provider.label,
             claude_version=source_artifact.version,
         )
-        atomic_write_text_no_symlink(entry_path, extra.js, encoding="latin1")
+        atomic_write_text_no_symlink(entry_path, ensure_bun_node_compat(extra.js), encoding="latin1")
         applied.extend(extra.applied)
         skipped.extend(extra.skipped)
         missing.extend(extra.missing)
@@ -410,4 +411,3 @@ def _unpack_node_runtime_variant(
         runtime="node",
         entry_path=result.entry_path,
     )
-

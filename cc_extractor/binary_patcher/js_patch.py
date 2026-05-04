@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .._utils import atomic_write_text_no_symlink, safe_child_path
+from .bun_compat import ensure_bun_node_compat
 from .prompts import apply_prompts
 from .strip_bun_wrapper import strip_bun_wrapper
 from .theme import apply_theme, themes_from_config as _themes_from_config
@@ -71,6 +72,7 @@ def patch_unpacked_entry(unpacked_dir, config, overlays=None):
         prompt_replaced = prompt_result.replaced_targets
         prompt_missing = prompt_result.missing
 
+    js = ensure_bun_node_compat(js)
     atomic_write_text_no_symlink(entry_path, js, encoding="latin1")
     return PatchUnpackedResult(
         entry_path=str(entry_path),

@@ -2,11 +2,13 @@
 an empty registry too."""
 
 from cc_extractor.patches._registry import REGISTRY
+from cc_extractor.patches._pinned_default import DEFAULT_VERSION_RANGES
 from cc_extractor.patches._versions import (
     SemverRangeError,
     parse_range,
     range_contains_range,
     resolve_range_to_version,
+    version_in_range,
 )
 
 
@@ -28,6 +30,10 @@ def test_each_versions_tested_entry_parses():
 def test_versions_tested_is_non_empty():
     for patch in REGISTRY.values():
         assert patch.versions_tested, f"{patch.id} has empty versions_tested"
+
+
+def test_default_versions_do_not_auto_claim_newer_2_1_releases():
+    assert not any(version_in_range("2.1.128", tested) for tested in DEFAULT_VERSION_RANGES)
 
 
 def test_versions_tested_subset_of_versions_supported():

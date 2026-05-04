@@ -3,6 +3,7 @@ import json
 import pytest
 
 from cc_extractor.binary_patcher.js_patch import UnpackedManifestError, patch_unpacked_entry, resolve_entry_path
+from cc_extractor.binary_patcher.bun_compat import BUN_NODE_COMPAT_MARKER
 from cc_extractor.binary_patcher.prompts import OVERLAY_MARKERS
 from cc_extractor.binary_patcher.theme import ThemeAnchorNotFound
 
@@ -61,6 +62,7 @@ def test_patch_unpacked_entry_strips_wrapper_applies_theme_and_writes_back(tmp_p
     written = (tmp_path / "src/entrypoints/cli.js").read_text(encoding="latin1")
     assert not written.startswith("// @bun")
     assert not written.startswith("(function(")
+    assert written.count(BUN_NODE_COMPAT_MARKER) == 1
     assert 'case"zai-gold":return{"bashBorder":"#daa"' in written
 
 
