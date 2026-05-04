@@ -53,7 +53,7 @@ from .model_updates import (
     _validate_existing_model_mapping,
     update_variant_models,
 )
-from .tweaks import DEFAULT_TWEAK_IDS, apply_variant_tweaks, env_for_tweaks, normalize_tweak_ids
+from .tweaks import DEFAULT_TWEAK_IDS, apply_variant_tweaks, default_tweak_ids_for_provider, env_for_tweaks, normalize_tweak_ids
 from .wrapper import SECRETS_FILE
 
 __all__ = [
@@ -68,6 +68,7 @@ __all__ = [
     "apply_variant_tweaks",
     "create_variant",
     "default_bin_dir",
+    "default_tweak_ids_for_provider",
     "doctor_variant",
     "env_for_tweaks",
     "list_variant_providers",

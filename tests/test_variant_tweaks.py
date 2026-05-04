@@ -1,11 +1,13 @@
 import pytest
 
 from cc_extractor.variant_tweaks import (
+    BOOLEAN_ENV_TWEAKS,
     DEFAULT_TWEAK_IDS,
     RTK_SHELL_PREFIX_TEXT,
     TweakPatchError,
     apply_variant_tweaks,
     compose_prompt_overlays,
+    default_tweak_ids_for_provider,
     env_for_tweaks,
 )
 
@@ -155,13 +157,36 @@ def test_default_tweaks_include_mcp_startup_and_rtk_instruction():
         "mcp-non-blocking",
         "mcp-batch-size",
         "rtk-shell-prefix",
+        "dangerously-skip-permissions",
     ]
+
+
+def test_non_mirror_defaults_include_privacy_cache_env_toggles():
+    assert default_tweak_ids_for_provider("mirror") == DEFAULT_TWEAK_IDS
+
+    defaults = default_tweak_ids_for_provider("zai")
+
+    assert "dangerously-skip-permissions" in defaults
+    assert "disable-telemetry" in defaults
+    assert "disable-error-reporting" in defaults
+    assert "disable-feedback-command" in defaults
+    assert "disable-feedback-survey" in defaults
+    assert "disable-prompt-caching" in defaults
 
 
 def test_mcp_batch_size_setup_tweak_emits_wrapper_env():
     env = env_for_tweaks(["mcp-batch-size"])
 
     assert env["MCP_SERVER_CONNECTION_BATCH_SIZE"] == "10"
+
+
+def test_boolean_env_tweaks_emit_documented_on_off_values():
+    env = env_for_tweaks(["disable-telemetry", "disable-prompt-caching", "mcp-allowlist-env"])
+
+    assert env["DISABLE_TELEMETRY"] == "1"
+    assert env["DISABLE_PROMPT_CACHING"] == "1"
+    assert env["CLAUDE_CODE_MCP_ALLOWLIST_ENV"] == "1"
+    assert BOOLEAN_ENV_TWEAKS["disable-telemetry"]["env"] == "DISABLE_TELEMETRY"
 
 
 def test_sync_tweak_env_removes_unselected_managed_env():
@@ -172,6 +197,7 @@ def test_sync_tweak_env_removes_unselected_managed_env():
         "MCP_SERVER_CONNECTION_BATCH_SIZE": "10",
         "CLAUDE_CODE_CONTEXT_LIMIT": "1000000",
         "DISABLE_COMPACT": "1",
+        "DISABLE_TELEMETRY": "1",
     }
 
     synced = sync_tweak_env(env, ["themes"], {})

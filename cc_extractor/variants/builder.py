@@ -28,6 +28,7 @@ from ..workspace import (
 from .tweaks import (
     ENV_TWEAK_IDS,
     PROMPT_ONLY_TWEAK_IDS,
+    SETUP_ONLY_TWEAK_IDS,
     SETUP_ENV_ONLY_TWEAK_IDS,
     TweakResult,
     apply_variant_tweaks,
@@ -44,6 +45,7 @@ IN_PLACE_TWEAK_IDS = {
     "mcp-batch-size",
     *PROMPT_ONLY_TWEAK_IDS,
     *ENV_TWEAK_IDS,
+    *SETUP_ONLY_TWEAK_IDS,
 }
 
 

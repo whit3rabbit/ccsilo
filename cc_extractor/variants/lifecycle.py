@@ -19,7 +19,7 @@ from .model import (
     variant_id_from_name,
     variant_root,
 )
-from .tweaks import DEFAULT_TWEAK_IDS, env_for_tweaks, normalize_tweak_ids, sync_tweak_env
+from .tweaks import default_tweak_ids_for_provider, env_for_tweaks, normalize_tweak_ids, sync_tweak_env
 from .wrapper import (
     SECRETS_FILE,
     SECRETS_FILE_MODE,
@@ -108,7 +108,7 @@ def create_variant(
         model_overrides=model_overrides,
         extra_env=extra_env,
     )
-    tweak_ids = normalize_tweak_ids(tweaks or DEFAULT_TWEAK_IDS)
+    tweak_ids = normalize_tweak_ids(tweaks or default_tweak_ids_for_provider(provider.key))
     selected_mcp_ids = normalize_mcp_ids(mcp_ids or [])
     safe_env = dict(provider_env.env)
     safe_env.update(env_for_tweaks(tweak_ids, tweak_options))
@@ -271,4 +271,3 @@ def run_variant(name: str, args: Optional[List[str]] = None, root=None) -> int:
     except subprocess.TimeoutExpired as exc:
         raise RuntimeError(f"Variant '{name}' timed out after 300s") from exc
     return result.returncode
-

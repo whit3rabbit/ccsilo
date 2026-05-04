@@ -5,10 +5,12 @@ from types import SimpleNamespace
 from ..patches._registry import REGISTRY as PATCH_REGISTRY, patches_grouped
 from ..patches._versions import SemverRangeError, version_in_range
 from ..variant_tweaks import (
+    BOOLEAN_ENV_TWEAKS,
     CURATED_TWEAK_IDS,
     DEFAULT_TWEAK_IDS,
     ENV_TWEAK_IDS,
     PROMPT_ONLY_TWEAK_IDS,
+    SETUP_ONLY_TWEAK_IDS,
 )
 from ._const import MenuOption
 from .options_setup import selected_setup_variant
@@ -30,12 +32,26 @@ ENV_TWEAK_META = {
         "Sets CLAUDE_CODE_SUBAGENT_MODEL.",
     ),
 }
+for _tweak_id, _meta in BOOLEAN_ENV_TWEAKS.items():
+    ENV_TWEAK_META[_tweak_id] = (
+        str(_meta["name"]),
+        "environment",
+        f"Sets {_meta['env']}={_meta['value']}. {str(_meta['description'])}",
+    )
 
 PROMPT_ONLY_TWEAK_META = {
     "rtk-shell-prefix": (
         "RTK shell prefix",
         "prompts",
         "Adds setup prompt guidance to prefix shell commands with rtk when available.",
+    ),
+}
+
+SETUP_ONLY_TWEAK_META = {
+    "dangerously-skip-permissions": (
+        "Dangerous skip permissions",
+        "system",
+        "Always launches this setup with --dangerously-skip-permissions.",
     ),
 }
 
@@ -47,6 +63,8 @@ def _tweak_display_name(tweak_id):
         return ENV_TWEAK_META[tweak_id][0]
     if tweak_id in PROMPT_ONLY_TWEAK_META:
         return PROMPT_ONLY_TWEAK_META[tweak_id][0]
+    if tweak_id in SETUP_ONLY_TWEAK_META:
+        return SETUP_ONLY_TWEAK_META[tweak_id][0]
     return tweak_id.replace("-", " ").title()
 
 def tweaks_source_options(state):
@@ -126,6 +144,9 @@ def tweak_status(state, tweak_id):
         return {"label": label, "selectable": True, "reason": "Adds prompt overlay instructions."}
     patch = PATCH_REGISTRY.get(tweak_id)
     if patch is None:
+        if tweak_id in SETUP_ONLY_TWEAK_IDS:
+            label = "ready" if tweak_id in DEFAULT_TWEAK_IDS else "advanced"
+            return {"label": label, "selectable": True, "reason": "Changes setup wrapper behavior."}
         return {"label": "unknown", "selectable": False, "reason": "Tweak is not registered."}
     version = selected_setup_version(state)
     if not version or version == "latest":
@@ -187,6 +208,11 @@ def _filtered_patches_grouped(state):
         for tweak_id in PROMPT_ONLY_TWEAK_IDS
         if tweak_id in curated and _tweak_passes_filter(state, tweak_id, recommended)
     ]
+    setup_only_filtered = [
+        _tweak_meta(tweak_id)
+        for tweak_id in SETUP_ONLY_TWEAK_IDS
+        if tweak_id in curated and tweak_id not in PATCH_REGISTRY and _tweak_passes_filter(state, tweak_id, recommended)
+    ]
     if prompt_only_filtered:
         for index, (group, patches) in enumerate(grouped):
             if group == "prompts":
@@ -196,6 +222,8 @@ def _filtered_patches_grouped(state):
             grouped.append(("prompts", prompt_only_filtered))
     if env_filtered:
         grouped.append(("environment", env_filtered))
+    if setup_only_filtered:
+        grouped.append(("setup", setup_only_filtered))
     return grouped
 
 def _tweak_meta(tweak_id):
@@ -210,6 +238,18 @@ def _tweak_meta(tweak_id):
             group=group,
             versions_supported="prompt-only",
             versions_tested=("prompt-only",),
+            versions_blacklisted=(),
+            on_miss="skip",
+            description=description,
+        )
+    if tweak_id in SETUP_ONLY_TWEAK_META:
+        name, group, description = SETUP_ONLY_TWEAK_META[tweak_id]
+        return SimpleNamespace(
+            id=tweak_id,
+            name=name,
+            group=group,
+            versions_supported="setup-wrapper",
+            versions_tested=("setup-wrapper",),
             versions_blacklisted=(),
             on_miss="skip",
             description=description,
@@ -249,4 +289,3 @@ def selected_tweaks_source_variant_id(state):
         return None
     index = max(0, min(state.selected_index, len(state.variants) - 1))
     return state.variants[index].variant_id
-

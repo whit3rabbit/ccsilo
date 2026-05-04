@@ -192,8 +192,16 @@ def test_create_variant_writes_isolated_layout_wrapper_and_metadata(tmp_path):
         "mcp-non-blocking",
         "mcp-batch-size",
         "rtk-shell-prefix",
+        "dangerously-skip-permissions",
+        "disable-telemetry",
+        "disable-error-reporting",
+        "disable-feedback-command",
+        "disable-feedback-survey",
+        "disable-prompt-caching",
     ]
     assert result.variant.manifest["env"]["MCP_SERVER_CONNECTION_BATCH_SIZE"] == "10"
+    assert result.variant.manifest["env"]["DISABLE_TELEMETRY"] == "1"
+    assert result.variant.manifest["env"]["DISABLE_PROMPT_CACHING"] == "1"
     assert scan_variants(root)[0].variant_id == "zai-test"
     stage_names = [stage.name for stage in result.stages]
     assert "prepare directories" in stage_names
@@ -439,8 +447,15 @@ def test_macos_default_startup_tweaks_do_not_force_node_runtime(tmp_path, monkey
         "mcp-non-blocking",
         "mcp-batch-size",
         "rtk-shell-prefix",
+        "dangerously-skip-permissions",
+        "disable-telemetry",
+        "disable-error-reporting",
+        "disable-feedback-command",
+        "disable-feedback-survey",
+        "disable-prompt-caching",
     ]
     assert result.variant.manifest["env"]["MCP_SERVER_CONNECTION_BATCH_SIZE"] == "10"
+    assert result.variant.manifest["env"]["DISABLE_PROMPT_CACHING"] == "1"
     assert patch_calls[0].regex_tweaks == [
         "hide-startup-banner",
         "hide-startup-clawd",
@@ -454,6 +469,7 @@ def test_macos_default_startup_tweaks_do_not_force_node_runtime(tmp_path, monkey
         "mcp-non-blocking",
         "mcp-batch-size",
         "rtk-shell-prefix",
+        "dangerously-skip-permissions",
     ]
 
 
@@ -686,6 +702,18 @@ def test_write_wrapper_unsets_env_before_launch(tmp_path):
     wrapper = write_wrapper(manifest).read_text(encoding="utf-8")
 
     assert wrapper.index("export ANTHROPIC_BASE_URL=http://127.0.0.1:3456") < wrapper.index("unset CLAUDE_CODE_USE_BEDROCK") < wrapper.index("\nexec ")
+
+
+def test_write_wrapper_can_force_dangerous_skip_permissions(tmp_path):
+    manifest = wrapper_manifest(tmp_path, {})
+    manifest["tweaks"] = ["dangerously-skip-permissions"]
+
+    wrapper = write_wrapper(manifest)
+    wrapper_text = wrapper.read_text(encoding="utf-8")
+    proc = subprocess.run([str(wrapper), "--print"], capture_output=True, text=True, check=True)
+
+    assert f"exec {manifest['paths']['binary']} --dangerously-skip-permissions \"$@\"" in wrapper_text
+    assert "RUN:--dangerously-skip-permissions --print" in proc.stdout
 
 
 def test_write_wrapper_bootstraps_api_key_approval_for_non_mirror(tmp_path):

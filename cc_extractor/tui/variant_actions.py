@@ -3,7 +3,7 @@
 from urllib.parse import urlparse
 
 from ..providers import normalize_mcp_ids, provider_default_variant_name
-from ..variant_tweaks import CURATED_TWEAK_IDS, DEFAULT_TWEAK_IDS
+from ..variant_tweaks import CURATED_TWEAK_IDS, DEFAULT_TWEAK_IDS, default_tweak_ids_for_provider
 from ._const import VARIANT_MODEL_FIELDS, VARIANT_STEPS
 from .options import (
     selected_variant_provider,
@@ -41,6 +41,8 @@ def set_variant_provider_defaults(state, provider):
     state.variant_model_overrides = {}
     state.variant_model_choices = []
     state.selected_variant_mcp_ids = []
+    provider_key = str(provider.get("key") or "") if provider else ""
+    state.selected_variant_tweaks = default_tweak_ids_for_provider(provider_key)
 
 
 def toggle_variant_tweak(state, tweak_id: str):

@@ -16,10 +16,113 @@ DEFAULT_TWEAK_IDS = [
     "mcp-non-blocking",
     "mcp-batch-size",
     "rtk-shell-prefix",
+    "dangerously-skip-permissions",
 ]
-ENV_TWEAK_IDS = ["context-limit", "file-read-limit", "subagent-model"]
+NON_MIRROR_DEFAULT_TWEAK_IDS = [
+    "disable-telemetry",
+    "disable-error-reporting",
+    "disable-feedback-command",
+    "disable-feedback-survey",
+    "disable-prompt-caching",
+]
+VALUE_ENV_TWEAK_IDS = ["context-limit", "file-read-limit", "subagent-model"]
+BOOLEAN_ENV_TWEAKS = {
+    "disable-telemetry": {
+        "name": "Disable telemetry",
+        "env": "DISABLE_TELEMETRY",
+        "value": "1",
+        "description": "Opts out of Statsig telemetry.",
+    },
+    "disable-error-reporting": {
+        "name": "Disable error reporting",
+        "env": "DISABLE_ERROR_REPORTING",
+        "value": "1",
+        "description": "Disables Sentry error reporting.",
+    },
+    "disable-feedback-command": {
+        "name": "Disable feedback command",
+        "env": "DISABLE_FEEDBACK_COMMAND",
+        "value": "1",
+        "description": "Hides the feedback command.",
+    },
+    "disable-feedback-survey": {
+        "name": "Disable feedback survey",
+        "env": "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY",
+        "value": "1",
+        "description": "Disables session quality surveys.",
+    },
+    "disable-prompt-caching": {
+        "name": "Disable prompt caching",
+        "env": "DISABLE_PROMPT_CACHING",
+        "value": "1",
+        "description": "Disables prompt caching for all models.",
+    },
+    "disable-auto-compact": {
+        "name": "Disable auto compact",
+        "env": "DISABLE_AUTO_COMPACT",
+        "value": "1",
+        "description": "Disables automatic compaction while leaving manual compact available.",
+    },
+    "disable-all-compact": {
+        "name": "Disable all compact",
+        "env": "DISABLE_COMPACT",
+        "value": "1",
+        "description": "Disables automatic and manual compaction.",
+    },
+    "disable-growthbook": {
+        "name": "Disable GrowthBook",
+        "env": "DISABLE_GROWTHBOOK",
+        "value": "1",
+        "description": "Disables GrowthBook feature flag fetching.",
+    },
+    "disable-nonessential-traffic": {
+        "name": "Disable nonessential traffic",
+        "env": "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC",
+        "value": "1",
+        "description": "Disables updater, feedback, error reporting, and telemetry traffic.",
+    },
+    "skip-prompt-history": {
+        "name": "Skip prompt history",
+        "env": "CLAUDE_CODE_SKIP_PROMPT_HISTORY",
+        "value": "1",
+        "description": "Skips writing prompt history and session transcripts.",
+    },
+    "disable-auto-memory": {
+        "name": "Disable auto memory",
+        "env": "CLAUDE_CODE_DISABLE_AUTO_MEMORY",
+        "value": "1",
+        "description": "Disables Claude Code auto memory.",
+    },
+    "disable-cron": {
+        "name": "Disable scheduled tasks",
+        "env": "CLAUDE_CODE_DISABLE_CRON",
+        "value": "1",
+        "description": "Disables scheduled tasks and cron tools.",
+    },
+    "subprocess-env-scrub": {
+        "name": "Scrub subprocess env",
+        "env": "CLAUDE_CODE_SUBPROCESS_ENV_SCRUB",
+        "value": "1",
+        "description": "Strips provider credentials from subprocess environments.",
+    },
+    "mcp-allowlist-env": {
+        "name": "MCP allowlist env",
+        "env": "CLAUDE_CODE_MCP_ALLOWLIST_ENV",
+        "value": "1",
+        "description": "Starts stdio MCP servers with only a safe baseline environment plus configured env.",
+    },
+    "disable-experimental-betas": {
+        "name": "Disable experimental betas",
+        "env": "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS",
+        "value": "1",
+        "description": "Strips Anthropic beta headers and beta tool-schema fields from API requests.",
+    },
+}
+BOOLEAN_ENV_TWEAK_IDS = list(BOOLEAN_ENV_TWEAKS)
+ENV_TWEAK_IDS = [*VALUE_ENV_TWEAK_IDS, *BOOLEAN_ENV_TWEAK_IDS]
 PROMPT_ONLY_TWEAK_IDS = ["rtk-shell-prefix"]
-SETUP_ENV_ONLY_TWEAK_IDS = ["mcp-batch-size"]
+SETUP_ONLY_TWEAK_IDS = ["mcp-batch-size", "dangerously-skip-permissions"]
+SETUP_ENV_ONLY_TWEAK_IDS = SETUP_ONLY_TWEAK_IDS
 CURATED_TWEAK_IDS = [
     "themes",
     "prompt-overlays",
@@ -41,6 +144,7 @@ CURATED_TWEAK_IDS = [
     "mcp-non-blocking",
     "mcp-batch-size",
     "rtk-shell-prefix",
+    "dangerously-skip-permissions",
     "token-count-rounding",
     "statusline-update-throttle",
     "auto-accept-plan-mode",
@@ -54,6 +158,7 @@ DASHBOARD_EXCLUDED_TWEAK_IDS = {
     "remember-skill",
     "rtk-shell-prefix",
     *ENV_TWEAK_IDS,
+    "dangerously-skip-permissions",
 }
 DASHBOARD_TWEAK_IDS = [
     tweak_id for tweak_id in CURATED_TWEAK_IDS
@@ -89,7 +194,15 @@ MANAGED_TWEAK_ENV_KEYS = (
     "CLAUDE_CODE_FILE_READ_MAX_OUTPUT_TOKENS",
     "CLAUDE_CODE_SUBAGENT_MODEL",
     MCP_BATCH_SIZE_ENV,
+    *(str(meta["env"]) for meta in BOOLEAN_ENV_TWEAKS.values()),
 )
+
+
+def default_tweak_ids_for_provider(provider_key: Optional[str]) -> List[str]:
+    defaults = list(DEFAULT_TWEAK_IDS)
+    if provider_key and provider_key != "mirror":
+        defaults.extend(NON_MIRROR_DEFAULT_TWEAK_IDS)
+    return _unique_ordered(defaults)
 
 
 def compose_prompt_overlays(
@@ -124,12 +237,22 @@ def normalize_tweak_ids(tweak_ids: Optional[Iterable[str]]) -> List[str]:
     return result
 
 
+def _unique_ordered(tweak_ids: Iterable[str]) -> List[str]:
+    result = []
+    for tweak_id in tweak_ids:
+        if tweak_id not in result:
+            result.append(tweak_id)
+    return result
+
+
 def available_tweaks() -> List[Dict[str, object]]:
     return [
         {
             "id": tweak_id,
             "envBacked": tweak_id in ENV_TWEAK_IDS,
+            "booleanEnv": tweak_id in BOOLEAN_ENV_TWEAK_IDS,
             "promptOnly": tweak_id in PROMPT_ONLY_TWEAK_IDS,
+            "setupOnly": tweak_id in SETUP_ONLY_TWEAK_IDS,
         }
         for tweak_id in CURATED_TWEAK_IDS
     ]
@@ -148,6 +271,9 @@ def env_for_tweaks(tweak_ids: Iterable[str], options: Optional[Dict[str, str]] =
         env["CLAUDE_CODE_SUBAGENT_MODEL"] = str(options["subagent_model"])
     if "mcp-batch-size" in ids:
         env[MCP_BATCH_SIZE_ENV] = str(options.get("mcp_batch_size") or MCP_BATCH_SIZE_DEFAULT)
+    for tweak_id, meta in BOOLEAN_ENV_TWEAKS.items():
+        if tweak_id in ids:
+            env[str(meta["env"])] = str(meta["value"])
     return env
 
 
@@ -181,7 +307,7 @@ def apply_variant_tweaks(
     prompt_overlay_done = False
 
     for tweak_id in normalize_tweak_ids(tweak_ids):
-        if tweak_id in ENV_TWEAK_IDS:
+        if tweak_id in ENV_TWEAK_IDS or (tweak_id in SETUP_ONLY_TWEAK_IDS and tweak_id not in _PATCH_REGISTRY):
             skipped.append(tweak_id)
             continue
         if tweak_id in PROMPT_ONLY_TWEAK_IDS:

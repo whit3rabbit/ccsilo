@@ -150,6 +150,7 @@ def write_wrapper(manifest: Dict) -> Path:
     if provider_auth_bootstrap_enabled(manifest["provider"]["key"]):
         lines.extend(_api_key_approval_bootstrap_lines())
     lines.extend(shell_splash_lines())
+    launch_args = _launch_args(manifest)
     if manifest.get("runtime", "native") == "node":
         lines.extend(
             [
@@ -171,13 +172,22 @@ def write_wrapper(manifest: Dict) -> Path:
                 "fi",
                 f"ENTRY_PATH={shlex.quote(paths['entryPath'])}",
                 'if [ ! -f "$ENTRY_PATH" ]; then echo "Variant entry is missing: $ENTRY_PATH" >&2; exit 127; fi',
-                'exec "$NODE_BIN" "$ENTRY_PATH" "$@"',
+                f'exec "$NODE_BIN" "$ENTRY_PATH"{launch_args} "$@"',
             ]
         )
     else:
-        lines.append(f"exec {shlex.quote(paths['binary'])} \"$@\"")
+        lines.append(f"exec {shlex.quote(paths['binary'])}{launch_args} \"$@\"")
     atomic_write_text_no_symlink(wrapper_path, "\n".join(lines) + "\n", mode=0o755)
     return wrapper_path
+
+
+def _launch_args(manifest: Dict) -> str:
+    args = []
+    if "dangerously-skip-permissions" in (manifest.get("tweaks") or []):
+        args.append("--dangerously-skip-permissions")
+    if not args:
+        return ""
+    return " " + " ".join(shlex.quote(arg) for arg in args)
 
 
 def _api_key_approval_bootstrap_lines():

@@ -1,7 +1,7 @@
 """Setup creation and model-edit option helpers."""
 
 from ..providers import PLUGIN_RECOMMENDATIONS, list_optional_mcp_entries
-from ..variant_tweaks import CURATED_TWEAK_IDS, DEFAULT_TWEAK_IDS
+from ..variant_tweaks import CURATED_TWEAK_IDS, default_tweak_ids_for_provider
 from ._const import MenuOption, SOURCE_LATEST, VARIANT_MODEL_FIELDS, VARIANT_STEPS
 from .options_tweaks import _tweak_display_name
 
@@ -105,7 +105,9 @@ def variant_options(state):
         return options
     if state.variant_step == 5:
         options = []
-        tweak_ids = list(DEFAULT_TWEAK_IDS) if state.tweak_filter == "recommended" else list(CURATED_TWEAK_IDS)
+        provider = selected_variant_provider(state)
+        recommended_ids = default_tweak_ids_for_provider(provider.get("key") if provider else None)
+        tweak_ids = recommended_ids if state.tweak_filter == "recommended" else list(CURATED_TWEAK_IDS)
         for tweak_id in tweak_ids:
             marker = "[x]" if tweak_id in state.selected_variant_tweaks else "[ ]"
             options.append(MenuOption("variant-tweak", f"{marker} {_tweak_display_name(tweak_id)}  ({tweak_id})", tweak_id))

@@ -321,6 +321,7 @@ def test_dashboard_tweak_ids_include_latest_safe_ports():
     assert "statusline-update-throttle" in ids
     assert "auto-accept-plan-mode" in ids
     assert "rtk-shell-prefix" not in ids
+    assert "dangerously-skip-permissions" not in ids
     assert "remember-skill" not in ids
     assert "allow-sudo-bypass-permissions" not in ids
     assert "input-pattern-highlighters" not in ids
@@ -1275,6 +1276,9 @@ def test_variants_wizard_all_tweaks_lists_latest_curated_ports():
     assert "mcp-non-blocking" in text
     assert "mcp-batch-size" in text
     assert "rtk-shell-prefix" in text
+    assert "dangerously-skip-permissions" in text
+    assert "disable-telemetry" in text
+    assert "disable-prompt-caching" in text
     assert "token-count-rounding" in text
     assert "statusline-update-throttle" in text
 
@@ -1288,18 +1292,48 @@ def test_variants_wizard_recommended_tweaks_include_mcp_and_rtk():
     assert "mcp-non-blocking" in text
     assert "mcp-batch-size" in text
     assert "rtk-shell-prefix" in text
+    assert "dangerously-skip-permissions" in text
+
+
+def test_variants_wizard_non_mirror_defaults_include_env_switches():
+    provider = {
+        "key": "zai",
+        "label": "ZAI",
+        "description": "Cloud",
+        "authMode": "apiKey",
+        "credentialEnv": "Z_AI_API_KEY",
+        "models": {},
+        "defaultVariantName": "zai",
+    }
+    state = tui.TuiState(
+        mode="variants",
+        variant_step=5,
+        tweak_filter="recommended",
+        variant_provider_index=0,
+        variant_providers=[provider],
+    )
+    tui._set_variant_provider_defaults(state, provider)
+
+    labels = [option.label for option in tui._variant_options(state)]
+    text = "\n".join(labels)
+
+    assert "disable-telemetry" in state.selected_variant_tweaks
+    assert "disable-prompt-caching" in state.selected_variant_tweaks
+    assert "disable-telemetry" in text
+    assert "disable-prompt-caching" in text
 
 
 def test_variants_wizard_can_uncheck_new_default_tweaks():
     state = tui.TuiState(mode="variants", variant_step=5, tweak_filter="recommended")
 
-    for tweak_id in ("mcp-batch-size", "rtk-shell-prefix"):
+    for tweak_id in ("mcp-batch-size", "rtk-shell-prefix", "dangerously-skip-permissions"):
         options = tui._variant_options(state)
         state.selected_index = next(index for index, option in enumerate(options) if option.value == tweak_id)
         tui._toggle_selected(state)
 
     assert "mcp-batch-size" not in state.selected_variant_tweaks
     assert "rtk-shell-prefix" not in state.selected_variant_tweaks
+    assert "dangerously-skip-permissions" not in state.selected_variant_tweaks
 
 
 def test_variants_wizard_provider_mcp_copy_clarifies_auto_enabled():
@@ -2246,6 +2280,8 @@ def test_tweaks_editor_advanced_view_uses_curated_tweaks_and_env_backed():
     assert "context-limit" in values
     assert "file-read-limit" in values
     assert "subagent-model" in values
+    assert "disable-telemetry" in values
+    assert "disable-prompt-caching" in values
 
 
 def test_tweaks_editor_env_backed_detail_and_toggle():
@@ -2265,6 +2301,24 @@ def test_tweaks_editor_env_backed_detail_and_toggle():
 
     tui._toggle_tweak(state)
     assert "context-limit" in state.tweaks_pending
+
+
+def test_tweaks_editor_boolean_env_detail_and_toggle():
+    variant = _variant(tweaks=["themes"])
+    state = tui.TuiState(mode="tweaks-source", variants=[variant], tweak_filter="advanced")
+    tui._activate(state)
+    state.tweak_search = "disable-telemetry"
+
+    options = tui.options.tweaks_edit_options(state)
+    assert [option.value for option in options] == ["disable-telemetry"]
+
+    text = tui._screen_text(state, height=40)
+    assert "Disable telemetry" in text
+    assert "DISABLE_TELEMETRY=1" in text
+    assert "Status: env-backed" in text
+
+    tui._toggle_tweak(state)
+    assert "disable-telemetry" in state.tweaks_pending
 
 
 def test_tweaks_toggle_updates_pending():
