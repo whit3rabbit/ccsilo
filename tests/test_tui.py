@@ -912,7 +912,11 @@ def test_provider_selector_two_pane_renders_at_typical_widths():
 
     for width, height in ((100, 30), (80, 24)):
         screen = _render_screen(state, width, height)
+        lines = screen.splitlines()
         assert "Create setup: Provider" in screen
+        assert lines[0].startswith("Create setup: Provider | [Manage Setup]")
+        assert lines[1].startswith("┌Provider")
+        assert "Create setup: Provider" not in lines[1]
         assert "Provider details" in screen
         assert "Mirror Claude" in screen
         assert "Auth: none" in screen
@@ -924,6 +928,21 @@ def test_provider_selector_two_pane_renders_at_typical_widths():
 
     assert "Z.ai Coding Plan" in screen
     assert "Credential env: Z_AI_API_KEY" in screen
+
+
+def test_first_run_provider_selector_header_spans_two_panes():
+    state = tui.TuiState(
+        mode="first-run-setup",
+        variant_providers=_provider_selector_fixture(),
+        theme_id="hacker-bbs",
+    )
+
+    lines = _render_screen(state, 140, 30).splitlines()
+
+    assert lines[0].startswith("No Claude Code setups found: Provider | [Manage Setup]")
+    assert lines[1].startswith("┌Provider")
+    assert "┌No Claude Code setups found" not in lines[1]
+    assert "Provider details" in lines[1]
 
 
 def test_variants_wizard_selects_provider_toggles_tweak_and_creates(monkeypatch, tmp_path):

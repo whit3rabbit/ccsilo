@@ -189,13 +189,14 @@ def _label_role(label):
         return "success"
     return "body"
 
-def _body_box_rows(state, width, height):
+def _body_box_rows(state, width, height, title_override=None):
     title, _ = current_labels(state)
+    box_title = panel_title(state, title) if title_override is None else title_override
     inner_height = max(0, height - 2)
     if state.mode == "inspect-delete-confirm":
         _, labels = current_labels(state)
         content_rows = _modal_content_rows("Confirm delete", labels, max(1, width - 2), inner_height)
-        return _box_rows(panel_title(state, title), content_rows, width, height, "body")
+        return _box_rows(box_title, content_rows, width, height, "body")
 
     content_rows = []
     if inner_height >= 1:
@@ -204,7 +205,7 @@ def _body_box_rows(state, width, height):
         content_rows.append(("", "body"))
     item_height = max(1, inner_height - len(content_rows))
     content_rows.extend(_body_content_rows(state, item_height))
-    return _box_rows(panel_title(state, title), content_rows, width, height, "body")
+    return _box_rows(box_title, content_rows, width, height, "body")
 
 def _modal_content_rows(title, labels, width, height):
     if height <= 0:
@@ -233,7 +234,20 @@ def _provider_detail_box_rows(state, width, height):
         (line, "body")
         for line in _wrap_detail_lines(variant_provider_detail_lines(state), content_width)
     ]
+    detail_rows = _compact_blank_rows(detail_rows, max(0, height - 2))
     return _box_rows("Provider details", detail_rows, width, height, "body")
+
+def _compact_blank_rows(rows, max_rows):
+    compacted = list(rows)
+    while len(compacted) > max_rows:
+        for index in range(len(compacted) - 1, -1, -1):
+            text, _role = compacted[index]
+            if not text:
+                del compacted[index]
+                break
+        else:
+            break
+    return compacted
 
 def _wrap_detail_lines(lines, width):
     wrapped = []
@@ -282,7 +296,9 @@ def _provider_selector_two_pane_rows(state, width, height):
     gap = 1
     left_width = max(1, int((width - gap) * 0.42))
     right_width = max(1, width - gap - left_width)
-    left_rows = _body_box_rows(state, left_width, height)
+    title, _ = current_labels(state)
+    left_title = str(title).split(": ", 1)[-1]
+    left_rows = _body_box_rows(state, left_width, height, title_override=left_title)
     right_rows = _provider_detail_box_rows(state, right_width, height)
     return _combine_segment_rows(left_rows, right_rows, gap)
 
@@ -317,7 +333,9 @@ def _frame_rows(state, width, height):
 
     rows = []
     if _variant_provider_selector_active(state) and width > 72 and body_height >= 10:
-        rows.extend(_provider_selector_two_pane_rows(state, width, body_height))
+        title, _ = current_labels(state)
+        rows.extend(_plain_rows([panel_title(state, title)], width, "header"))
+        rows.extend(_provider_selector_two_pane_rows(state, width, body_height - 1))
     elif state.mode in {"tweaks-edit", "tweak-editor"} and not state.tweak_apply_preview and width > 60:
         rows.extend(_tweaks_two_pane_rows(state, width, body_height))
     else:
