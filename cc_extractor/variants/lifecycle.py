@@ -20,6 +20,7 @@ from .model import (
     variant_id_from_name,
     variant_root,
 )
+from .install import remove_variant_managed_installs
 from .tweaks import default_tweak_ids_for_provider, env_for_tweaks, normalize_tweak_ids, sync_tweak_env
 from .wrapper import (
     SECRETS_FILE,
@@ -205,6 +206,7 @@ def remove_variant(name: str, *, yes: bool = False, root=None) -> bool:
         variant = load_variant(variant_id, root=root)
     except ValueError:
         return False
+    remove_variant_managed_installs(variant)
     wrapper_path = _canonical_wrapper_path(variant_id, root=root)
     if wrapper_path.exists():
         wrapper_path.unlink()

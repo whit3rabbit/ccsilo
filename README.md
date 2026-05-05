@@ -3,18 +3,18 @@
 > [!IMPORTANT]
 > This project is not affiliated with Anthropic or Claude Code. It is intended for research and educational work on Claude Code packaged binaries.
 
-`cc-extractor` is a standalone Python tool for downloading, inspecting, extracting, patching, and repacking Bun standalone bundles inside Claude Code binaries. It includes an interactive TUI for common workflows and a variant management system for creating isolated, patched Claude Code installations.
+`cc-extractor` is a standalone Python tool for creating isolated Claude Code setups, downloading Claude Code artifacts, and inspecting, extracting, patching, or repacking Bun standalone bundles inside Claude Code binaries. The interactive TUI is the main workflow for setup management and guided binary builds. The CLI remains available for scripting and lower-level binary work.
 
 ## Features
 
-- Interactive TUI with dashboard wizard, patch profile management, and variant creation.
-- Download Claude Code binary artifacts or the Anthropic NPM tarball.
+- Interactive TUI with first-run setup, setup management, dashboard builds, and patch profile management.
+- Create isolated Claude Code setups with provider presets, credentials, model overrides, MCP choices, wrappers, and curated tweaks.
+- Download Claude Code native binary artifacts or the Anthropic NPM tarball.
 - Inspect Bun bundle metadata without extracting files.
 - Extract or unpack module contents and `.bundle_manifest.json`.
 - Replace same-size modules or resize the entry JS module.
 - Repack ELF, Mach-O, and PE Bun payloads.
 - Apply theme and prompt overlays directly to bundled `cli.js`.
-- Create isolated Claude Code variants with provider presets and model overrides.
 - Manage patch profiles for reusable build configurations.
 - Prompt extraction with tree-sitter-based tooling.
 
@@ -25,8 +25,8 @@ Based in part on work by https://github.com/vicnaum/bun-demincer. Theme and prom
 For local development from a clone:
 
 ```bash
-python3 -m pip install -e .
-python3 -m pip install -e '.[dev]'
+.venv/bin/python -m pip install -e .
+.venv/bin/python -m pip install -e '.[dev]'
 ```
 
 For a normal user install from GitHub, use `pipx` to keep the CLI isolated from
@@ -52,56 +52,160 @@ pipx run --spec git+https://github.com/whit3rabbit/cc-extract.git cc-extractor -
 uv tool run --from git+https://github.com/whit3rabbit/cc-extract.git cc-extractor --help
 ```
 
-## Usage
+## TUI Quick Start
 
-Running `cc-extractor` without arguments in a TTY opens the interactive TUI. All commands are also available through `python3 main.py ...` or the installed `cc-extractor` console script.
-
-### Quick Start
+From a development checkout, open the TUI with:
 
 ```bash
-cc-extractor                        # open the TUI
-cc-extractor --help                 # show CLI help
+.venv/bin/python -m cc_extractor
 ```
 
-### TUI
+After a `pipx` install, use the console command instead:
 
-The TUI opens to Manage Setup when setups exist. If none exist, it starts the first-run setup wizard. Navigate with arrow keys, `Tab`/`Shift-Tab` to switch tabs, `Enter` to activate, `Esc` or `Backspace` to go back.
+```bash
+cc-extractor
+```
+
+Running with no arguments in a TTY opens the TUI. If no setups exist, it starts the first-run setup wizard. If setups already exist, it opens `Manage Setup`.
+
+The first-run setup wizard is the fastest path to a usable isolated Claude Code command:
+
+1. Choose a provider preset.
+2. Choose a setup name. This becomes the wrapper command name.
+3. Choose the Claude Code native binary version, usually `latest`.
+4. Configure credentials. Use an environment variable, or turn on setup-local secret storage and type an API key.
+5. Pick optional MCP servers. Provider-owned MCP servers are enabled automatically.
+6. Set model aliases if the provider requires them. Some providers can refresh a model list from the endpoint.
+7. Choose recommended tweaks, review the setup, then press `y` to create it.
+
+The setup build downloads the selected native Claude Code binary if it is not already cached, applies selected provider/tweak changes, writes a wrapper command, writes setup config, and then runs a health check.
+
+Created setups live under the workspace:
+
+```text
+.cc-extractor/
+  variants/<setup-id>/variant.json
+  variants/<setup-id>/native/
+  variants/<setup-id>/config/
+  bin/<setup-id>
+```
+
+The default workspace is `.cc-extractor/` in the current working directory. Set `CC_EXTRACTOR_WORKSPACE=/path/to/workspace` to use a different workspace.
+
+## Downloads And Cache
+
+Setup creation and dashboard builds use centralized downloads. The TUI loads the local download index first, then refreshes the live Claude Code version index once at startup. If no live index is available yet, the packaged seed index is used until refresh succeeds.
+
+Native downloads are stored by version, platform, and checksum:
+
+```text
+.cc-extractor/downloads/native/<version>/<platform>/<sha256>/claude
+```
+
+Downloads are checksum-verified before they are stored. Existing cached binaries are reused when the checksum still matches. On non-Windows systems, stored native binaries are marked executable.
+
+NPM tarballs are separate from native binaries and require `npm`:
+
+```text
+.cc-extractor/downloads/npm/<version>/<sha256>/<tarball>.tgz
+```
+
+The CLI uses the same cache when `--outdir` is omitted:
+
+```bash
+cc-extractor download                 # interactive version picker
+cc-extractor download --latest        # latest native binary
+cc-extractor download 2.1.123         # pinned native binary
+cc-extractor download --npm 2.1.123   # pinned NPM tarball
+```
+
+Use `--outdir` only when you intentionally want the legacy output layout outside the workspace:
+
+```bash
+cc-extractor download 2.1.123 --outdir ./downloads
+```
+
+That writes `./downloads/<version>/claude` instead of the centralized workspace cache.
+
+## TUI Reference
+
+Navigate with arrow keys, `Tab` or `Right` to move tabs, `Left` to move back through tabs, `Enter` to activate, `Space` to toggle, and `Esc` or `Backspace` to go back.
 
 **Tabs:**
 
 | Tab | Description |
 |-----|-------------|
-| Manage Setup | Create setups, run a custom Claude wrapper, health-check, upgrade, edit tweaks, delete, search, filter, and sort. |
-| Dashboard | 4-step wizard: pick source, select patches, load or save profiles, review and build. |
-| Inspect | View Bun bundle metadata for a selected binary. |
-| Extract | Extract or unpack a binary to disk. |
-| Patch | Apply patch packages to a source binary. |
+| Manage Setup | Create setups, run wrapper commands, health-check, upgrade, edit models, edit tweaks, delete, search, filter, and sort. |
+| Dashboard | 4-step wizard: pick source, select curated tweaks, load or save profiles, review and build. |
+| Inspect | View Bun bundle metadata for a selected native download and delete cached native artifacts. |
+| Extract | Extract or unpack a selected native download to disk. |
+| Patch | Apply workspace patch packages to a source binary. |
 
-**Keyboard controls:**
+**Setup keys:**
 
 | Key | Action |
 |-----|--------|
-| Arrows | Navigate lists |
-| Tab / Right | Switch tab |
-| Esc / Backspace | Go back |
-| Enter | Activate selection |
-| Space | Toggle selection |
-| q | Quit |
-| x | Run selected setup from Manage Setup or setup detail |
-| t | Cycle theme |
-| b | Go back |
-| r | Refresh setup list or dashboard source list |
+| `n` | Create a new setup |
+| `x` | Run selected setup after leaving the TUI |
+| `u` | Upgrade selected setup |
+| `h` | Health-check selected setup |
+| `m` | Edit model aliases |
+| `t` | Edit tweaks for selected setup |
+| `d` | Delete selected setup |
+| `/` | Search setups |
+| `p` | Cycle provider filter |
+| `s` | Cycle setup sort |
+| `c` | Copy setup command path |
+| `g` | Copy setup config path |
+| `l` | Open last action logs |
+| `?` | Open help |
+| `q` | Quit |
 
-**Themes:** hacker-bbs (default), unicorn, dark, light.
+Deleting a setup removes its setup directory and wrapper command. Shared downloads and caches are not removed.
 
-### Download
+**Themes:** hacker-bbs (default), unicorn, dark, light, high-contrast.
+
+## Command Reference
+
+The installed command is `cc-extractor`. From a development checkout, the canonical equivalent is `.venv/bin/python -m cc_extractor`.
+
+### Setup CLI
+
+Setups are isolated, patched Claude Code installations addressed by name or id. Each setup pins a provider, optional model overrides, MCP selections, credentials, and a set of tweaks.
 
 ```bash
-cc-extractor download
-cc-extractor download --latest
-cc-extractor download 1.2.3
-cc-extractor download --npm 1.2.3
+cc-extractor variant providers                                      # list provider presets
+cc-extractor variant mcp                                            # list provider and optional MCP servers
+cc-extractor variant mcp --provider kimi                            # list MCP catalog for one provider
+cc-extractor variant create --name my-cc --provider kimi            # create a setup
+cc-extractor variant create --name my-cc --provider kimi --credential-env KIMI_API_KEY
+cc-extractor variant create --name local --provider lmstudio --api-key token --store-secret
+cc-extractor variant list                                           # list all setups
+cc-extractor variant show my-cc --json                              # show setup metadata
+cc-extractor variant apply my-cc                                    # rebuild from saved settings
+cc-extractor variant update my-cc                                   # update to latest version
+cc-extractor variant update --all                                   # update all setups
+cc-extractor variant doctor my-cc                                   # health check
+cc-extractor variant doctor --all                                   # check all setups
+cc-extractor variant run my-cc -- [args...]                         # run setup wrapper
+cc-extractor variant remove my-cc --yes                             # remove setup, keep shared downloads
 ```
+
+**Create options:**
+
+| Flag | Description |
+|------|-------------|
+| `--name` | Setup name, also used as wrapper command. |
+| `--provider` | Provider preset key (required). |
+| `--claude-version` | Target version, `latest`, or `stable`. |
+| `--patch-profile` | Apply a saved patch profile. |
+| `--tweak` | Curated tweak id (repeatable). |
+| `--mcp` | Optional MCP server id (repeatable). |
+| `--credential-env` | Environment variable for provider credentials. |
+| `--api-key` | API key stored locally (requires `--store-secret`). |
+| `--extra-env` | Additional `KEY=VALUE` env entries (repeatable). |
+| `--force` | Overwrite an existing setup. |
+| Model overrides | `--opus`, `--sonnet`, `--haiku`, `--default`, `--small-fast`, `--subagent`. |
 
 ### Inspect
 
@@ -148,67 +252,6 @@ cc-extractor patch apply ./my_patch ./extracted_files --binary /path/to/claude -
 
 Creates or applies text patch manifests against extracted bundle files. `--check` validates without writing. `--binary` and `--source-version` override source metadata for cross-version patches.
 
-### Updating Prompt Catalogs
-
-Prompt catalogs live under `prompts/<version>.json`.
-
-To update prompt catalogs after new Claude Code releases:
-
-```bash
-.venv/bin/python tools/extract_prompt_versions.py --since-existing-latest
-```
-
-To process only the newest five missing versions:
-
-```bash
-.venv/bin/python tools/extract_prompt_versions.py --missing --max-versions 5
-```
-
-To regenerate explicit versions:
-
-```bash
-.venv/bin/python tools/extract_prompt_versions.py \
-  --versions 2.1.130 2.1.129 \
-  --force-prompts
-```
-
-The extractor downloads each native binary, extracts the bundled entry JS, extracts prompt strings, validates the prompt JSON schema, and writes `prompts/<version>.json`.
-
-New versions inherit prompt metadata from the nearest older local prompt catalog when same-version metadata is unavailable. Review unnamed prompts before release, or use `--fail-on-unnamed` to make unnamed entries fail the run.
-
-### Variants
-
-Variants are isolated, patched Claude Code installations addressed by name or id. Each variant pins a provider, optional model overrides, and a set of tweaks.
-
-```bash
-cc-extractor variant providers                           # list provider presets
-cc-extractor variant create --name my-cc --provider kimi # create a variant
-cc-extractor variant list                                # list all variants
-cc-extractor variant show my-cc                          # show variant metadata
-cc-extractor variant apply my-cc                         # re-apply saved settings
-cc-extractor variant update my-cc                        # update to latest version
-cc-extractor variant update --all                        # update all variants
-cc-extractor variant doctor my-cc                        # health check
-cc-extractor variant doctor --all                        # check all variants
-cc-extractor variant run my-cc -- [args...]              # run variant wrapper
-cc-extractor variant remove my-cc --yes                  # remove a variant
-```
-
-**Create options:**
-
-| Flag | Description |
-|------|-------------|
-| `--name` | Variant name, also used as wrapper command. |
-| `--provider` | Provider preset key (required). |
-| `--claude-version` | Target version, `latest`, or `stable`. |
-| `--patch-profile` | Apply a saved patch profile. |
-| `--tweak` | Curated tweak id (repeatable). |
-| `--credential-env` | Environment variable for provider credentials. |
-| `--api-key` | API key stored locally (requires `--store-secret`). |
-| `--extra-env` | Additional `KEY=VALUE` env entries (repeatable). |
-| `--force` | Overwrite an existing variant. |
-| Model overrides | `--opus`, `--sonnet`, `--haiku`, `--default`, `--small-fast`, `--subagent`. |
-
 **CC Router provider:**
 
 The `ccrouter` provider points an isolated Claude Code setup at a local
@@ -223,7 +266,7 @@ cc-extractor variant create --name ccrouter --provider ccrouter
 ```
 
 If CCR config sets `APIKEY`, expose the same value as `CCROUTER_AUTH_TOKEN`
-when creating or running the variant. Custom CCR ports require overriding
+when creating or running the setup. Custom CCR ports require overriding
 `ANTHROPIC_BASE_URL` with `--extra-env ANTHROPIC_BASE_URL=http://127.0.0.1:<port>`.
 cc-extractor does not start `ccr`, call `ccr code`, or write CCR's global
 config. See the [CCR README](https://github.com/musistudio/claude-code-router),
@@ -237,6 +280,40 @@ cc-extractor pack ./modified_files /path/to/original_claude ./new_claude
 ```
 
 Rebuilds raw Bun bytes from `.bundle_manifest.json`, parses the base binary, and delegates container rewriting to `binary_patcher.repack_binary`.
+
+### Updating Prompt Catalogs
+
+Prompt catalogs live under `prompts/<version>.json`.
+
+Update prompt catalogs for released versions newer than the newest local catalog:
+
+```bash
+.venv/bin/python tools/extract_prompt_versions.py --since-existing-latest
+```
+
+Fill missing prompt catalogs without touching already-valid files:
+
+```bash
+.venv/bin/python tools/extract_prompt_versions.py --missing
+```
+
+Process only the newest five missing versions:
+
+```bash
+.venv/bin/python tools/extract_prompt_versions.py --missing --max-versions 5
+```
+
+Regenerate explicit versions intentionally:
+
+```bash
+.venv/bin/python tools/extract_prompt_versions.py \
+  --versions 2.1.130 2.1.129 \
+  --force-prompts
+```
+
+The extractor downloads each native binary, extracts the bundled entry JS, extracts prompt strings, validates the prompt JSON schema, and writes `prompts/<version>.json`.
+
+New versions inherit prompt metadata from the nearest older local prompt catalog when same-version metadata is unavailable. Review unnamed prompts before release, or use `--fail-on-unnamed` to make unnamed entries fail the run.
 
 ## Python API
 
@@ -291,6 +368,14 @@ cc_extractor/
     builder.py                  Variant builder
     tweaks.py                   Curated tweak definitions
     wrapper.py                  Wrapper script generation
+  providers/
+    __init__.py                 Provider registry facade
+    loader.py                   Provider lookup, env building, theme/prompt helpers
+    schema.py                   Provider JSON schema validation/deserialization
+    config.py                   Claude settings and MCP server config merges
+    mcp_catalog.py              Built-in optional MCP catalog
+    model_discovery.py          Provider model discovery helpers
+    registry/*.json             Provider templates
   bun_extract/
     constants.py                Shared constants and magic values
     types.py                    BunBinaryInfo, BunModule, exceptions
@@ -312,7 +397,6 @@ cc_extractor/
     codesign.py                 Soft macOS ad-hoc signing helper
     js_patch.py                 Patch extracted entry JS
     unpack_and_patch.py         Extract, patch, package, and npm install fallback
-  providers.py                  Provider templates and env builders
   patcher.py                    Legacy extracted-text patch manifests
   patch_workflow.py             High-level patch, repack, and metadata workflow
   downloader.py                 GCS and NPM download helpers
@@ -321,24 +405,28 @@ cc_extractor/
   extractor.py                  Compatibility wrapper over bun_extract
   bundler.py                    Compatibility wrapper over binary_patcher
   variant_tweaks.py             Backwards-compat shim
-  tools/
-    prompt_extractor.py         Tree-sitter prompt extractor
-    extract_prompt_versions.py  Batch prompt extraction and validation
+```
+
+```text
+tools/
+  prompt_extractor.py           Tree-sitter prompt extractor
+  extract_prompt_versions.py    Batch prompt extraction and validation
+  check_patch_releases.py       Patch compatibility report generator
+  run_patch_smoke_docker.sh     Docker runtime smoke helper
 ```
 
 ## Development
 
 ```bash
-python3 -m pytest -q
-python3 -m compileall -q cc_extractor tests
-ruff check cc_extractor/ tools/ main.py
+.venv/bin/python -m pytest -q
+ruff check cc_extractor tests tools
 ```
 
 The default test suite does not download real Claude Code binaries. Run the gated integration test explicitly when you need live binary coverage:
 
 ```bash
-CC_EXTRACTOR_RUN_REAL_BINARY_TEST=1 python3 -m pytest -q tests/test_integration_real_binary.py
-CC_EXTRACTOR_RUN_REAL_BINARY_TEST=1 CC_EXTRACTOR_REAL_BINARY_VERSION=2.1.119 python3 -m pytest -q tests/test_integration_real_binary.py
+CC_EXTRACTOR_RUN_REAL_BINARY_TEST=1 .venv/bin/python -m pytest -q tests/test_integration_real_binary.py
+CC_EXTRACTOR_RUN_REAL_BINARY_TEST=1 CC_EXTRACTOR_REAL_BINARY_VERSION=2.1.119 .venv/bin/python -m pytest -q tests/test_integration_real_binary.py
 ```
 
 The integration test downloads the host-platform Claude Code binary, patches a temporary copy with a tiny theme config, executes `claude --version`, verifies patched JS markers, and extracts the patched bundle. It is intentionally gated because the download is large and depends on network access.

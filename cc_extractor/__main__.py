@@ -14,9 +14,11 @@ from .cli import build_parser, inspect_binary  # noqa: F401 — re-exported for 
 from .cli import handlers as _handlers
 from .providers import list_mcp_catalog
 from .cli.payloads import (
+    install_result_payload,
     model_overrides_from_args,
     print_json,
     tweak_options_from_args,
+    uninstall_result_payload,
     variant_payload,
     variant_result_payload,
 )
@@ -24,13 +26,17 @@ from .variants import (
     apply_variant,
     create_variant,
     doctor_variant,
+    install_variant_command,
     list_variant_providers,
     load_variant,
     remove_variant,
     run_variant,
     scan_variants,
+    uninstall_workspace,
     update_variants,
+    workspace_managed_install_records,
 )
+from .workspace import workspace_root
 
 
 _SIMPLE_HANDLERS = {
@@ -100,12 +106,38 @@ def cmd_variant(args, variant_parser):
             tweak_options=tweak_options_from_args(args),
             mcp_ids=args.mcp,
         )
+        install_result = None
+        if args.install:
+            install_result = install_variant_command(result.variant)
         if args.json:
-            print_json(variant_result_payload(result))
+            payload = variant_result_payload(result)
+            if install_result is not None:
+                payload["install"] = install_result_payload(install_result)
+            print_json(payload)
         else:
             print(f"[+] Variant created: {result.variant.variant_id}")
             print(f"    binary: {result.binary_path}")
             print(f"    wrapper: {result.wrapper_path}")
+            if install_result is not None:
+                print(f"    installed: {install_result.path}")
+                if install_result.warning:
+                    print(f"    warning: {install_result.warning}")
+    elif sub == "install":
+        variant = load_variant(args.name)
+        result = install_variant_command(
+            variant,
+            alias=args.alias,
+            bin_dir=args.bin_dir,
+            yes=args.yes,
+        )
+        if args.json:
+            print_json(install_result_payload(result))
+        else:
+            print(f"[+] Installed command: {result.path}")
+            print(f"    target: {result.target}")
+            print(f"    status: {result.status}")
+            if result.warning:
+                print(f"    warning: {result.warning}")
     elif sub == "list":
         variants = scan_variants()
         if args.json:
@@ -162,6 +194,29 @@ def cmd_variant(args, variant_parser):
         variant_parser.print_help()
 
 
+def cmd_uninstall(args):
+    workspace = workspace_root()
+    planned = workspace_managed_install_records()
+    if not args.yes:
+        print("This will remove:")
+        for item in planned:
+            print(f"    symlink: {item.path} -> {item.target}")
+        print(f"    workspace: {workspace}")
+        response = input("Type uninstall to continue: ")
+        if response != "uninstall":
+            print("[*] Uninstall cancelled.")
+            return
+    result = uninstall_workspace(yes=True)
+    if args.json:
+        print_json(uninstall_result_payload(result))
+    else:
+        print(f"[+] Removed workspace: {result.workspace}" if result.removed_workspace else f"[*] Workspace already absent: {result.workspace}")
+        for item in result.removed_symlinks:
+            print(f"[+] Removed symlink: {item.path}")
+        for item in result.skipped_symlinks:
+            print(f"[*] Skipped symlink: {item.path} ({item.reason})")
+
+
 def main():
     parser, patch_parser, variant_parser = build_parser()
 
@@ -187,6 +242,8 @@ def main():
             _handlers.cmd_patch(args, patch_parser)
         elif args.command == "variant":
             cmd_variant(args, variant_parser)
+        elif args.command == "uninstall":
+            cmd_uninstall(args)
         else:
             parser.print_help()
     except Exception as exc:

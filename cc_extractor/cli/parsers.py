@@ -56,6 +56,10 @@ def build_parser():
     pk.add_argument("base_binary", help="Original binary to use as template")
     pk.add_argument("out_binary", help="Path for output binary")
 
+    uninstall = subparsers.add_parser("uninstall", help="Remove managed symlinks and the current workspace")
+    uninstall.add_argument("--yes", action="store_true", help="Confirm uninstall without prompting")
+    uninstall.add_argument("--json", action="store_true", help="Print machine-readable JSON")
+
     patch = subparsers.add_parser("patch", help="Create or apply text patches to extracted bundles")
     patch_subparsers = patch.add_subparsers(dest="patch_command", help="Patch commands")
 
@@ -103,11 +107,19 @@ def _build_variant_subcommands(subparsers):
     create.add_argument("--api-key", help="Provider credential to store locally, requires --store-secret")
     create.add_argument("--store-secret", action="store_true", help="Store --api-key in variant-local secrets.env")
     create.add_argument("--bin-dir", help="Wrapper output directory")
+    create.add_argument("--install", action="store_true", help="Install the setup command into a home PATH directory")
     create.add_argument("--force", action="store_true", help="Overwrite an existing variant")
     create.add_argument("--extra-env", action="append", help="Additional KEY=VALUE env entry, repeatable")
     create.add_argument("--json", action="store_true", help="Print machine-readable JSON")
     add_variant_model_args(create)
     add_variant_tweak_option_args(create)
+
+    install = subparsers.add_parser("install", help="Install a setup command into a home PATH directory")
+    install.add_argument("name", help="Variant name or id")
+    install.add_argument("--bin-dir", help="Directory where the command symlink should be created")
+    install.add_argument("--alias", help="Command name to install, defaults to the setup id")
+    install.add_argument("--yes", action="store_true", help="Create fallback install directory if needed")
+    install.add_argument("--json", action="store_true", help="Print machine-readable JSON")
 
     list_cmd = subparsers.add_parser("list", help="List variants")
     list_cmd.add_argument("--json", action="store_true", help="Print machine-readable JSON")

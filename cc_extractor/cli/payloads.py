@@ -39,6 +39,35 @@ def variant_result_payload(result):
     return payload
 
 
+def install_result_payload(result):
+    return {
+        "alias": result.alias,
+        "path": str(result.path),
+        "target": str(result.target),
+        "status": result.status,
+        "onPath": result.on_path,
+        "warning": result.warning,
+    }
+
+
+def symlink_removal_payload(item):
+    return {
+        "path": item.path,
+        "target": item.target,
+        "status": item.status,
+        "reason": item.reason,
+    }
+
+
+def uninstall_result_payload(result):
+    return {
+        "workspace": str(result.workspace),
+        "removedWorkspace": result.removed_workspace,
+        "removedSymlinks": [symlink_removal_payload(item) for item in result.removed_symlinks],
+        "skippedSymlinks": [symlink_removal_payload(item) for item in result.skipped_symlinks],
+    }
+
+
 def model_overrides_from_args(args):
     return {
         "sonnet": getattr(args, "model_sonnet", None),
