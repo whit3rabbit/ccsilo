@@ -3,6 +3,7 @@
 import os
 
 from ..variants.model import default_bin_dir, variant_id_from_name
+from ..variants.install import default_install_dir
 from ..workspace import short_sha, workspace_root
 from ._const import DASHBOARD_STEPS, TABS, TAB_MODES, VARIANT_MODEL_FIELDS, VARIANT_STEPS
 from .options import (
@@ -188,6 +189,7 @@ def create_preview_labels(state):
         f"Provider: {provider.get('key') or '?'}",
         f"Claude Code: {state.variant_claude_version or 'latest'}",
         f"Command: {command}",
+        *_create_preview_install_lines(state, setup_id),
         *_create_preview_endpoint_lines(state, provider),
         f"Credential env: {_create_preview_credential(state, provider)}",
         f"API key storage: {_create_preview_api_key_storage(state)}",
@@ -199,6 +201,16 @@ def create_preview_labels(state):
         "",
         "Proceed? y/N",
     ]
+
+def _create_preview_install_lines(state, setup_id):
+    if not state.variant_install_command:
+        return ["Install command: no (press I to toggle)"]
+    if setup_id == "(invalid)":
+        return ["Install command: yes (unavailable until setup id is valid)"]
+    install_dir = default_install_dir(allow_create=True)
+    if install_dir is None:
+        return ["Install command: yes (no install directory found)"]
+    return [f"Install command: yes ({install_dir / setup_id})"]
 
 def _create_preview_endpoint_lines(state, provider):
     if provider.get("authMode") == "none":
@@ -345,6 +357,7 @@ def help_labels():
         "",
         "Setup creation",
         "Space: toggle MCP servers or tweaks",
+        "I: toggle command install on preview",
         "V: view tweak details",
         "",
         "Tweaks editor",
@@ -627,7 +640,7 @@ def context_hint(state):
     if state.mode == "upgrade-preview":
         return "Press y to proceed or n to cancel."
     if state.mode == "create-preview":
-        return "Press y to create this setup or n to return to review."
+        return "Press y to create this setup, i toggles PATH install, or n to return to review."
     if state.mode in {"tweaks-edit", "tweak-editor"} and state.tweak_apply_preview:
         return "Review the diff, then press y to rebuild or n to cancel."
     if state.mode in {"tweaks-edit", "tweak-editor"} and getattr(state, "tweak_search_active", False):
@@ -702,7 +715,7 @@ def key_line(state):
     if state.mode == "upgrade-preview":
         return "Keys: Y proceed | N/Esc cancel"
     if state.mode == "create-preview":
-        return "Keys: Y create | N/Esc cancel"
+        return "Keys: Y create | I install | N/Esc cancel"
     if state.mode == "health-result":
         return "Keys: Q quit | Esc back | Enter manage | C copy logs | ? more"
     if state.mode == "logs":

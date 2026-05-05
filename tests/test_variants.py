@@ -13,15 +13,20 @@ from cc_extractor.variants import (
     VariantBuildError,
     apply_variant,
     create_variant,
+    default_install_dir,
+    discover_install_candidates,
     doctor_variant,
+    install_variant_command,
     list_variant_providers,
     load_variant,
     remove_variant,
     run_variant,
     scan_variants,
+    uninstall_workspace,
     update_variants,
     update_variant_models,
 )
+from cc_extractor.variants.model import Variant
 from cc_extractor.variants.builder import patch_entry_js
 from cc_extractor.variants.wrapper import write_wrapper
 from cc_extractor.variants.wrapper import write_secrets
@@ -146,6 +151,93 @@ def wrapper_manifest(tmp_path, env):
             "binary": str(binary),
         },
     }
+
+
+def install_test_variant(root, wrapper):
+    variant_dir = root / "variants" / "demo"
+    variant_dir.mkdir(parents=True, exist_ok=True)
+    wrapper.parent.mkdir(parents=True, exist_ok=True)
+    wrapper.write_text("#!/bin/sh\n", encoding="utf-8")
+    wrapper.chmod(0o755)
+    manifest = {
+        "schemaVersion": 1,
+        "id": "demo",
+        "name": "Demo",
+        "provider": {"key": "mirror"},
+        "source": {"version": "1.2.3"},
+        "paths": {"wrapper": str(wrapper)},
+        "createdAt": "2026-01-01T00:00:00Z",
+        "updatedAt": "2026-01-01T00:00:00Z",
+    }
+    (variant_dir / "variant.json").write_text(json.dumps(manifest), encoding="utf-8")
+    return Variant("demo", "Demo", variant_dir, manifest)
+
+
+def test_install_candidate_detection_prefers_common_home_bins(tmp_path):
+    home = tmp_path / "home"
+    local_bin = home / ".local" / "bin"
+    home_bin = home / "bin"
+    tools_bin = home / "tools" / "bin"
+    for path in (tools_bin, home_bin, local_bin):
+        path.mkdir(parents=True)
+    env = {
+        "HOME": str(home),
+        "PATH": os.pathsep.join([str(tools_bin), str(home_bin), "/usr/bin"]),
+    }
+
+    candidates = discover_install_candidates(env=env)
+
+    assert [candidate.path for candidate in candidates] == [local_bin, home_bin, tools_bin]
+    assert [candidate.on_path for candidate in candidates] == [False, True, True]
+    assert default_install_dir(env=env) == local_bin
+
+
+@pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlink not supported")
+def test_install_variant_command_records_symlink_and_refuses_unmanaged_target(tmp_path):
+    root = tmp_path / ".cc-extractor"
+    install_dir = tmp_path / "home" / ".local" / "bin"
+    install_dir.mkdir(parents=True)
+    variant = install_test_variant(root, root / "bin" / "demo")
+
+    result = install_variant_command(variant, bin_dir=install_dir)
+
+    assert result.status == "installed"
+    assert result.path == install_dir / "demo"
+    assert result.path.is_symlink()
+    assert result.path.resolve() == (root / "bin" / "demo").resolve()
+    manifest = json.loads((variant.path / "variant.json").read_text(encoding="utf-8"))
+    assert manifest["installs"][0]["alias"] == "demo"
+    assert manifest["installs"][0]["managedBy"] == "cc-extractor"
+
+    second = install_variant_command(variant, bin_dir=install_dir)
+    assert second.status == "already-installed"
+
+    result.path.unlink()
+    other = tmp_path / "other-wrapper"
+    other.write_text("#!/bin/sh\n", encoding="utf-8")
+    os.symlink(other, result.path)
+    with pytest.raises(ValueError, match="pointing elsewhere"):
+        install_variant_command(variant, bin_dir=install_dir)
+
+
+@pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlink not supported")
+def test_uninstall_workspace_removes_managed_symlinks_and_workspace(tmp_path):
+    root = tmp_path / ".cc-extractor"
+    install_dir = tmp_path / "home" / ".local" / "bin"
+    install_dir.mkdir(parents=True)
+    variant = install_test_variant(root, root / "bin" / "demo")
+    result = install_variant_command(variant, bin_dir=install_dir)
+
+    with pytest.raises(ValueError, match="--yes"):
+        uninstall_workspace(root=root)
+
+    uninstall_result = uninstall_workspace(root=root, yes=True)
+
+    assert uninstall_result.removed_workspace is True
+    assert not root.exists()
+    assert not result.path.exists()
+    assert not result.path.is_symlink()
+    assert uninstall_result.removed_symlinks[0].path == str(result.path)
 
 
 def test_create_variant_writes_isolated_layout_wrapper_and_metadata(tmp_path):
@@ -1079,6 +1171,7 @@ def test_patch_entry_js_rejects_tampered_entrypoint(tmp_path):
         )
 
 
+@pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlink not supported")
 def test_remove_variant_requires_confirmation_and_removes_wrapper(tmp_path):
     root = tmp_path / ".cc-extractor"
     artifact = write_source_artifact(tmp_path)
@@ -1094,8 +1187,15 @@ def test_remove_variant_requires_confirmation_and_removes_wrapper(tmp_path):
     with pytest.raises(ValueError, match="--yes"):
         remove_variant("zai-test", root=root)
 
+    install_dir = tmp_path / "home" / ".local" / "bin"
+    install_dir.mkdir(parents=True)
+    install_result = install_variant_command(result.variant, bin_dir=install_dir)
+    assert install_result.path.is_symlink()
+
     assert remove_variant("zai-test", yes=True, root=root) is True
     assert not result.wrapper_path.exists()
+    assert not install_result.path.exists()
+    assert not install_result.path.is_symlink()
     assert scan_variants(root) == []
 
 
@@ -1217,10 +1317,35 @@ def test_variant_cli_create_show_doctor_and_remove(monkeypatch, tmp_path, capsys
         calls.append(kwargs)
         return FakeResult()
 
+    install_calls = []
+
+    def fake_install_variant_command(variant, alias=None, bin_dir=None, yes=False):
+        install_calls.append((variant, alias, bin_dir, yes))
+        return SimpleNamespace(
+            alias=alias or "fake",
+            path=tmp_path / "home" / "bin" / (alias or "fake"),
+            target=tmp_path / "fake",
+            status="installed",
+            on_path=True,
+            warning="",
+        )
+
     monkeypatch.setattr(cli, "create_variant", fake_create_variant)
     monkeypatch.setattr(cli, "load_variant", lambda name: FakeVariant())
     monkeypatch.setattr(cli, "doctor_variant", lambda name=None, all_variants=False: [{"id": "fake", "name": "Fake", "ok": True, "checks": []}])
+    monkeypatch.setattr(cli, "install_variant_command", fake_install_variant_command)
     monkeypatch.setattr(cli, "remove_variant", lambda name, yes=False: yes)
+    monkeypatch.setattr(cli, "workspace_managed_install_records", lambda: [])
+    monkeypatch.setattr(
+        cli,
+        "uninstall_workspace",
+        lambda yes=False: SimpleNamespace(
+            workspace=tmp_path / ".cc-extractor",
+            removed_workspace=True,
+            removed_symlinks=[],
+            skipped_symlinks=[],
+        ),
+    )
 
     old_argv = sys.argv
     try:
@@ -1256,6 +1381,39 @@ def test_variant_cli_create_show_doctor_and_remove(monkeypatch, tmp_path, capsys
         assert calls[0]["tweaks"] == ["themes"]
         assert calls[0]["mcp_ids"] == ["github"]
 
+        sys.argv = [
+            "cc-extractor",
+            "variant",
+            "create",
+            "--name",
+            "Fake",
+            "--provider",
+            "zai",
+            "--install",
+            "--json",
+        ]
+        cli.main()
+        installed_create_payload = json.loads(capsys.readouterr().out)
+        assert installed_create_payload["install"]["path"].endswith("/home/bin/fake")
+        assert install_calls[-1][1:] == (None, None, False)
+
+        sys.argv = [
+            "cc-extractor",
+            "variant",
+            "install",
+            "Fake",
+            "--bin-dir",
+            str(tmp_path / "home" / "bin"),
+            "--alias",
+            "cc-fake",
+            "--yes",
+            "--json",
+        ]
+        cli.main()
+        install_payload = json.loads(capsys.readouterr().out)
+        assert install_payload["alias"] == "cc-fake"
+        assert install_calls[-1][1:] == ("cc-fake", str(tmp_path / "home" / "bin"), True)
+
         sys.argv = ["cc-extractor", "variant", "show", "fake", "--json"]
         cli.main()
         assert json.loads(capsys.readouterr().out)["id"] == "fake"
@@ -1267,5 +1425,10 @@ def test_variant_cli_create_show_doctor_and_remove(monkeypatch, tmp_path, capsys
         sys.argv = ["cc-extractor", "variant", "remove", "fake", "--yes"]
         cli.main()
         assert "Removed variant" in capsys.readouterr().out
+
+        sys.argv = ["cc-extractor", "uninstall", "--yes", "--json"]
+        cli.main()
+        uninstall_payload = json.loads(capsys.readouterr().out)
+        assert uninstall_payload["removedWorkspace"] is True
     finally:
         sys.argv = old_argv

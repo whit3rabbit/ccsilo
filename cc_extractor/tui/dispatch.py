@@ -150,6 +150,10 @@ def _handle_char_key(state, char):
                 f"Building custom Claude setup {name}",
                 _tui()._busy_create_action,
             )
+        elif lowered == "i":
+            state.variant_install_command = not state.variant_install_command
+            state.variant_install_choice_initialized = True
+            state.message = "Install command: yes" if state.variant_install_command else "Install command: no"
         elif lowered == "n":
             _tui()._go_back(state)
         return True
@@ -472,6 +476,9 @@ def _open_variant_create_preview(state):
         return
     if not _tui()._validate_variant_secret(state):
         return
+    if not state.variant_install_choice_initialized:
+        state.variant_install_command = _tui().default_install_dir() is not None
+        state.variant_install_choice_initialized = True
     state.last_action_summary = []
     _tui()._set_mode(state, "create-preview")
 

@@ -62,6 +62,8 @@ class TuiState:
     variant_store_secret: bool = False
     variant_model_overrides: Dict[str, str] = field(default_factory=dict)
     variant_model_choices: List[str] = field(default_factory=list)
+    variant_install_command: bool = False
+    variant_install_choice_initialized: bool = False
     selected_variant_mcp_ids: List[str] = field(default_factory=list)
     selected_variant_tweaks: List[str] = field(default_factory=lambda: list(DEFAULT_TWEAK_IDS))
     selected_setup_id: Optional[str] = None

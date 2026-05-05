@@ -18,7 +18,7 @@ import sys
 __all__ = [
     "TUI_THEMES", "TuiTheme",
     "apply_dashboard_tweaks_to_native", "apply_patch_packages_to_native", "apply_variant",
-    "create_variant", "doctor_variant", "load_variant", "remove_variant", "update_variant_models", "update_variants",
+    "create_variant", "default_install_dir", "doctor_variant", "install_variant_command", "load_variant", "remove_variant", "update_variant_models", "update_variants",
     "download_binary", "download_versions", "extract_all",
     "load_download_index", "list_variant_providers", "parse_bun_binary",
     "provider_default_variant_name", "refresh_download_index", "scan_variants",
@@ -87,7 +87,9 @@ from ..variant_tweaks import CURATED_TWEAK_IDS, DASHBOARD_TWEAK_IDS, DEFAULT_TWE
 from ..variants import (
     apply_variant,
     create_variant,
+    default_install_dir,
     doctor_variant,
+    install_variant_command,
     list_variant_providers,
     load_variant,
     remove_variant,

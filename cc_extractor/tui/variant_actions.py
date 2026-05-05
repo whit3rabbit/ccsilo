@@ -27,6 +27,8 @@ def reset_variant(state):
     state.variant_store_secret = False
     state.variant_model_overrides = {}
     state.variant_model_choices = []
+    state.variant_install_command = False
+    state.variant_install_choice_initialized = False
     state.selected_variant_mcp_ids = []
     state.selected_variant_tweaks = list(DEFAULT_TWEAK_IDS)
     state.tweak_filter = "recommended"
@@ -40,6 +42,8 @@ def set_variant_provider_defaults(state, provider):
     state.variant_store_secret = False
     state.variant_model_overrides = {}
     state.variant_model_choices = []
+    state.variant_install_command = False
+    state.variant_install_choice_initialized = False
     state.selected_variant_mcp_ids = []
     provider_key = str(provider.get("key") or "") if provider else ""
     state.selected_variant_tweaks = default_tweak_ids_for_provider(provider_key)

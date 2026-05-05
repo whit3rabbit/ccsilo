@@ -1218,6 +1218,104 @@ def test_variants_create_preview_redacts_stored_key_and_create_kwargs(monkeypatc
     assert calls[0]["store_secret"] is True
 
 
+def test_variants_create_preview_toggles_install_command(monkeypatch, tmp_path):
+    install_dir = tmp_path / "home" / ".local" / "bin"
+    monkeypatch.setattr(tui, "default_install_dir", lambda allow_create=False: install_dir)
+    provider = {
+        "key": "mirror",
+        "label": "Mirror Claude",
+        "authMode": "none",
+        "models": {},
+        "defaultVariantName": "mirror",
+    }
+    state = tui.TuiState(
+        mode="variants",
+        variant_step=6,
+        variant_name="mirror",
+        variant_providers=[provider],
+    )
+
+    tui._open_variant_create_preview(state)
+
+    assert state.mode == "create-preview"
+    assert state.variant_install_command is True
+    assert "Install command: yes" in tui._screen_text(state)
+
+    tui._handle_char_key(state, "i")
+
+    assert state.variant_install_command is False
+    assert "Install command: no" in tui._screen_text(state)
+
+
+def test_run_variant_create_installs_selected_command(monkeypatch, tmp_path):
+    calls = []
+    install_calls = []
+
+    class FakeVariant:
+        variant_id = "mirror"
+        name = "mirror"
+        path = tmp_path / ".cc-extractor" / "variants" / "mirror"
+        manifest = {
+            "schemaVersion": 1,
+            "id": "mirror",
+            "name": "mirror",
+            "provider": {"key": "mirror"},
+            "source": {"version": "latest"},
+            "paths": {"wrapper": str(tmp_path / ".cc-extractor" / "bin" / "mirror")},
+            "createdAt": "2026-01-01T00:00:00Z",
+            "updatedAt": "2026-01-01T00:00:00Z",
+        }
+
+    class Result:
+        variant = FakeVariant()
+        wrapper_path = tmp_path / ".cc-extractor" / "bin" / "mirror"
+        stages = []
+
+    class InstallResult:
+        alias = "mirror"
+        path = tmp_path / "home" / ".local" / "bin" / "mirror"
+        target = tmp_path / ".cc-extractor" / "bin" / "mirror"
+        status = "installed"
+        on_path = True
+        warning = ""
+
+    def fake_create_variant(**kwargs):
+        calls.append(kwargs)
+        return Result()
+
+    def fake_install(variant, yes=False):
+        install_calls.append((variant.variant_id, yes))
+        return InstallResult()
+
+    monkeypatch.setattr(tui, "create_variant", fake_create_variant)
+    monkeypatch.setattr(tui, "install_variant_command", fake_install)
+    monkeypatch.setattr(tui, "doctor_variant", lambda name: [{"id": name, "ok": True, "checks": []}])
+    monkeypatch.setattr(tui, "_refresh_state", lambda state_arg: True)
+    provider = {
+        "key": "mirror",
+        "label": "Mirror Claude",
+        "description": "Pure Claude",
+        "authMode": "none",
+        "credentialEnv": "",
+        "models": {},
+        "defaultVariantName": "mirror",
+    }
+    state = tui.TuiState(
+        mode="create-preview",
+        variant_name="mirror",
+        variant_providers=[provider],
+        variant_install_command=True,
+    )
+
+    tui._run_variant_create(state)
+
+    assert calls[0]["provider_key"] == "mirror"
+    assert install_calls == [("mirror", True)]
+    assert state.mode == "health-result"
+    assert "Installed command: " in "\n".join(state.last_action_summary)
+    assert str(InstallResult.path) in "\n".join(state.last_action_summary)
+
+
 def test_variants_model_refresh_applies_selected_model(monkeypatch):
     provider = {
         "key": "lmstudio",
@@ -2085,12 +2183,25 @@ def test_delete_requires_typed_setup_id(monkeypatch, tmp_path):
     variant.path.mkdir()
     wrapper = tmp_path / "cc-deepseek"
     wrapper.write_text("#!/bin/sh\n", encoding="utf-8")
+    installed = tmp_path / "install-bin" / "deepseek-main"
+    installed.parent.mkdir()
+    installed.write_text("#!/bin/sh\n", encoding="utf-8")
     variant.manifest["paths"]["wrapper"] = str(wrapper)
+    variant.manifest["installs"] = [
+        {
+            "managedBy": "cc-extractor",
+            "alias": "deepseek-main",
+            "path": str(installed),
+            "target": str(wrapper),
+            "createdAt": "2026-01-01T00:00:00Z",
+        }
+    ]
     calls = []
 
     def fake_remove(name, *, yes=False):
         calls.append((name, yes))
         wrapper.unlink()
+        installed.unlink()
         variant.path.rmdir()
         return True
 
@@ -2116,6 +2227,7 @@ def test_delete_requires_typed_setup_id(monkeypatch, tmp_path):
     assert calls == [("deepseek-main", True)]
     assert state.mode == "setup-manager"
     assert "Shared downloads untouched: yes" in "\n".join(state.last_action_summary)
+    assert "Installed commands removed: yes" in "\n".join(state.last_action_summary)
 
 
 def test_delete_failure_summary_uses_failure_wording(monkeypatch, tmp_path):

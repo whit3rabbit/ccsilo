@@ -34,6 +34,7 @@ from .variants import (
     scan_variants,
     uninstall_workspace,
     update_variants,
+    variant_id_from_name,
     workspace_managed_install_records,
 )
 from .workspace import workspace_root
@@ -123,7 +124,7 @@ def cmd_variant(args, variant_parser):
                 if install_result.warning:
                     print(f"    warning: {install_result.warning}")
     elif sub == "install":
-        variant = load_variant(args.name)
+        variant = load_variant(variant_id_from_name(args.name))
         result = install_variant_command(
             variant,
             alias=args.alias,

@@ -35,11 +35,12 @@ update_variant_models = _proxy('update_variant_models')
 provider_default_variant_name = _proxy('provider_default_variant_name')
 variant_id_from_name = _proxy('variant_id_from_name')
 create_variant = _proxy('create_variant')
+install_variant_command = _proxy('install_variant_command')
 _models_pending_diff = _proxy('_models_pending_diff')
 download_versions = _proxy('download_versions')
 refresh_download_index = _proxy('refresh_download_index')
 
-__all__ = ['_refresh_state', '_refresh_startup_download_index', '_route_startup', '_load_saved_setup_list_preferences', '_save_setup_list_preferences', '_log_lines', '_stage_log_lines', '_build_stage_lines', '_exception_stage_lines', '_result_stage_lines', '_append_backend_stages', '_stage_lines_from_log', '_copy_text_to_clipboard', '_copy_setup_command', '_copy_setup_config', '_queue_setup_run', '_clear_terminal_for_external_command', '_run_pending_setup', '_copy_logs', '_open_logs', '_open_help', '_health_status_from_report', '_yes_no', '_path_snapshot', '_path_changed', '_expected_setup_snapshot', '_variant_setup_snapshot', '_create_failure_summary', '_target_version_for_summary', '_has_cached_native_artifact', '_base_download_status', '_post_variant_snapshot', '_command_replaced_status', '_active_setup_status', '_run_setup_health', '_run_setup_upgrade', '_inspect_delete_artifact', '_run_inspect_delete', '_run_setup_delete', '_begin_tweak_apply_preview', '_run_tweak_apply', '_run_dashboard_build', '_refresh_variant_models', '_refresh_models_editor_models', '_models_editor_variant', '_models_editor_provider', '_models_editor_endpoint', '_models_editor_api_key', '_apply_models_choice', '_apply_models', '_discard_models', '_variant_model_discovery_api_key', '_run_variant_create']
+__all__ = ['_refresh_state', '_refresh_startup_download_index', '_route_startup', '_load_saved_setup_list_preferences', '_save_setup_list_preferences', '_log_lines', '_stage_log_lines', '_build_stage_lines', '_exception_stage_lines', '_result_stage_lines', '_append_backend_stages', '_stage_lines_from_log', '_copy_text_to_clipboard', '_copy_setup_command', '_copy_setup_config', '_queue_setup_run', '_clear_terminal_for_external_command', '_run_pending_setup', '_copy_logs', '_open_logs', '_open_help', '_health_status_from_report', '_yes_no', '_path_snapshot', '_path_changed', '_expected_setup_snapshot', '_variant_setup_snapshot', '_create_failure_summary', '_target_version_for_summary', '_has_cached_native_artifact', '_base_download_status', '_post_variant_snapshot', '_command_replaced_status', '_active_setup_status', '_managed_install_paths', '_run_setup_health', '_run_setup_upgrade', '_inspect_delete_artifact', '_run_inspect_delete', '_run_setup_delete', '_begin_tweak_apply_preview', '_run_tweak_apply', '_run_dashboard_build', '_refresh_variant_models', '_refresh_models_editor_models', '_models_editor_variant', '_models_editor_provider', '_models_editor_endpoint', '_models_editor_api_key', '_apply_models_choice', '_apply_models', '_discard_models', '_variant_model_discovery_api_key', '_run_variant_create']
 
 def _refresh_state(state):
     try:
@@ -340,6 +341,15 @@ def _active_setup_status(snapshot):
     binary_exists = snapshot["binary"]["exists"]
     return "yes" if wrapper_exists and binary_exists else "no"
 
+
+def _managed_install_paths(variant):
+    paths = []
+    for item in ((variant.manifest or {}).get("installs") or []):
+        if isinstance(item, dict) and item.get("managedBy") == "cc-extractor" and item.get("path"):
+            paths.append(Path(str(item["path"])))
+    return paths
+
+
 def _run_setup_health(state, setup_id, *, show_result=False):
     try:
         reports, output = _run_quiet(doctor_variant, setup_id)
@@ -496,18 +506,21 @@ def _run_setup_delete(state):
     setup_dir = variant.path
     wrapper_text = paths.get("wrapper") or ""
     wrapper_path = Path(wrapper_text) if wrapper_text else None
+    managed_install_paths = _managed_install_paths(variant)
     delete_failed = False
     removed = False
     try:
         removed, output = _run_quiet(remove_variant, setup_id, yes=True)
         setup_removed = not setup_dir.exists()
         command_removed = True if wrapper_path is None else not wrapper_path.exists()
+        managed_commands_removed = all(not path.exists() and not path.is_symlink() for path in managed_install_paths)
         state.last_action_log = _stage_log_lines("Delete", output)
         state.message = f"Deleted setup {setup_id}." if removed else f"Setup {setup_id} was not found."
     except Exception as exc:
         delete_failed = True
         setup_removed = not setup_dir.exists()
         command_removed = True if wrapper_path is None else not wrapper_path.exists()
+        managed_commands_removed = all(not path.exists() and not path.is_symlink() for path in managed_install_paths)
         state.last_action_log = _stage_log_lines("Delete failure", str(exc))
         state.message = f"Delete failed: {exc}"
     title = f"Deleted setup: {setup_id}"
@@ -519,6 +532,7 @@ def _run_setup_delete(state):
         title,
         f"Setup directory removed: {'yes' if setup_removed else 'no'}",
         f"Command removed: {'yes' if command_removed else 'no'}",
+        f"Installed commands removed: {_install_removed_summary(managed_install_paths, managed_commands_removed)}",
         "Shared downloads untouched: yes",
         "Next: fix the reported issue, refresh setup list, or retry delete.",
     ]
@@ -531,6 +545,12 @@ def _run_setup_delete(state):
     message = state.message
     _tui()._set_mode(state, "setup-manager")
     state.message = message
+
+
+def _install_removed_summary(paths, removed):
+    if not paths:
+        return "none"
+    return "yes" if removed else "no"
 
 def _begin_tweak_apply_preview(state):
     if list(state.tweaks_pending) == list(state.tweaks_baseline):
@@ -803,30 +823,51 @@ def _run_variant_create(state):
         setup_id = getattr(getattr(result, "variant", None), "variant_id", None) or variant_id_from_name(name)
         wrapper_path = getattr(result, "wrapper_path", None)
         config_path = workspace_root() / "variants" / setup_id / "variant.json"
+        install_result = None
+        install_output = ""
+        result_variant = getattr(result, "variant", None)
+        if state.variant_install_command and result_variant is not None:
+            install_result, install_output = _run_quiet(install_variant_command, result_variant, yes=True)
         state.selected_setup_id = setup_id
         health = _run_setup_health(state, setup_id, show_result=False)
-        state.last_action_log = _stage_log_lines(
-            "Create setup",
-            output,
-            "Build stages",
-            "\n".join(stage_lines),
-            "Health",
-            health.get("output", ""),
-        )
-        state.last_action_summary = _append_backend_stages([
+        log_sections = [
+            ("Create setup", output),
+            ("Build stages", "\n".join(stage_lines)),
+        ]
+        if install_result is not None:
+            log_sections.append(("Install command", install_output))
+        log_sections.append(("Health", health.get("output", "")))
+        run_command = Path(wrapper_path).name if wrapper_path else setup_id
+        install_summary = "no"
+        install_warning = ""
+        if install_result is not None:
+            run_command = install_result.alias
+            install_summary = str(install_result.path)
+            install_warning = install_result.warning
+        summary = [
             "Setup created.",
             "",
             "Run it with:",
-            f"  {Path(wrapper_path).name if wrapper_path else setup_id}",
+            f"  {run_command}",
             "",
             "Command:",
             f"  {wrapper_path or '(unknown)'}",
+            "",
+            f"Installed command: {install_summary}",
+        ]
+        if install_warning:
+            summary.append(f"Install warning: {install_warning}")
+        summary.extend([
             "",
             "Config:",
             f"  {config_path}",
             "",
             f"Health: {health.get('status', 'unknown')}",
-        ], stage_lines)
+        ])
+        state.last_action_log = _stage_log_lines(
+            *log_sections,
+        )
+        state.last_action_summary = _append_backend_stages(summary, stage_lines)
         state.message = f"Setup created: {wrapper_path or setup_id}"
         _tui()._reset_variant(state)
         message = state.message
