@@ -36,6 +36,10 @@ jobs:
         run: |
           .venv/bin/python tools/extract_prompt_versions.py --since-existing-latest
 
+      - name: Check patch compatibility
+        run: |
+          .venv/bin/python tools/check_patch_releases.py --since-existing-latest
+
       - name: Apply suggested prompt metadata
         run: |
           mkdir -p tmp/prompt-metadata-candidates
@@ -56,13 +60,14 @@ jobs:
             echo "No changed prompt catalogs need suggested metadata."
           fi
 
-      - name: Validate prompt tooling
+      - name: Validate prompt and patch tooling
         run: |
           .venv/bin/python -m pytest -q \
             tests/test_prompt_version_extraction.py \
-            tests/test_suggest_prompt_metadata.py
+            tests/test_suggest_prompt_metadata.py \
+            tests/test_patch_release_check.py
 
-      - name: Commit prompt catalog updates
+      - name: Commit prompt catalog and patch compatibility updates
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -71,10 +76,16 @@ jobs:
             git add -- "$path"
           done < <(find prompts -maxdepth 1 -type f -name '*.json' -print0)
 
+          if [ -d reports/patch-compat ]; then
+            while IFS= read -r -d '' path; do
+              git add -- "$path"
+            done < <(find reports/patch-compat -maxdepth 1 -type f -name '*.json' -print0)
+          fi
+
           if git diff --cached --quiet; then
-            echo "No prompt catalog changes to commit."
+            echo "No prompt catalog or patch compatibility changes to commit."
             exit 0
           fi
 
-          git commit -m "Update prompt catalogs"
+          git commit -m "Update prompt catalogs and patch reports"
           git push

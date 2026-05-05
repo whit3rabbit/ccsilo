@@ -38,6 +38,60 @@ minus dashboard exclusions and filtered against `_registry.REGISTRY`.
 | `on_miss` | "fatal" \| "skip" \| "warn" | What happens if anchor not found |
 | `apply` | callable | `(js, ctx) -> PatchOutcome` |
 
+## Version support policy
+
+`versions_supported` and `versions_tested` are deliberately different:
+
+- `versions_supported` is the broad range where the patch is allowed to run.
+- `versions_tested` is the concrete release coverage proven by real fixture tests.
+
+Do not use an open-ended minor range such as `>=2.1.0,<2.2` in
+`versions_tested` unless every future `2.1.x` release should be treated as
+already verified. That is usually wrong for regex anchors. Prefer a pinned upper
+bound, for example `>=2.1.0,<=2.1.122`, and widen it only after testing against
+the new release.
+
+`DEFAULT_VERSION_RANGES` is intentionally pinned to the latest release proven by
+the checked-in seed index. If a live or manually refreshed download index finds a
+newer Claude Code release, patch application still runs when the version is in
+`versions_supported`, but it emits an untested-version warning. Treat that
+warning as feedback that the patch needs validation before release.
+
+When an anchor is missing, include a useful `PatchOutcome.notes` entry:
+
+```python
+return PatchOutcome(js=js, status="missed", notes=("missing token limits",))
+```
+
+Fatal and warning misses surface those notes to setup and variant workflows, so
+users can tell which sub-anchor failed. If upstream removed a sub-feature, either
+narrow `versions_tested` or explicitly skip that obsolete sub-anchor with a note.
+Do not return `applied` for a no-op.
+
+## Release compatibility reports
+
+Use the patch release checker to validate curated regex patches against newly
+released Claude Code binaries:
+
+```bash
+# Check releases newer than the newest existing report
+.venv/bin/python tools/check_patch_releases.py --since-existing-latest
+
+# Check the latest release only
+.venv/bin/python tools/check_patch_releases.py --latest
+
+# Check specific releases
+.venv/bin/python tools/check_patch_releases.py --versions 2.1.128
+```
+
+Reports are written to `reports/patch-compat/<version>.json`, with a run index at
+`reports/patch-compat/index.json`. Each report records per-patch status,
+supported/tested flags, warnings, notes, and failure details. A patch can apply
+successfully and still be marked untested when the release is outside
+`versions_tested`; treat that as a validation task before widening metadata.
+Patches outside `versions_supported` are reported as `unsupported`, but they do
+not fail the run because the metadata already says not to apply them.
+
 ## Test tiers
 
 - **L1 (anchor):** regex matches expected pattern. Run via `pytest tests/patches/`.

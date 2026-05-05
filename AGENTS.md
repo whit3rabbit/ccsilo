@@ -86,6 +86,31 @@ Rules:
 * Treat unnamed prompt entries as release blockers unless explicitly accepted. Use `--fail-on-unnamed` for release-prep runs.
 * Commit prompt JSON updates separately from unrelated patch or TUI changes.
 
+## Patch Compatibility Reports
+
+Patch compatibility reports live in `reports/patch-compat/<version>.json`, with
+the latest run index in `reports/patch-compat/index.json`.
+
+Preferred update commands:
+
+```bash
+# Check all released versions newer than the newest local patch report
+.venv/bin/python tools/check_patch_releases.py --since-existing-latest
+
+# Check the latest release only
+.venv/bin/python tools/check_patch_releases.py --latest
+
+# Regenerate known reports intentionally
+.venv/bin/python tools/check_patch_releases.py --versions <v1> <v2>
+```
+
+Rules:
+
+* Run `tools/check_patch_releases.py --since-existing-latest` with the daily prompt catalog update.
+* Treat failed patch reports as release blockers. `unsupported` means the patch is intentionally outside `versions_supported` and does not fail the run.
+* Treat untested warnings as validation work. Do not widen `versions_tested` until the report proves the patch against that concrete Claude Code version.
+* Patch compatibility reports may be committed with daily prompt catalog updates because both are release-tracking artifacts. Keep them separate from unrelated patch, TUI, or feature changes.
+
 ## Architecture
 
 ```text
@@ -240,7 +265,8 @@ Use this flow when adding a new tweak:
 
    * Return `PatchOutcome(js=new_js, status="applied")` when the patch changed JS.
    * Return `PatchOutcome(js=js, status="skipped")` when the patch is already present or intentionally inactive.
-   * Return `PatchOutcome(js=js, status="missed")` when the expected anchor cannot be found.
+   * Return `PatchOutcome(js=js, status="missed", notes=(...))` when the expected anchor cannot be found.
+     Include the missing sub-anchor in `notes`.
    * Make patches idempotent when possible by checking for a stable marker or already-patched shape.
    * Do not silently return `applied` when the output is identical.
    * Keep regex windows narrow enough to avoid unrelated minified code.
@@ -253,7 +279,8 @@ Use this flow when adding a new tweak:
    * `name`: short human-readable label.
    * `group`: one of `ui`, `thinking`, `prompts`, `tools`, or `system`.
    * `versions_supported`: broad compatible range, usually `>=2.0.0,<3`.
-   * `versions_tested`: use `DEFAULT_VERSION_RANGES` unless the patch has narrower proven coverage.
+   * `versions_tested`: concrete coverage proven by real fixture tests.
+     Use `DEFAULT_VERSION_RANGES` only when that pinned range has been proven, and widen only after testing the new Claude Code version.
    * `apply`: `_apply`.
    * `description`: one sentence explaining user-visible behavior.
    * `on_miss`: default is `fatal`; use `warn` only for optional/provider-dependent anchors.
@@ -272,6 +299,7 @@ Use this flow when adding a new tweak:
    * anchor/applies test with a representative JS fixture;
    * idempotency test if the patch injects code;
    * miss test that verifies `missed` or the configured `on_miss` behavior;
+   * user-facing detail test if the patch can miss multiple sub-anchors;
    * registry test that confirms the patch id is registered and grouped correctly;
    * version-range test that confirms every `versions_tested` range is inside `versions_supported`.
 
@@ -305,7 +333,7 @@ Patch test expectations:
 * Real download/patch/execute integration tests must be separately gated behind `CC_EXTRACTOR_RUN_REAL_BINARY_TEST=1`.
 * Expected environment-gated skips are not failures. Use `pytest -q -rs` to verify skip reasons.
 
-Before updating `versions_tested`, prove the patch against a concrete Claude Code version. Do not widen `versions_tested` just because `versions_supported` is broad.
+Before updating `versions_tested`, prove the patch against a concrete Claude Code version. Do not widen `versions_tested` just because `versions_supported` is broad. Avoid open-ended future minor ranges for regex anchors unless the future releases are intentionally treated as already verified.
 
 ## TUI Rendering Stability
 
