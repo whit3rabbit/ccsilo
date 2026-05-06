@@ -1990,3 +1990,273 @@ def test_variant_cli_update_passes_source_binary_args(monkeypatch, tmp_path, cap
     assert calls[0][1]["claude_version"] == "2.1.123"
     assert calls[0][1]["source_binary"] == str(tmp_path / "claude")
     assert calls[0][1]["source_platform"] == "linux-x64"
+
+
+def test_provider_shortcut_install_creates_missing_setup(monkeypatch, tmp_path, capsys):
+    from cc_extractor import __main__ as cli
+    import sys
+
+    calls = []
+
+    class FakeVariant:
+        variant_id = "zai"
+        name = "zai"
+        path = tmp_path / ".cc-extractor" / "variants" / "zai"
+        manifest = {
+            "schemaVersion": 1,
+            "id": "zai",
+            "name": "zai",
+            "provider": {"key": "zai", "label": "Zai Cloud"},
+            "source": {"version": "latest"},
+            "paths": {
+                "root": str(path),
+                "wrapper": str(tmp_path / ".cc-extractor" / "bin" / "zai"),
+                "configDir": str(path / "config"),
+            },
+            "credential": {"mode": "env", "source": "Z_AI_API_KEY", "targets": ["ANTHROPIC_API_KEY", "Z_AI_API_KEY"]},
+            "createdAt": "2026-01-01T00:00:00Z",
+            "updatedAt": "2026-01-01T00:00:00Z",
+        }
+
+    class FakeResult:
+        variant = FakeVariant()
+        binary_path = tmp_path / "claude"
+        wrapper_path = tmp_path / ".cc-extractor" / "bin" / "zai"
+        output_sha256 = "a" * 64
+        applied_tweaks = []
+        skipped_tweaks = []
+        missing_prompt_keys = []
+
+    def fake_create_variant(**kwargs):
+        calls.append(kwargs)
+        return FakeResult()
+
+    install_calls = []
+
+    def fake_install_variant_command(variant, alias=None, bin_dir=None, yes=False):
+        install_calls.append((variant.variant_id, alias, bin_dir, yes))
+        return SimpleNamespace(
+            alias=alias,
+            path=tmp_path / "home" / "bin" / alias,
+            target=Path(variant.manifest["paths"]["wrapper"]),
+            status="installed",
+            on_path=True,
+            warning="",
+        )
+
+    monkeypatch.setattr(cli, "load_variant", lambda name: (_ for _ in ()).throw(ValueError("missing")))
+    monkeypatch.setattr(cli, "scan_variants", lambda: [])
+    monkeypatch.setattr(cli, "create_variant", fake_create_variant)
+    monkeypatch.setattr(cli, "install_variant_command", fake_install_variant_command)
+
+    old_argv = sys.argv
+    sys.argv = ["cc-extractor", "--provider", "zai", "install", "--json"]
+    try:
+        cli.main()
+    finally:
+        sys.argv = old_argv
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["id"] == "zai"
+    assert payload["install"]["alias"] == "zai"
+    assert payload["nextSteps"]["command"] == "zai"
+    assert payload["nextSteps"]["credentialEnv"] == ["ANTHROPIC_API_KEY", "Z_AI_API_KEY"]
+    assert calls[0]["provider_key"] == "zai"
+    assert calls[0]["claude_version"] == "latest"
+    assert install_calls == [("zai", "zai", None, False)]
+
+
+def test_provider_shortcut_install_repairs_existing_setup(monkeypatch, tmp_path, capsys):
+    from cc_extractor import __main__ as cli
+    import sys
+
+    class FakeVariant:
+        variant_id = "zai"
+        name = "zai"
+        path = tmp_path / ".cc-extractor" / "variants" / "zai"
+        manifest = {
+            "schemaVersion": 1,
+            "id": "zai",
+            "name": "zai",
+            "provider": {"key": "zai", "label": "Zai Cloud"},
+            "source": {"version": "2.1.0"},
+            "paths": {"wrapper": str(tmp_path / ".cc-extractor" / "bin" / "zai")},
+            "createdAt": "2026-01-01T00:00:00Z",
+            "updatedAt": "2026-01-01T00:00:00Z",
+        }
+
+    create_calls = []
+    install_calls = []
+
+    monkeypatch.setattr(cli, "load_variant", lambda name: FakeVariant())
+    monkeypatch.setattr(cli, "create_variant", lambda **kwargs: create_calls.append(kwargs))
+    monkeypatch.setattr(
+        cli,
+        "install_variant_command",
+        lambda variant, alias=None, bin_dir=None, yes=False: install_calls.append((variant.variant_id, alias, bin_dir, yes))
+        or SimpleNamespace(
+            alias=alias,
+            path=tmp_path / "home" / "bin" / alias,
+            target=Path(variant.manifest["paths"]["wrapper"]),
+            status="already-installed",
+            on_path=False,
+            warning="Install directory is not on PATH: /tmp/bin. Add it to PATH to run the command by name.",
+        ),
+    )
+
+    old_argv = sys.argv
+    sys.argv = ["cc-extractor", "install", "--provider", "zai", "--bin-dir", str(tmp_path / "home" / "bin"), "--yes", "--json"]
+    try:
+        cli.main()
+    finally:
+        sys.argv = old_argv
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["install"]["status"] == "already-installed"
+    assert payload["nextSteps"]["warnings"]
+    assert create_calls == []
+    assert install_calls == [("zai", "zai", str(tmp_path / "home" / "bin"), True)]
+
+
+def test_provider_shortcut_update_defaults_latest_and_reinstalls(monkeypatch, tmp_path, capsys):
+    from cc_extractor import __main__ as cli
+    import sys
+
+    class FakeVariant:
+        variant_id = "zai"
+        name = "zai"
+        path = tmp_path / ".cc-extractor" / "variants" / "zai"
+        manifest = {
+            "schemaVersion": 1,
+            "id": "zai",
+            "name": "zai",
+            "provider": {"key": "zai", "label": "Zai Cloud"},
+            "source": {"version": "latest"},
+            "paths": {"wrapper": str(tmp_path / ".cc-extractor" / "bin" / "zai")},
+            "createdAt": "2026-01-01T00:00:00Z",
+            "updatedAt": "2026-01-01T00:00:00Z",
+        }
+
+    class FakeResult:
+        variant = FakeVariant()
+        binary_path = tmp_path / "claude"
+        wrapper_path = tmp_path / ".cc-extractor" / "bin" / "zai"
+        output_sha256 = "a" * 64
+        applied_tweaks = []
+        skipped_tweaks = []
+        missing_prompt_keys = []
+
+    update_calls = []
+
+    monkeypatch.setattr(cli, "load_variant", lambda name: FakeVariant())
+    monkeypatch.setattr(cli, "update_variants", lambda *args, **kwargs: update_calls.append((args, kwargs)) or [FakeResult()])
+    monkeypatch.setattr(
+        cli,
+        "install_variant_command",
+        lambda variant, alias=None, bin_dir=None, yes=False: SimpleNamespace(
+            alias=alias,
+            path=tmp_path / "home" / "bin" / alias,
+            target=Path(variant.manifest["paths"]["wrapper"]),
+            status="installed",
+            on_path=True,
+            warning="",
+        ),
+    )
+
+    old_argv = sys.argv
+    sys.argv = ["cc-extractor", "--provider", "zai", "update", "--json"]
+    try:
+        cli.main()
+    finally:
+        sys.argv = old_argv
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["install"]["alias"] == "zai"
+    assert update_calls == [(("zai",), {"claude_version": "latest"})]
+
+
+def test_provider_shortcut_uninstall_removes_only_provider_setup(monkeypatch, capsys):
+    from cc_extractor import __main__ as cli
+    import sys
+
+    class FakeVariant:
+        variant_id = "zai"
+        name = "zai"
+        manifest = {"provider": {"key": "zai"}}
+
+    remove_calls = []
+    workspace_calls = []
+
+    monkeypatch.setattr(cli, "load_variant", lambda name: FakeVariant())
+    monkeypatch.setattr(cli, "remove_variant", lambda name, yes=False: remove_calls.append((name, yes)) or True)
+    monkeypatch.setattr(cli, "uninstall_workspace", lambda yes=False: workspace_calls.append(yes))
+
+    old_argv = sys.argv
+    sys.argv = ["cc-extractor", "--provider", "zai", "uninstall", "--yes", "--json"]
+    try:
+        cli.main()
+    finally:
+        sys.argv = old_argv
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload == {"provider": "zai", "removed": True, "variant": "zai"}
+    assert remove_calls == [("zai", True)]
+    assert workspace_calls == []
+
+
+def test_provider_shortcut_bare_provider_prints_help_without_mutation(monkeypatch, capsys):
+    from cc_extractor import __main__ as cli
+    import sys
+
+    monkeypatch.setattr(cli, "create_variant", lambda **kwargs: pytest.fail("bare provider mutated state"))
+    old_argv = sys.argv
+    sys.argv = ["cc-extractor", "--provider", "zai"]
+    try:
+        cli.main()
+    finally:
+        sys.argv = old_argv
+
+    output = capsys.readouterr().out
+    assert "Provider shortcut commands" in output
+    assert "cc-extractor --provider zai install" in output
+
+
+def test_provider_shortcut_multiple_matching_setups_errors(monkeypatch):
+    from cc_extractor import __main__ as cli
+
+    variants = [
+        SimpleNamespace(name="One", variant_id="one", manifest={"provider": {"key": "zai"}}),
+        SimpleNamespace(name="Two", variant_id="two", manifest={"provider": {"key": "zai"}}),
+    ]
+    monkeypatch.setattr(cli, "load_variant", lambda name: (_ for _ in ()).throw(ValueError("missing")))
+    monkeypatch.setattr(cli, "scan_variants", lambda: variants)
+
+    with pytest.raises(ValueError, match="Multiple setups use provider zai"):
+        cli._resolve_provider_variant("zai", required=True)
+
+
+def test_provider_shortcut_resolves_single_matching_setup_from_workspace(monkeypatch, tmp_path):
+    from cc_extractor import __main__ as cli
+    from cc_extractor.workspace import write_json
+
+    root = tmp_path / ".cc-extractor"
+    variant_dir = root / "variants" / "custom-zai"
+    variant_dir.mkdir(parents=True)
+    write_json(
+        variant_dir / "variant.json",
+        {
+            "schemaVersion": 1,
+            "id": "custom-zai",
+            "name": "Custom Zai",
+            "provider": {"key": "zai", "label": "Zai Cloud"},
+            "source": {"version": "2.1.0"},
+            "paths": {},
+            "createdAt": "2026-01-01T00:00:00Z",
+            "updatedAt": "2026-01-01T00:00:00Z",
+        },
+    )
+    monkeypatch.setenv("CC_EXTRACTOR_WORKSPACE", str(root))
+
+    resolved = cli._resolve_provider_variant("zai", required=True)
+
+    assert resolved.variant_id == "custom-zai"

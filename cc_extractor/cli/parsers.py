@@ -13,6 +13,7 @@ from .payloads import add_variant_model_args, add_variant_tweak_option_args
 
 def build_parser():
     parser = argparse.ArgumentParser(description="Bun standalone binary manager")
+    parser.add_argument("--provider", help="Provider shortcut key for install, update, or uninstall")
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
     dl = subparsers.add_parser("download", help="Download binary or NPM bundle")
@@ -56,7 +57,40 @@ def build_parser():
     pk.add_argument("base_binary", help="Original binary to use as template")
     pk.add_argument("out_binary", help="Path for output binary")
 
+    install = subparsers.add_parser("install", help="Install a default provider setup")
+    install.add_argument("--provider", dest="command_provider", help="Provider shortcut key")
+    install.add_argument("--claude-version", default="latest", help="Claude Code version, latest, or stable")
+    install.add_argument("--credential-env", help="Environment variable containing provider credentials")
+    install.add_argument("--api-key", help="Provider credential to store locally, requires --store-secret")
+    install.add_argument("--store-secret", action="store_true", help="Store --api-key in setup-local secrets.env")
+    install.add_argument("--bin-dir", help="Directory where the command symlink should be created")
+    install.add_argument("--alias", help="Command name to install, defaults to the provider key")
+    install.add_argument("--yes", action="store_true", help="Create fallback install directory if needed")
+    install.add_argument("--ccrouter-mode", choices=["managed", "external"], help="ccrouter runtime mode")
+    install.add_argument(
+        "--ccrouter-config",
+        choices=["copy-global", "empty", "shared-home"],
+        help="ccrouter config source for managed mode",
+    )
+    install.add_argument("--ccrouter-package", help="NPM package spec for managed ccrouter")
+    install.add_argument("--ccrouter-port", help="Managed ccrouter port or auto")
+    install.add_argument(
+        "--no-ccrouter-autostart",
+        dest="ccrouter_autostart",
+        action="store_false",
+        default=None,
+        help="Do not start managed ccrouter automatically in the wrapper",
+    )
+    install.add_argument("--json", action="store_true", help="Print machine-readable JSON")
+
+    update = subparsers.add_parser("update", help="Update a default provider setup")
+    update.add_argument("--provider", dest="command_provider", help="Provider shortcut key")
+    update.add_argument("--claude-version", default="latest", help="Claude Code version, latest, or stable")
+    update.add_argument("--yes", action="store_true", help="Create fallback install directory if needed")
+    update.add_argument("--json", action="store_true", help="Print machine-readable JSON")
+
     uninstall = subparsers.add_parser("uninstall", help="Remove managed symlinks and the current workspace")
+    uninstall.add_argument("--provider", dest="command_provider", help="Provider shortcut key")
     uninstall.add_argument("--yes", action="store_true", help="Confirm uninstall without prompting")
     uninstall.add_argument("--json", action="store_true", help="Print machine-readable JSON")
 

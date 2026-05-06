@@ -12,7 +12,7 @@ import sys
 
 from .cli import build_parser, inspect_binary  # noqa: F401, re-exported for test imports
 from .cli import handlers as _handlers
-from .providers import list_mcp_catalog
+from .providers import get_provider, list_mcp_catalog, provider_default_variant_name
 from .cli.payloads import (
     install_result_payload,
     model_overrides_from_args,
@@ -49,6 +49,190 @@ _SIMPLE_HANDLERS = {
     "apply-binary": _handlers.cmd_apply_binary,
     "pack": _handlers.cmd_pack,
 }
+
+
+def _provider_arg(args):
+    return getattr(args, "command_provider", None) or getattr(args, "provider", None)
+
+
+def _resolve_provider_variant(provider_key: str, *, required: bool):
+    provider = get_provider(provider_key)
+    default_name = provider_default_variant_name(provider.key)
+    default_id = variant_id_from_name(default_name)
+    try:
+        return load_variant(default_id)
+    except ValueError:
+        pass
+    matches = [
+        variant
+        for variant in scan_variants()
+        if ((variant.manifest.get("provider") or {}).get("key") == provider.key)
+    ]
+    if len(matches) == 1:
+        return matches[0]
+    if len(matches) > 1:
+        names = ", ".join(variant.name for variant in matches)
+        raise ValueError(
+            f"Multiple setups use provider {provider.key}: {names}. "
+            "Use variant update/remove/install <name>."
+        )
+    if required:
+        raise ValueError(f"No setup found for provider {provider.key}. Run cc-extractor --provider {provider.key} install.")
+    return None
+
+
+def _provider_next_steps(variant, provider_key: str, install_result=None):
+    provider = get_provider(provider_key)
+    manifest = variant.manifest or {}
+    paths = manifest.get("paths") or {}
+    credential = manifest.get("credential") or {}
+    credential_envs = []
+    if credential.get("mode") == "env" and credential.get("source"):
+        credential_envs.append(str(credential["source"]))
+    credential_envs.extend(str(item) for item in credential.get("targets") or [] if item)
+    if provider.credential_env:
+        credential_envs.append(provider.credential_env)
+    credential_envs = sorted(set(credential_envs))
+
+    next_steps = {
+        "command": getattr(install_result, "alias", None) or provider.key,
+        "setupRoot": paths.get("root") or str(getattr(variant, "path", "")),
+        "wrapper": paths.get("wrapper") or "",
+        "configDir": paths.get("configDir") or "",
+        "credentialEnv": credential_envs,
+        "providerMcpServers": sorted(provider.mcp_servers),
+        "warnings": [],
+    }
+    if install_result is not None:
+        next_steps["installPath"] = str(install_result.path)
+        next_steps["installTarget"] = str(install_result.target)
+        next_steps["installOnPath"] = bool(install_result.on_path)
+        if install_result.warning:
+            next_steps["warnings"].append(install_result.warning)
+    ccrouter = manifest.get("ccrouter")
+    if isinstance(ccrouter, dict):
+        next_steps["ccrouter"] = {
+            "configPath": str(ccrouter.get("configPath") or ""),
+            "homeDir": str(ccrouter.get("homeDir") or ""),
+            "runtimeDir": str(ccrouter.get("runtimeDir") or ""),
+        }
+    return next_steps
+
+
+def _provider_payload(variant, provider_key: str, *, install_result=None):
+    payload = variant_payload(variant)
+    if install_result is not None:
+        payload["install"] = install_result_payload(install_result)
+    payload["nextSteps"] = _provider_next_steps(variant, provider_key, install_result)
+    return payload
+
+
+def _print_provider_summary(action: str, variant, provider_key: str, *, install_result=None):
+    provider = get_provider(provider_key)
+    steps = _provider_next_steps(variant, provider.key, install_result)
+    print(f"[+] Provider setup {action}: {variant.variant_id}")
+    if install_result is not None:
+        print(f"    command: {install_result.alias}")
+        print(f"    installed: {install_result.path}")
+        print(f"    target: {install_result.target}")
+        print(f"    status: {install_result.status}")
+        print(f"    on PATH: {'yes' if install_result.on_path else 'no'}")
+    print(f"    setup: {steps['setupRoot']}")
+    print(f"    wrapper: {steps['wrapper']}")
+    print(f"    config: {steps['configDir']}")
+    if steps["credentialEnv"]:
+        print(f"    credential env: {', '.join(steps['credentialEnv'])}")
+    if steps["providerMcpServers"]:
+        print(f"    provider MCP: {', '.join(steps['providerMcpServers'])} auto-configured")
+    ccrouter = steps.get("ccrouter")
+    if ccrouter:
+        if ccrouter.get("configPath"):
+            print(f"    ccrouter config: {ccrouter['configPath']}")
+        if ccrouter.get("homeDir"):
+            print(f"    ccrouter home: {ccrouter['homeDir']}")
+        if ccrouter.get("runtimeDir"):
+            print(f"    ccrouter runtime: {ccrouter['runtimeDir']}")
+    if install_result is not None:
+        print(f"    run: {install_result.alias}")
+        if install_result.warning:
+            print(f"    warning: {install_result.warning}")
+
+
+def _print_provider_help(args):
+    provider_key = _provider_arg(args)
+    if not provider_key:
+        return False
+    provider = get_provider(provider_key)
+    print(f"{provider.key}: {provider.label}")
+    print("Provider shortcut commands:")
+    print(f"    cc-extractor --provider {provider.key} install")
+    print(f"    cc-extractor --provider {provider.key} update")
+    print(f"    cc-extractor --provider {provider.key} uninstall --yes")
+    if provider.credential_env:
+        print(f"Credential env: {provider.credential_env}")
+    return True
+
+
+def cmd_provider_install(args):
+    provider_key = _provider_arg(args)
+    if not provider_key:
+        raise ValueError("Pass --provider for the provider shortcut install command")
+    provider = get_provider(provider_key)
+    variant = _resolve_provider_variant(provider.key, required=False)
+    created = False
+    if variant is None:
+        result = create_variant(
+            name=provider_default_variant_name(provider.key),
+            provider_key=provider.key,
+            claude_version=args.claude_version,
+            credential_env=args.credential_env,
+            api_key=args.api_key,
+            store_secret=args.store_secret,
+            ccrouter_mode=args.ccrouter_mode,
+            ccrouter_config=args.ccrouter_config,
+            ccrouter_package=args.ccrouter_package,
+            ccrouter_port=args.ccrouter_port,
+            ccrouter_autostart=args.ccrouter_autostart,
+        )
+        variant = result.variant
+        created = True
+    install_result = install_variant_command(
+        variant,
+        alias=args.alias or provider.key,
+        bin_dir=args.bin_dir,
+        yes=args.yes,
+    )
+    if args.json:
+        print_json(_provider_payload(variant, provider.key, install_result=install_result))
+    else:
+        _print_provider_summary("created" if created else "installed", variant, provider.key, install_result=install_result)
+
+
+def cmd_provider_update(args):
+    provider_key = _provider_arg(args)
+    if not provider_key:
+        raise ValueError("Pass --provider for the provider shortcut update command")
+    provider = get_provider(provider_key)
+    variant = _resolve_provider_variant(provider.key, required=True)
+    result = update_variants(variant.name, claude_version=args.claude_version)[0]
+    install_result = install_variant_command(result.variant, alias=provider.key, yes=args.yes)
+    if args.json:
+        print_json(_provider_payload(result.variant, provider.key, install_result=install_result))
+    else:
+        _print_provider_summary("updated", result.variant, provider.key, install_result=install_result)
+
+
+def cmd_provider_uninstall(args):
+    provider_key = _provider_arg(args)
+    if not provider_key:
+        raise ValueError("Pass --provider for the provider shortcut uninstall command")
+    provider = get_provider(provider_key)
+    variant = _resolve_provider_variant(provider.key, required=True)
+    removed = remove_variant(variant.name, yes=args.yes)
+    if args.json:
+        print_json({"provider": provider.key, "variant": variant.variant_id, "removed": removed})
+    else:
+        print(f"[+] Removed provider setup: {variant.variant_id}" if removed else f"[*] No setup found: {variant.variant_id}")
 
 
 def cmd_variant(args, variant_parser):
@@ -250,12 +434,20 @@ def main():
     try:
         if args.command in _SIMPLE_HANDLERS:
             _SIMPLE_HANDLERS[args.command](args)
+        elif args.command == "install":
+            cmd_provider_install(args)
+        elif args.command == "update":
+            cmd_provider_update(args)
         elif args.command == "patch":
             _handlers.cmd_patch(args, patch_parser)
         elif args.command == "variant":
             cmd_variant(args, variant_parser)
+        elif args.command == "uninstall" and _provider_arg(args):
+            cmd_provider_uninstall(args)
         elif args.command == "uninstall":
             cmd_uninstall(args)
+        elif _print_provider_help(args):
+            return
         else:
             parser.print_help()
     except Exception as exc:

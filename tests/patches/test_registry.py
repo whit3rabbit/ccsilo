@@ -33,7 +33,7 @@ def test_versions_tested_is_non_empty():
 
 
 def test_default_versions_do_not_auto_claim_newer_2_1_releases():
-    assert not any(version_in_range("2.1.128", tested) for tested in DEFAULT_VERSION_RANGES)
+    assert not any(version_in_range("2.1.132", tested) for tested in DEFAULT_VERSION_RANGES)
 
 
 def test_versions_tested_subset_of_versions_supported():

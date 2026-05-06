@@ -1,9 +1,9 @@
 {
   "binary": {
-    "entryBytes": 14116787,
+    "entryBytes": 14123184,
     "entryModule": "src/entrypoints/cli.js"
   },
-  "generatedAt": "2026-05-06T10:04:17.510429Z",
+  "generatedAt": "2026-05-06T11:30:26.356242Z",
   "ok": true,
   "patches": [
     {
@@ -27,10 +27,8 @@
       "ok": true,
       "status": "applied",
       "supported": true,
-      "tested": false,
-      "warnings": [
-        "patch 'allow-custom-agent-models' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
-      ]
+      "tested": true,
+      "warnings": []
     },
     {
       "detail": "",
@@ -41,10 +39,8 @@
       "ok": true,
       "status": "applied",
       "supported": true,
-      "tested": false,
-      "warnings": [
-        "patch 'auto-accept-plan-mode' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
-      ]
+      "tested": true,
+      "warnings": []
     },
     {
       "detail": "",
@@ -55,10 +51,8 @@
       "ok": true,
       "status": "applied",
       "supported": true,
-      "tested": false,
-      "warnings": [
-        "patch 'filter-scroll-escape-sequences' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
-      ]
+      "tested": true,
+      "warnings": []
     },
     {
       "detail": "",
@@ -69,10 +63,8 @@
       "ok": true,
       "status": "applied",
       "supported": true,
-      "tested": false,
-      "warnings": [
-        "patch 'hide-ctrl-g-to-edit' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
-      ]
+      "tested": true,
+      "warnings": []
     },
     {
       "detail": "",
@@ -83,10 +75,8 @@
       "ok": true,
       "status": "applied",
       "supported": true,
-      "tested": false,
-      "warnings": [
-        "patch 'hide-startup-banner' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
-      ]
+      "tested": true,
+      "warnings": []
     },
     {
       "detail": "",
@@ -97,10 +87,8 @@
       "ok": true,
       "status": "applied",
       "supported": true,
-      "tested": false,
-      "warnings": [
-        "patch 'hide-startup-clawd' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
-      ]
+      "tested": true,
+      "warnings": []
     },
     {
       "detail": "",
@@ -111,10 +99,8 @@
       "ok": true,
       "status": "applied",
       "supported": true,
-      "tested": false,
-      "warnings": [
-        "patch 'input-box-border' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
-      ]
+      "tested": true,
+      "warnings": []
     },
     {
       "detail": "",
@@ -127,10 +113,8 @@
       "ok": true,
       "status": "skipped",
       "supported": true,
-      "tested": false,
-      "warnings": [
-        "patch 'mcp-non-blocking' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
-      ]
+      "tested": true,
+      "warnings": []
     },
     {
       "detail": "",
@@ -141,10 +125,8 @@
       "ok": true,
       "status": "applied",
       "supported": true,
-      "tested": false,
-      "warnings": [
-        "patch 'mcp-batch-size' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
-      ]
+      "tested": true,
+      "warnings": []
     },
     {
       "detail": "",
@@ -155,10 +137,8 @@
       "ok": true,
       "status": "applied",
       "supported": true,
-      "tested": false,
-      "warnings": [
-        "patch 'model-customizations' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
-      ]
+      "tested": true,
+      "warnings": []
     },
     {
       "detail": "",
@@ -181,10 +161,8 @@
       "ok": true,
       "status": "applied",
       "supported": true,
-      "tested": false,
-      "warnings": [
-        "patch 'patches-applied-indication' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.128']"
-      ]
+      "tested": true,
+      "warnings": []
     },
     {
       "detail": "",
@@ -195,10 +173,8 @@
       "ok": true,
       "status": "applied",
       "supported": true,
-      "tested": false,
-      "warnings": [
-        "patch 'prompt-overlays' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
-      ]
+      "tested": true,
+      "warnings": []
     },
     {
       "detail": "remember-skill: version 2.1.129 not in supported range '>=2.1.0,<2.1.42'",
@@ -224,10 +200,8 @@
       "ok": true,
       "status": "applied",
       "supported": true,
-      "tested": false,
-      "warnings": [
-        "patch 'session-memory' not tested against version 2.1.129; tested ranges: ['>=2.1.0,<=2.1.128']"
-      ]
+      "tested": true,
+      "warnings": []
     },
     {
       "detail": "",
@@ -238,10 +212,8 @@
       "ok": true,
       "status": "applied",
       "supported": true,
-      "tested": false,
-      "warnings": [
-        "patch 'show-more-items-in-select-menus' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
-      ]
+      "tested": true,
+      "warnings": []
     },
     {
       "detail": "",
@@ -252,10 +224,8 @@
       "ok": true,
       "status": "applied",
       "supported": true,
-      "tested": false,
-      "warnings": [
-        "patch 'statusline-update-throttle' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
-      ]
+      "tested": true,
+      "warnings": []
     },
     {
       "detail": "",
@@ -266,10 +236,8 @@
       "ok": true,
       "status": "applied",
       "supported": true,
-      "tested": false,
-      "warnings": [
-        "patch 'suppress-model-launch-notice' not tested against version 2.1.129; tested ranges: ['>=2.1.0,<=2.1.128']"
-      ]
+      "tested": true,
+      "warnings": []
     },
     {
       "detail": "",
@@ -280,10 +248,8 @@
       "ok": true,
       "status": "applied",
       "supported": true,
-      "tested": false,
-      "warnings": [
-        "patch 'suppress-line-numbers' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.128']"
-      ]
+      "tested": true,
+      "warnings": []
     },
     {
       "detail": "",
@@ -306,10 +272,8 @@
       "ok": true,
       "status": "applied",
       "supported": true,
-      "tested": false,
-      "warnings": [
-        "patch 'suppress-prompt-caching-warning' not tested against version 2.1.129; tested ranges: ['>=2.1.0,<=2.1.128']"
-      ]
+      "tested": true,
+      "warnings": []
     },
     {
       "detail": "",
@@ -320,10 +284,8 @@
       "ok": true,
       "status": "applied",
       "supported": true,
-      "tested": false,
-      "warnings": [
-        "patch 'suppress-rate-limit-options' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
-      ]
+      "tested": true,
+      "warnings": []
     },
     {
       "detail": "",
@@ -334,10 +296,8 @@
       "ok": true,
       "status": "applied",
       "supported": true,
-      "tested": false,
-      "warnings": [
-        "patch 'themes' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
-      ]
+      "tested": true,
+      "warnings": []
     },
     {
       "detail": "",
@@ -348,10 +308,8 @@
       "ok": true,
       "status": "applied",
       "supported": true,
-      "tested": false,
-      "warnings": [
-        "patch 'thinking-visibility' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
-      ]
+      "tested": true,
+      "warnings": []
     },
     {
       "detail": "",
@@ -362,10 +320,8 @@
       "ok": true,
       "status": "applied",
       "supported": true,
-      "tested": false,
-      "warnings": [
-        "patch 'token-count-rounding' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
-      ]
+      "tested": true,
+      "warnings": []
     }
   ],
   "schemaVersion": 1,
@@ -479,7 +435,7 @@
     "skipped": 1,
     "total": 26,
     "unsupported": 1,
-    "untested": 23
+    "untested": 1
   },
   "version": "2.1.129"
 }
