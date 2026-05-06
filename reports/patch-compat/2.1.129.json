@@ -1,0 +1,485 @@
+{
+  "binary": {
+    "entryBytes": 14116787,
+    "entryModule": "src/entrypoints/cli.js"
+  },
+  "generatedAt": "2026-05-06T10:04:17.510429Z",
+  "ok": true,
+  "patches": [
+    {
+      "detail": "",
+      "group": "system",
+      "id": "agents-md",
+      "name": "AGENTS.md support",
+      "notes": [],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": true,
+      "warnings": []
+    },
+    {
+      "detail": "",
+      "group": "ui",
+      "id": "allow-custom-agent-models",
+      "name": "Allow custom agent models",
+      "notes": [],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": false,
+      "warnings": [
+        "patch 'allow-custom-agent-models' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
+      ]
+    },
+    {
+      "detail": "",
+      "group": "ui",
+      "id": "auto-accept-plan-mode",
+      "name": "Auto-accept plan mode",
+      "notes": [],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": false,
+      "warnings": [
+        "patch 'auto-accept-plan-mode' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
+      ]
+    },
+    {
+      "detail": "",
+      "group": "system",
+      "id": "filter-scroll-escape-sequences",
+      "name": "Filter scroll escape sequences",
+      "notes": [],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": false,
+      "warnings": [
+        "patch 'filter-scroll-escape-sequences' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
+      ]
+    },
+    {
+      "detail": "",
+      "group": "ui",
+      "id": "hide-ctrl-g-to-edit",
+      "name": "Hide Ctrl+G edit hint",
+      "notes": [],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": false,
+      "warnings": [
+        "patch 'hide-ctrl-g-to-edit' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
+      ]
+    },
+    {
+      "detail": "",
+      "group": "ui",
+      "id": "hide-startup-banner",
+      "name": "Hide startup banner",
+      "notes": [],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": false,
+      "warnings": [
+        "patch 'hide-startup-banner' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
+      ]
+    },
+    {
+      "detail": "",
+      "group": "ui",
+      "id": "hide-startup-clawd",
+      "name": "Hide ASCII startup banner",
+      "notes": [],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": false,
+      "warnings": [
+        "patch 'hide-startup-clawd' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
+      ]
+    },
+    {
+      "detail": "",
+      "group": "ui",
+      "id": "input-box-border",
+      "name": "Input box border",
+      "notes": [],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": false,
+      "warnings": [
+        "patch 'input-box-border' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
+      ]
+    },
+    {
+      "detail": "",
+      "group": "tools",
+      "id": "mcp-non-blocking",
+      "name": "MCP non-blocking",
+      "notes": [
+        "MCP non-blocking is already default in this Claude Code version."
+      ],
+      "ok": true,
+      "status": "skipped",
+      "supported": true,
+      "tested": false,
+      "warnings": [
+        "patch 'mcp-non-blocking' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
+      ]
+    },
+    {
+      "detail": "",
+      "group": "tools",
+      "id": "mcp-batch-size",
+      "name": "MCP batch size",
+      "notes": [],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": false,
+      "warnings": [
+        "patch 'mcp-batch-size' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
+      ]
+    },
+    {
+      "detail": "",
+      "group": "ui",
+      "id": "model-customizations",
+      "name": "Custom Claude models in picker",
+      "notes": [],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": false,
+      "warnings": [
+        "patch 'model-customizations' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
+      ]
+    },
+    {
+      "detail": "",
+      "group": "ui",
+      "id": "opusplan1m",
+      "name": "Architect Mode",
+      "notes": [],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": true,
+      "warnings": []
+    },
+    {
+      "detail": "",
+      "group": "ui",
+      "id": "patches-applied-indication",
+      "name": "Patches-applied indication",
+      "notes": [],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": false,
+      "warnings": [
+        "patch 'patches-applied-indication' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.128']"
+      ]
+    },
+    {
+      "detail": "",
+      "group": "prompts",
+      "id": "prompt-overlays",
+      "name": "Prompt overlays",
+      "notes": [],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": false,
+      "warnings": [
+        "patch 'prompt-overlays' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
+      ]
+    },
+    {
+      "detail": "remember-skill: version 2.1.129 not in supported range '>=2.1.0,<2.1.42'",
+      "group": "prompts",
+      "id": "remember-skill",
+      "name": "Remember skill",
+      "notes": [],
+      "ok": true,
+      "status": "unsupported",
+      "supported": false,
+      "tested": false,
+      "warnings": []
+    },
+    {
+      "detail": "",
+      "group": "prompts",
+      "id": "session-memory",
+      "name": "Session memory",
+      "notes": [
+        "skipped obsolete token limits",
+        "skipped obsolete update thresholds"
+      ],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": false,
+      "warnings": [
+        "patch 'session-memory' not tested against version 2.1.129; tested ranges: ['>=2.1.0,<=2.1.128']"
+      ]
+    },
+    {
+      "detail": "",
+      "group": "ui",
+      "id": "show-more-items-in-select-menus",
+      "name": "Show more items in select menus",
+      "notes": [],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": false,
+      "warnings": [
+        "patch 'show-more-items-in-select-menus' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
+      ]
+    },
+    {
+      "detail": "",
+      "group": "ui",
+      "id": "statusline-update-throttle",
+      "name": "Statusline update throttling correction",
+      "notes": [],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": false,
+      "warnings": [
+        "patch 'statusline-update-throttle' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
+      ]
+    },
+    {
+      "detail": "",
+      "group": "ui",
+      "id": "suppress-model-launch-notice",
+      "name": "Suppress model launch notice",
+      "notes": [],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": false,
+      "warnings": [
+        "patch 'suppress-model-launch-notice' not tested against version 2.1.129; tested ranges: ['>=2.1.0,<=2.1.128']"
+      ]
+    },
+    {
+      "detail": "",
+      "group": "ui",
+      "id": "suppress-line-numbers",
+      "name": "Suppress line numbers in file reads",
+      "notes": [],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": false,
+      "warnings": [
+        "patch 'suppress-line-numbers' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.128']"
+      ]
+    },
+    {
+      "detail": "",
+      "group": "ui",
+      "id": "suppress-native-installer-warning",
+      "name": "Suppress native installer warning",
+      "notes": [],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": true,
+      "warnings": []
+    },
+    {
+      "detail": "",
+      "group": "ui",
+      "id": "suppress-prompt-caching-warning",
+      "name": "Suppress prompt caching warning",
+      "notes": [],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": false,
+      "warnings": [
+        "patch 'suppress-prompt-caching-warning' not tested against version 2.1.129; tested ranges: ['>=2.1.0,<=2.1.128']"
+      ]
+    },
+    {
+      "detail": "",
+      "group": "ui",
+      "id": "suppress-rate-limit-options",
+      "name": "Suppress rate limit options",
+      "notes": [],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": false,
+      "warnings": [
+        "patch 'suppress-rate-limit-options' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
+      ]
+    },
+    {
+      "detail": "",
+      "group": "ui",
+      "id": "themes",
+      "name": "Custom themes",
+      "notes": [],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": false,
+      "warnings": [
+        "patch 'themes' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
+      ]
+    },
+    {
+      "detail": "",
+      "group": "thinking",
+      "id": "thinking-visibility",
+      "name": "Thinking block visibility",
+      "notes": [],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": false,
+      "warnings": [
+        "patch 'thinking-visibility' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
+      ]
+    },
+    {
+      "detail": "",
+      "group": "ui",
+      "id": "token-count-rounding",
+      "name": "Token count rounding",
+      "notes": [],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": false,
+      "warnings": [
+        "patch 'token-count-rounding' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
+      ]
+    }
+  ],
+  "schemaVersion": 1,
+  "smoke": {
+    "codesign": {
+      "detail": "not darwin",
+      "reason": "no-codesign",
+      "signed": false
+    },
+    "command": [
+      "<patched-binary>",
+      "--version"
+    ],
+    "durationMs": 9624,
+    "exitCode": 0,
+    "ok": true,
+    "outputSha256": "c7f6ae62d1ff71fee43e73610b9f523c89df4afaad0482745a15c9e54579c203",
+    "patches": {
+      "applied": [
+        "agents-md",
+        "allow-custom-agent-models",
+        "auto-accept-plan-mode",
+        "filter-scroll-escape-sequences",
+        "hide-ctrl-g-to-edit",
+        "hide-startup-banner",
+        "hide-startup-clawd",
+        "input-box-border",
+        "mcp-batch-size",
+        "model-customizations",
+        "opusplan1m",
+        "patches-applied-indication",
+        "prompt-overlays",
+        "session-memory",
+        "show-more-items-in-select-menus",
+        "statusline-update-throttle",
+        "suppress-model-launch-notice",
+        "suppress-line-numbers",
+        "suppress-native-installer-warning",
+        "suppress-prompt-caching-warning",
+        "suppress-rate-limit-options",
+        "themes",
+        "thinking-visibility",
+        "token-count-rounding"
+      ],
+      "attempted": [
+        "agents-md",
+        "allow-custom-agent-models",
+        "auto-accept-plan-mode",
+        "filter-scroll-escape-sequences",
+        "hide-ctrl-g-to-edit",
+        "hide-startup-banner",
+        "hide-startup-clawd",
+        "input-box-border",
+        "mcp-non-blocking",
+        "mcp-batch-size",
+        "model-customizations",
+        "opusplan1m",
+        "patches-applied-indication",
+        "prompt-overlays",
+        "session-memory",
+        "show-more-items-in-select-menus",
+        "statusline-update-throttle",
+        "suppress-model-launch-notice",
+        "suppress-line-numbers",
+        "suppress-native-installer-warning",
+        "suppress-prompt-caching-warning",
+        "suppress-rate-limit-options",
+        "themes",
+        "thinking-visibility",
+        "token-count-rounding"
+      ],
+      "missed": [],
+      "skipped": [
+        "mcp-non-blocking"
+      ],
+      "warnings": [
+        "patch 'allow-custom-agent-models' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']",
+        "patch 'auto-accept-plan-mode' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']",
+        "patch 'filter-scroll-escape-sequences' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']",
+        "patch 'hide-ctrl-g-to-edit' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']",
+        "patch 'hide-startup-banner' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']",
+        "patch 'hide-startup-clawd' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']",
+        "patch 'input-box-border' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']",
+        "patch 'mcp-non-blocking' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']",
+        "patch 'mcp-batch-size' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']",
+        "patch 'model-customizations' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']",
+        "patch 'patches-applied-indication' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.128']",
+        "patch 'prompt-overlays' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']",
+        "patch 'session-memory' not tested against version 2.1.129; tested ranges: ['>=2.1.0,<=2.1.128']",
+        "patch 'show-more-items-in-select-menus' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']",
+        "patch 'statusline-update-throttle' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']",
+        "patch 'suppress-model-launch-notice' not tested against version 2.1.129; tested ranges: ['>=2.1.0,<=2.1.128']",
+        "patch 'suppress-line-numbers' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.128']",
+        "patch 'suppress-prompt-caching-warning' not tested against version 2.1.129; tested ranges: ['>=2.1.0,<=2.1.128']",
+        "patch 'suppress-rate-limit-options' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']",
+        "patch 'themes' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']",
+        "patch 'thinking-visibility' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']",
+        "patch 'token-count-rounding' not tested against version 2.1.129; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.122']"
+      ]
+    },
+    "platformKey": "linux-x64",
+    "stage": "run",
+    "status": "passed",
+    "stderr": "",
+    "stdout": "2.1.129 (Claude Code)\n"
+  },
+  "summary": {
+    "applied": 24,
+    "failed": 0,
+    "ok": 26,
+    "skipped": 1,
+    "total": 26,
+    "unsupported": 1,
+    "untested": 23
+  },
+  "version": "2.1.129"
+}
