@@ -61,8 +61,8 @@ def test_blacklisted_versions_do_not_satisfy_tested():
 
 
 def test_each_versions_tested_resolves_to_concrete_version():
-    from cc_extractor.download_index import load_download_index
-    index = load_download_index()
+    from cc_extractor.download_index import load_seed_download_index
+    index = load_seed_download_index()
     if not index.get("binary", {}).get("versions"):
         return  # empty index: pre-flight succeeded; nothing else to assert
     for patch in REGISTRY.values():
