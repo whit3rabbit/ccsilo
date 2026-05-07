@@ -20,9 +20,6 @@ on:
 permissions:
   contents: read
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -88,7 +85,7 @@ jobs:
           fi
 
       - name: Upload patch reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: patch-compat-reports

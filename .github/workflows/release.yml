@@ -18,9 +18,6 @@ on:
 permissions:
   contents: read
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
@@ -60,7 +57,7 @@ jobs:
           python -m twine check dist/*
 
       - name: Upload distributions
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: python-distributions
           path: dist/
@@ -78,7 +75,7 @@ jobs:
 
     steps:
       - name: Download distributions
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: python-distributions
           path: dist/
@@ -100,7 +97,7 @@ jobs:
 
     steps:
       - name: Download distributions
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: python-distributions
           path: dist/
