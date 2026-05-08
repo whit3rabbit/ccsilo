@@ -1,5 +1,12 @@
 # ccsilo
 
+[![CI](https://github.com/whit3rabbit/ccsilo/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/whit3rabbit/ccsilo/actions/workflows/ci.yml)
+[![Release](https://github.com/whit3rabbit/ccsilo/actions/workflows/release.yml/badge.svg)](https://github.com/whit3rabbit/ccsilo/actions/workflows/release.yml)
+[![PyPI](https://img.shields.io/pypi/v/ccsilo.svg)](https://pypi.org/project/ccsilo/)
+[![GitHub Release](https://img.shields.io/github/v/release/whit3rabbit/ccsilo?label=github%20release)](https://github.com/whit3rabbit/ccsilo/releases/latest)
+[![Python](https://img.shields.io/pypi/pyversions/ccsilo.svg)](https://pypi.org/project/ccsilo/)
+[![License](https://img.shields.io/pypi/l/ccsilo.svg)](https://github.com/whit3rabbit/ccsilo/blob/main/LICENSE)
+
 > [!IMPORTANT]
 > This project is not affiliated with Anthropic or Claude Code. It is for research and controlled local patching of Claude Code packaged binaries. Do not use it to silently mutate a global Claude Code install.
 
