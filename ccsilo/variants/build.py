@@ -225,6 +225,7 @@ def _build_variant_from_manifest(
     }
     if isinstance(manifest.get("modelProxy"), dict):
         model_proxy = dict(manifest["modelProxy"])
+        model_proxy.setdefault("timeoutMs", _model_proxy_timeout_ms((manifest.get("env") or {}).get("API_TIMEOUT_MS")))
         model_proxy.setdefault("runtimeConfigPath", str(config_dir / "model-proxy.json"))
         model_proxy.setdefault("logPath", str(tmp_dir / "model-proxy.log"))
         model_proxy.setdefault("portFilePath", str(tmp_dir / "model-proxy-port"))
@@ -264,6 +265,7 @@ def _build_variant_from_manifest(
 
 
 _MODEL_PROXY_AUTH_ENV = {"ANTHROPIC_BASE_URL", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"}
+_MODEL_PROXY_MAX_TIMEOUT_MS = 24 * 60 * 60 * 1000
 
 
 def _sync_ccrouter_model_proxy(manifest: Dict) -> None:
@@ -283,6 +285,21 @@ def _sync_ccrouter_model_proxy(manifest: Dict) -> None:
     for key in _MODEL_PROXY_AUTH_ENV:
         env.pop(key, None)
     manifest["env"] = env
+
+
+def _model_proxy_timeout_ms(value) -> int:
+    if value in (None, ""):
+        return 600_000
+    try:
+        timeout = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("model proxy API_TIMEOUT_MS must be an integer") from exc
+    if timeout < 1:
+        raise ValueError("model proxy API_TIMEOUT_MS must be positive")
+    if timeout > _MODEL_PROXY_MAX_TIMEOUT_MS:
+        raise ValueError("model proxy API_TIMEOUT_MS exceeds maximum allowed timeout")
+    return timeout
+
 
 def _download_source_artifact(version: str, root=None) -> NativeArtifact:
     requested = _resolve_source_version(version, root=root)

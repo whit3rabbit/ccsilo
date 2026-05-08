@@ -5,9 +5,11 @@ import hashlib
 import json
 import os
 import platform
+import shutil
 import subprocess
 import tempfile
 from importlib import import_module
+from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -355,30 +357,56 @@ def download_npm(version="latest", out_dir=None):
     os.makedirs(out_dir, exist_ok=True)
 
     target = f"{PACKAGE_NAME}@{version}"
-    cmd = ["npm", "pack", target]
+    cmd = ["npm", "pack", "--json", target]
     print(f"[*] Running {' '.join(cmd)}...")
-    try:
-        result = subprocess.run(cmd, cwd=out_dir, capture_output=True, text=True, check=False)
-    except (FileNotFoundError, OSError) as exc:
-        raise RuntimeError("npm is required to download the NPM tarball") from exc
+    with tempfile.TemporaryDirectory(prefix=".npm-pack-", dir=out_dir) as pack_dir:
+        try:
+            result = subprocess.run(cmd, cwd=pack_dir, capture_output=True, text=True, check=False)
+        except (FileNotFoundError, OSError) as exc:
+            raise RuntimeError("npm is required to download the NPM tarball") from exc
 
-    if result.returncode != 0:
-        raise RuntimeError(f"npm pack failed: {result.stderr}")
+        if result.returncode != 0:
+            raise RuntimeError(f"npm pack failed: {result.stderr}")
 
-    tarball = result.stdout.strip().split("\n")[-1]
-    if not tarball:
-        raise RuntimeError("npm pack did not report an output tarball")
-    tar_path = os.path.join(out_dir, tarball)
-    if use_workspace:
-        sha256 = file_sha256(tar_path)
-        existing_path = npm_download_path(version, sha256, tarball)
-        if existing_path.exists():
-            os.remove(tar_path)
-            tar_path = str(existing_path)
+        tarball = _npm_pack_tarball_name(result.stdout)
+        tar_path_obj = (Path(pack_dir) / tarball).resolve()
+        pack_root = Path(pack_dir).resolve()
+        if tar_path_obj.parent != pack_root:
+            raise RuntimeError("npm pack reported a tarball outside its temporary directory")
+        if not tar_path_obj.is_file():
+            raise RuntimeError(f"npm pack tarball is missing: {tarball}")
+        if use_workspace:
+            sha256 = file_sha256(tar_path_obj)
+            existing_path = npm_download_path(version, sha256, tarball)
+            if existing_path.exists():
+                tar_path = str(existing_path)
+            else:
+                tar_path = str(store_npm_download(tar_path_obj, version, sha256))
         else:
-            tar_path = str(store_npm_download(tar_path, version, sha256))
+            final_path = Path(out_dir) / tarball
+            if tar_path_obj != final_path:
+                shutil.move(str(tar_path_obj), str(final_path))
+            tar_path = str(final_path)
     print(f"[+] Downloaded NPM tarball to {tar_path}")
     return tar_path
+
+
+def _npm_pack_tarball_name(stdout: str) -> str:
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("npm pack did not report JSON output") from exc
+    if not isinstance(payload, list) or len(payload) != 1 or not isinstance(payload[0], dict):
+        raise RuntimeError("npm pack did not report an output tarball")
+    filename = str(payload[0].get("filename") or "").strip()
+    if not filename:
+        raise RuntimeError("npm pack did not report an output tarball")
+    path = Path(filename)
+    if path.is_absolute() or path.name != filename or filename in {".", ".."} or "/" in filename or "\\" in filename:
+        raise RuntimeError("npm pack reported an unsafe tarball name")
+    if ".." in path.parts:
+        raise RuntimeError("npm pack reported an unsafe tarball name")
+    return filename
 
 
 if __name__ == "__main__":

@@ -1,5 +1,7 @@
 import hashlib
+import json
 import os
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -289,43 +291,53 @@ class TestDownloadNpm:
         monkeypatch.setattr("ccsilo.downloader.fetch_latest_npm_version", lambda: "1.2.3")
 
         def run(cmd, cwd, capture_output, text, check):
-            tarball = "@anthropic-ai-claude-code-1.2.3.tgz"
-            (root / "tmp" / tarball).write_bytes(b"npm-tarball")
-            return MagicMock(returncode=0, stdout=f"\n{tarball}")
+            assert cmd == ["npm", "pack", "--json", "@anthropic-ai/claude-code@1.2.3"]
+            tarball = "anthropic-ai-claude-code-1.2.3.tgz"
+            (Path(cwd) / tarball).write_bytes(b"npm-tarball")
+            return MagicMock(returncode=0, stdout=json.dumps([{"filename": tarball}]))
 
         mock_run.side_effect = run
 
         result = download_npm("latest")
         checksum = hashlib.sha256(b"npm-tarball").hexdigest()
-        expected = root / "downloads" / "npm" / "1.2.3" / checksum / "@anthropic-ai-claude-code-1.2.3.tgz"
+        expected = root / "downloads" / "npm" / "1.2.3" / checksum / "anthropic-ai-claude-code-1.2.3.tgz"
 
         assert result == str(expected)
         assert expected.read_bytes() == b"npm-tarball"
 
     @patch("ccsilo.downloader.subprocess.run")
-    @patch("ccsilo.downloader.os.makedirs")
-    def test_download_npm_success(self, mock_makedirs, mock_run):
-        mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout="\n@anthropic-ai/claude-code-1.2.3.tgz",
-        )
+    def test_download_npm_success(self, mock_run, tmp_path):
+        out_dir = tmp_path / "npm"
 
-        result = download_npm("1.2.3", "/tmp/npm")
+        def run(cmd, cwd, capture_output, text, check):
+            tarball = "anthropic-ai-claude-code-1.2.3.tgz"
+            (Path(cwd) / tarball).write_bytes(b"npm-tarball")
+            return MagicMock(returncode=0, stdout=json.dumps([{"filename": tarball}]))
 
-        assert result == "/tmp/npm/@anthropic-ai/claude-code-1.2.3.tgz"
+        mock_run.side_effect = run
+
+        result = download_npm("1.2.3", str(out_dir))
+
+        assert result == str(out_dir / "anthropic-ai-claude-code-1.2.3.tgz")
+        assert (out_dir / "anthropic-ai-claude-code-1.2.3.tgz").read_bytes() == b"npm-tarball"
 
     @patch("ccsilo.downloader.subprocess.run")
-    @patch("ccsilo.downloader.os.makedirs")
-    def test_download_npm_failure(self, mock_makedirs, mock_run):
+    def test_download_npm_failure(self, mock_run, tmp_path):
         mock_run.return_value = MagicMock(returncode=1, stderr="npm error")
 
         with pytest.raises(RuntimeError, match="npm pack failed"):
-            download_npm("latest", "/tmp/npm")
+            download_npm("latest", str(tmp_path / "npm"))
 
     @patch("ccsilo.downloader.subprocess.run")
-    @patch("ccsilo.downloader.os.makedirs")
-    def test_download_npm_missing_tarball_name(self, mock_makedirs, mock_run):
-        mock_run.return_value = MagicMock(returncode=0, stdout="\n")
+    def test_download_npm_missing_tarball_name(self, mock_run, tmp_path):
+        mock_run.return_value = MagicMock(returncode=0, stdout="[]")
 
         with pytest.raises(RuntimeError, match="did not report an output tarball"):
-            download_npm("latest", "/tmp/npm")
+            download_npm("latest", str(tmp_path / "npm"))
+
+    @patch("ccsilo.downloader.subprocess.run")
+    def test_download_npm_rejects_unsafe_tarball_name(self, mock_run, tmp_path):
+        mock_run.return_value = MagicMock(returncode=0, stdout=json.dumps([{"filename": "../evil.tgz"}]))
+
+        with pytest.raises(RuntimeError, match="unsafe tarball name"):
+            download_npm("1.2.3", str(tmp_path / "npm"))

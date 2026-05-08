@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 import struct
 
+from .checked import checked_unpack_from as _checked_unpack_from
 from .constants import (
     MACHO_HEADER_SCAN_BYTES,
     MACHO_MAGIC_64,
@@ -11,6 +12,7 @@ from .constants import (
     MACHO_MAGIC_FAT_LE,
     MACHO_SECTION_HEADER_SIZE,
 )
+from .types import BunFormatError
 
 LC_SEGMENT_64 = 0x19
 LC_CODE_SIGNATURE = 0x1D
@@ -59,45 +61,48 @@ def _macho_endian(data):
 
 
 def _find_bun_section_from_load_commands(data):
-    endian = _macho_endian(data)
-    if endian is None or len(data) < 32:
-        return None
-
-    ncmds = struct.unpack_from(endian + "I", data, 16)[0]
-    offset = 32
-    has_code_signature = False
-    bun_section = None
-
-    for _ in range(ncmds):
-        if offset + 8 > len(data):
+    try:
+        endian = _macho_endian(data)
+        if endian is None or len(data) < 32:
             return None
 
-        cmd = struct.unpack_from(endian + "I", data, offset)[0]
-        cmdsize = struct.unpack_from(endian + "I", data, offset + 4)[0]
-        if cmdsize < 8 or offset + cmdsize > len(data):
+        ncmds = _checked_unpack_from(endian + "I", data, 16, "Mach-O ncmds")[0]
+        offset = 32
+        has_code_signature = False
+        bun_section = None
+
+        for _ in range(ncmds):
+            if offset + 8 > len(data):
+                return None
+
+            cmd = _checked_unpack_from(endian + "I", data, offset, "Mach-O load command")[0]
+            cmdsize = _checked_unpack_from(endian + "I", data, offset + 4, "Mach-O load command size")[0]
+            if cmdsize < 8 or offset + cmdsize > len(data):
+                return None
+
+            if cmd == LC_CODE_SIGNATURE:
+                has_code_signature = True
+            elif cmd == LC_SEGMENT_64:
+                section = _find_bun_section_in_segment(data, offset, cmdsize, endian)
+                if section is not None:
+                    bun_section = section
+
+            offset += cmdsize
+
+        if bun_section is None:
             return None
 
-        if cmd == LC_CODE_SIGNATURE:
-            has_code_signature = True
-        elif cmd == LC_SEGMENT_64:
-            section = _find_bun_section_in_segment(data, offset, cmdsize, endian)
-            if section is not None:
-                bun_section = section
-
-        offset += cmdsize
-
-    if bun_section is None:
+        bun_section.has_code_signature = has_code_signature
+        return bun_section
+    except BunFormatError:
         return None
-
-    bun_section.has_code_signature = has_code_signature
-    return bun_section
 
 
 def _find_bun_section_in_segment(data, segment_offset, cmdsize, endian):
     if cmdsize < 72:
         return None
 
-    nsects = struct.unpack_from(endian + "I", data, segment_offset + 64)[0]
+    nsects = _checked_unpack_from(endian + "I", data, segment_offset + 64, "Mach-O segment nsects")[0]
     sections_start = segment_offset + 72
 
     for index in range(nsects):
@@ -109,8 +114,8 @@ def _find_bun_section_in_segment(data, segment_offset, cmdsize, endian):
         segname = _cstring(data[section_offset + 16 : section_offset + 32])
         if sectname == "__bun" and segname == "__BUN":
             return MachoSection(
-                section_size=struct.unpack_from(endian + "Q", data, section_offset + 40)[0],
-                section_offset=struct.unpack_from(endian + "I", data, section_offset + 48)[0],
+                section_size=_checked_unpack_from(endian + "Q", data, section_offset + 40, "Mach-O __bun size")[0],
+                section_offset=_checked_unpack_from(endian + "I", data, section_offset + 48, "Mach-O __bun offset")[0],
             )
 
     return None
@@ -124,8 +129,8 @@ def _find_bun_section_by_scan(data):
             data[offset : offset + 6] == b"__bun\x00"
             and data[offset + 16 : offset + 21] == b"__BUN"
         ):
-            section_size = struct.unpack_from("<Q", data, offset + 40)[0]
-            section_offset = struct.unpack_from("<I", data, offset + 48)[0]
+            section_size = _checked_unpack_from("<Q", data, offset + 40, "Mach-O scanned __bun size")[0]
+            section_offset = _checked_unpack_from("<I", data, offset + 48, "Mach-O scanned __bun offset")[0]
             return MachoSection(
                 section_offset=section_offset,
                 section_size=section_size,
@@ -140,9 +145,9 @@ def _cstring(value):
 
 def _scan_for_code_signature_cmd(data, limit):
     for offset in range(0, max(0, limit - 8), 4):
-        if struct.unpack_from("<I", data, offset)[0] != LC_CODE_SIGNATURE:
+        if _checked_unpack_from("<I", data, offset, "Mach-O scanned load command")[0] != LC_CODE_SIGNATURE:
             continue
-        cmdsize = struct.unpack_from("<I", data, offset + 4)[0]
+        cmdsize = _checked_unpack_from("<I", data, offset + 4, "Mach-O scanned load command size")[0]
         if cmdsize == 16:
             return True
     return False

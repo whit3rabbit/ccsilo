@@ -33,7 +33,10 @@ def write_variant_config(manifest: Dict) -> None:
                 "mode": "architect",
                 "backendUrl": model_proxy["backendUrl"],
                 "backendAuth": model_proxy["backendAuth"],
+                "backendModels": list(model_proxy["backendModels"]),
+                "anthropicModels": list(model_proxy["anthropicModels"]),
                 "anthropicUrl": model_proxy.get("anthropicUrl") or "https://api.anthropic.com",
+                "timeoutMs": int(model_proxy.get("timeoutMs") or 600_000),
             },
         )
     apply_provider_claude_config(
@@ -295,6 +298,7 @@ def _model_proxy_runtime_lines(manifest: Dict, config: Dict) -> list:
     port = str(config.get("port") or "auto")
     if port == "0":
         port = "auto"
+    python = shlex.quote(str(config.get("pythonExecutable") or "python3"))
     return [
         'MODEL_PROXY_PID=""',
         "cleanup_model_proxy() {",
@@ -310,15 +314,19 @@ def _model_proxy_runtime_lines(manifest: Dict, config: Dict) -> list:
         'mkdir -p "$(dirname "$MODEL_PROXY_PORT_FILE")" "$(dirname "$MODEL_PROXY_LOG")"',
         'rm -f "$MODEL_PROXY_PORT_FILE"',
         f": ${{{source}:?Set {source} for variant {manifest['id']}}}",
+        f'MODEL_PROXY_AUTH_NONCE="$({python} -c \'import secrets; print(secrets.token_urlsafe(24))\')"',
+        'if [ -z "$MODEL_PROXY_AUTH_NONCE" ]; then echo "Model proxy auth nonce generation failed." >&2; exit 127; fi',
         f'CCSILO_MODEL_PROXY_API_KEY="${{{source}}}"',
+        'CCSILO_MODEL_PROXY_AUTH_NONCE="$MODEL_PROXY_AUTH_NONCE"',
         "export CCSILO_MODEL_PROXY_API_KEY",
+        "export CCSILO_MODEL_PROXY_AUTH_NONCE",
         (
-            f"{shlex.quote(str(config.get('pythonExecutable') or 'python3'))} -m ccsilo.model_proxy "
+            f"{python} -m ccsilo.model_proxy "
             f'--config "$MODEL_PROXY_CONFIG" --port {shlex.quote(port)} --port-file "$MODEL_PROXY_PORT_FILE" '
             '>>"$MODEL_PROXY_LOG" 2>&1 &'
         ),
         "MODEL_PROXY_PID=$!",
-        "unset CCSILO_MODEL_PROXY_API_KEY",
+        "unset CCSILO_MODEL_PROXY_API_KEY CCSILO_MODEL_PROXY_AUTH_NONCE",
         f"unset {source}",
         "_model_proxy_wait=0",
         'while [ "$_model_proxy_wait" -lt 50 ]; do',
@@ -329,7 +337,7 @@ def _model_proxy_runtime_lines(manifest: Dict, config: Dict) -> list:
         "done",
         'if [ ! -s "$MODEL_PROXY_PORT_FILE" ]; then echo "Model proxy did not start. See $MODEL_PROXY_LOG" >&2; exit 127; fi',
         'MODEL_PROXY_ACTUAL_PORT="$(cat "$MODEL_PROXY_PORT_FILE")"',
-        'export ANTHROPIC_BASE_URL="http://127.0.0.1:$MODEL_PROXY_ACTUAL_PORT"',
+        'export ANTHROPIC_BASE_URL="http://127.0.0.1:$MODEL_PROXY_ACTUAL_PORT/$MODEL_PROXY_AUTH_NONCE"',
         "unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN",
         'case "${NO_PROXY:-}" in *127.0.0.1*) ;; "") export NO_PROXY=127.0.0.1,localhost ;; *) export NO_PROXY="127.0.0.1,localhost,$NO_PROXY" ;; esac',
     ]

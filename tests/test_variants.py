@@ -958,6 +958,7 @@ def test_create_model_proxy_architect_variant_uses_oauth_safe_env(tmp_path):
         credential_env="DEEPSEEK_API_KEY",
         model_proxy="architect",
         model_proxy_port=4567,
+        model_overrides={"opus": "claude-opus-4-6"},
         tweaks=["themes"],
         root=root,
         source_artifact=artifact,
@@ -976,23 +977,29 @@ def test_create_model_proxy_architect_variant_uses_oauth_safe_env(tmp_path):
     assert model_proxy["backendUrl"] == "https://api.deepseek.com/anthropic"
     assert model_proxy["backendAuth"] == "x-api-key"
     assert model_proxy["credentialEnv"] == "DEEPSEEK_API_KEY"
+    assert model_proxy["timeoutMs"] == 3000000
     assert manifest["credential"] == {"mode": "env", "source": "DEEPSEEK_API_KEY", "targets": []}
     assert "ANTHROPIC_BASE_URL" not in manifest["env"]
     assert "ANTHROPIC_API_KEY" not in manifest["env"]
     assert "ANTHROPIC_AUTH_TOKEN" not in manifest["env"]
-    assert "ANTHROPIC_DEFAULT_OPUS_MODEL" not in manifest["env"]
+    assert manifest["env"]["ANTHROPIC_DEFAULT_OPUS_MODEL"] == "claude-opus-4-6"
     assert manifest["env"]["ANTHROPIC_DEFAULT_SONNET_MODEL"] == "deepseek-v4-flash"
     assert manifest["env"]["ANTHROPIC_MODEL"] == "deepseek-v4-flash"
     assert "forceLoginMethod" not in settings
     assert proxy_config == {
         "anthropicUrl": "https://api.anthropic.com",
         "backendAuth": "x-api-key",
+        "backendModels": ["deepseek-v4-flash"],
         "backendUrl": "https://api.deepseek.com/anthropic",
+        "anthropicModels": ["claude-opus-4-6"],
         "mode": "architect",
+        "timeoutMs": 3000000,
     }
     assert "customApiKeyResponses" not in wrapper
     assert 'export ANTHROPIC_API_KEY="${DEEPSEEK_API_KEY}"' not in wrapper
     assert "ccsilo.model_proxy" in wrapper
+    assert "MODEL_PROXY_AUTH_NONCE" in wrapper
+    assert 'ANTHROPIC_BASE_URL="http://127.0.0.1:$MODEL_PROXY_ACTUAL_PORT/$MODEL_PROXY_AUTH_NONCE"' in wrapper
     assert "unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN" in wrapper
     assert "cleanup_model_proxy" in wrapper
     assert "exec " not in wrapper.split('ccsilo.model_proxy', 1)[1]
@@ -1010,6 +1017,7 @@ def test_create_model_proxy_stores_only_backend_secret(tmp_path):
         api_key="actual-secret-token",
         store_secret=True,
         model_proxy="architect",
+        model_overrides={"opus": "claude-opus-4-6"},
         tweaks=["themes"],
         root=root,
         source_artifact=artifact,
@@ -1040,9 +1048,9 @@ def test_create_model_proxy_openrouter_uses_bearer_backend_auth(tmp_path):
         credential_env="OPENROUTER_API_KEY",
         model_proxy="architect",
         model_overrides={
-            "opus": "claude-opus-4-6",
-            "sonnet": "deepseek/deepseek-v4-pro",
-            "haiku": "deepseek/deepseek-v4-pro",
+        "opus": "claude-opus-4-6",
+        "sonnet": "deepseek/deepseek-v4-pro",
+        "haiku": "deepseek/deepseek-v4-pro",
         },
         tweaks=["themes"],
         root=root,
@@ -1054,6 +1062,9 @@ def test_create_model_proxy_openrouter_uses_bearer_backend_auth(tmp_path):
 
     assert manifest["modelProxy"]["backendAuth"] == "bearer"
     assert manifest["modelProxy"]["credentialEnv"] == "OPENROUTER_API_KEY"
+    assert manifest["modelProxy"]["timeoutMs"] == 3000000
+    assert manifest["modelProxy"]["anthropicModels"] == ["claude-opus-4-6"]
+    assert manifest["modelProxy"]["backendModels"] == ["deepseek/deepseek-v4-pro"]
     assert manifest["credential"] == {"mode": "env", "source": "OPENROUTER_API_KEY", "targets": []}
     assert manifest["env"]["ANTHROPIC_DEFAULT_OPUS_MODEL"] == "claude-opus-4-6"
     assert manifest["env"]["ANTHROPIC_DEFAULT_SONNET_MODEL"] == "deepseek/deepseek-v4-pro"
@@ -1089,6 +1100,9 @@ def test_create_ccr_oauth_proxy_uses_managed_ccrouter_backend(tmp_path, monkeypa
     assert model_proxy["mode"] == "architect"
     assert model_proxy["backendUrl"] == f"http://127.0.0.1:{manifest['ccrouter']['port']}"
     assert model_proxy["credentialEnv"] == "CCROUTER_AUTH_TOKEN"
+    assert model_proxy["timeoutMs"] == 3000000
+    assert model_proxy["anthropicModels"] == ["claude-opus-test"]
+    assert model_proxy["backendModels"] == ["ccr-worker"]
     assert manifest["env"]["CCROUTER_AUTH_TOKEN"] == "ccrouter-proxy"
     assert "ANTHROPIC_BASE_URL" not in manifest["env"]
     assert "ANTHROPIC_AUTH_TOKEN" not in manifest["env"]

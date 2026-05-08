@@ -41,6 +41,9 @@ def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
     if last is None:
         return PatchOutcome(js=js, status="missed")
     insertion_index = search_start + last.end()
+    marker = f"{model_var}.push({json.dumps(CUSTOM_MODELS[0], separators=(',', ':'))});"
+    if js[insertion_index:insertion_index + len(marker)] == marker:
+        return PatchOutcome(js=js, status="skipped")
     inject = "".join(
         f"{model_var}.push({json.dumps(model, separators=(',', ':'))});"
         for model in CUSTOM_MODELS

@@ -7,6 +7,8 @@ from typing import Dict, List, Optional
 from .._utils import make_kebab_id, require_env_name
 from ..workspace import PATCH_ID_RE, workspace_root
 
+MODEL_PROXY_MAX_TIMEOUT_MS = 24 * 60 * 60 * 1000
+
 
 @dataclass
 class Variant:
@@ -163,9 +165,26 @@ def validate_variant_manifest(manifest: Dict) -> None:
             raise ValueError("variant modelProxy.backendUrl must be a non-empty string")
         if model_proxy.get("backendAuth") not in {"x-api-key", "bearer"}:
             raise ValueError("variant modelProxy.backendAuth must be x-api-key or bearer")
+        timeout_ms = model_proxy.get("timeoutMs")
+        if timeout_ms is not None and (not isinstance(timeout_ms, int) or timeout_ms < 1):
+            raise ValueError("variant modelProxy.timeoutMs must be a positive integer")
+        if isinstance(timeout_ms, int) and timeout_ms > MODEL_PROXY_MAX_TIMEOUT_MS:
+            raise ValueError("variant modelProxy.timeoutMs exceeds maximum allowed timeout")
         if not isinstance(model_proxy.get("credentialEnv"), str) or not model_proxy["credentialEnv"].strip():
             raise ValueError("variant modelProxy.credentialEnv must be a non-empty string")
         require_env_name(model_proxy["credentialEnv"], label="variant modelProxy.credentialEnv")
+        for field in ("backendModels", "anthropicModels"):
+            values = model_proxy.get(field)
+            if not isinstance(values, list) or not values:
+                raise ValueError(f"variant modelProxy.{field} must be a non-empty list")
+            for value in values:
+                if not isinstance(value, str) or not value.strip():
+                    raise ValueError(f"variant modelProxy.{field} must contain non-empty strings")
+        if set(model_proxy["backendModels"]) & set(model_proxy["anthropicModels"]):
+            raise ValueError("variant modelProxy backendModels and anthropicModels must not overlap")
+        for value in model_proxy["anthropicModels"]:
+            if not value.startswith("claude-"):
+                raise ValueError("variant modelProxy.anthropicModels must contain claude-* models")
         for field in ("runtimeConfigPath", "logPath", "portFilePath", "pythonExecutable"):
             value = model_proxy.get(field)
             if value is not None and not isinstance(value, str):

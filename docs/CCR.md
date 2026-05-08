@@ -109,12 +109,15 @@ Code so the normal OAuth/session path remains active.
 
 How requests route:
 
-- model names beginning with `claude-` go to Anthropic using the user's Claude
-  Code OAuth/session headers;
-- other model names go to the configured provider backend using the backend
-  credential;
+- only `POST /<per-run-nonce>/v1/messages` is accepted by the local proxy;
+- the configured `claude-*` planner models go to Anthropic using the user's
+  Claude Code OAuth/session headers;
+- the configured backend worker models go to the provider backend using the
+  backend credential;
 - the backend credential is passed only to the proxy process, then removed from
   the wrapper environment before Claude Code starts;
+- upstream calls use the provider `API_TIMEOUT_MS` value recorded in the
+  generated proxy config;
 - the proxy stops when the setup command exits.
 
 Create with the Architect Mode tweak:
@@ -125,6 +128,7 @@ ccsilo variant create \
   --provider deepseek \
   --credential-env DEEPSEEK_API_KEY \
   --model-proxy architect \
+  --model-opus claude-opus-4-6 \
   --tweak opusplan1m
 ```
 
@@ -148,9 +152,11 @@ Rules:
 - The provider must have backend credentials.
 - You need a Claude Code account because `claude-*` planner/Opus requests are
   still served by Anthropic through Claude Code OAuth.
-- `--model-opus` must stay a `claude-*` model, or be left unset, because
-  Opus/architect calls are kept on Claude.
+- `--model-opus` is required and must be a `claude-*` model because
+  Opus/architect calls are kept on Claude and the proxy uses an exact route map.
 - Worker/default model aliases can point at backend models.
+- Existing Architect proxy setups created before route-map support must be
+  reapplied or updated before use; stale proxy configs fail closed.
 - Complete the normal Claude Code login flow before using the wrapper if this
   machine is not already logged in.
 - The wrapper starts the proxy for the lifetime of the setup command and stops

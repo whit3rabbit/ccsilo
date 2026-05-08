@@ -28,6 +28,8 @@ def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
             pre, part, post = match.group(1), match.group(4), match.group(5)
         else:
             pre, part, post = match.group(1), match.group(2), match.group(3)
+        if "Math.round((" in part:
+            return PatchOutcome(js=js, status="skipped")
         base = _rounding_base(ctx)
         replacement = f"{pre}Math.round(({part})/{base})*{base}{post}"
         new_js = js[:match.start()] + replacement + js[match.end():]

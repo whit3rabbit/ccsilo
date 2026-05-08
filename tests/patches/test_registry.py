@@ -2,6 +2,7 @@
 an empty registry too."""
 
 from ccsilo.patches._registry import REGISTRY
+from ccsilo.patches import PatchContext
 from ccsilo.patches._pinned_default import DEFAULT_VERSION_RANGES
 from ccsilo.patches._versions import (
     SemverRangeError,
@@ -10,6 +11,8 @@ from ccsilo.patches._versions import (
     resolve_range_to_version,
     version_in_range,
 )
+from ccsilo.variants.tweaks import DASHBOARD_TWEAK_IDS
+from tests.patches.fixtures.synthetic import SYNTHETIC
 
 
 def test_no_duplicate_ids():
@@ -74,3 +77,47 @@ def test_each_versions_tested_resolves_to_concrete_version():
             f"{patch.id}: no entry in versions_tested resolves to a concrete "
             f"version in the current download index"
         )
+
+
+def test_every_registered_patch_has_synthetic_fixture():
+    missing = sorted(set(REGISTRY) - set(SYNTHETIC))
+    assert not missing
+
+
+def test_every_registered_patch_has_real_fixture_test_file():
+    from pathlib import Path
+
+    test_text = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in Path("tests/patches").glob("test_*.py")
+        if path.name != "test_registry.py"
+    )
+    missing = [patch_id for patch_id in REGISTRY if patch_id not in test_text]
+    assert not missing
+
+
+def test_registered_patches_are_idempotent_on_synthetic_fixtures():
+    for patch_id, patch in REGISTRY.items():
+        js = SYNTHETIC[patch_id]
+        once = patch.apply(js, PatchContext(claude_version=None))
+        twice = patch.apply(once.js, PatchContext(claude_version=None))
+        assert twice.js == once.js, f"{patch_id} changed output on second apply"
+
+
+def test_registered_patch_outputs_parse_when_baseline_parses(parse_js):
+    for patch_id, patch in REGISTRY.items():
+        js = SYNTHETIC[patch_id]
+        try:
+            parse_js(js)
+        except AssertionError:
+            continue
+        outcome = patch.apply(js, PatchContext(claude_version=None))
+        if outcome.status == "applied":
+            parse_js(outcome.js)
+
+
+def test_dashboard_visible_patches_are_registered_and_covered():
+    missing = [patch_id for patch_id in DASHBOARD_TWEAK_IDS if patch_id not in REGISTRY]
+    assert not missing
+    uncovered = [patch_id for patch_id in DASHBOARD_TWEAK_IDS if not REGISTRY[patch_id].versions_tested]
+    assert not uncovered

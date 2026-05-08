@@ -205,6 +205,7 @@ def create_variant(
     )
 
 _MODEL_PROXY_AUTH_ENV = {"ANTHROPIC_BASE_URL", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"}
+_MODEL_PROXY_MAX_TIMEOUT_MS = 24 * 60 * 60 * 1000
 
 def _model_proxy_for_create(
     provider,
@@ -236,6 +237,8 @@ def _model_proxy_for_create(
         "backendAuth": "bearer" if provider.auth_mode == "authToken" else "x-api-key",
         "credentialEnv": source_env,
         "anthropicUrl": "https://api.anthropic.com",
+        "timeoutMs": _model_proxy_timeout_ms(safe_env.get("API_TIMEOUT_MS")),
+        **_model_proxy_route_models(safe_env),
     }
     return payload, safe_env, credential, secret_env
 
@@ -281,16 +284,39 @@ def _model_proxy_safe_env(env: Dict[str, str], model_overrides: Dict[str, str]) 
         if key not in _MODEL_PROXY_AUTH_ENV
     }
     opus_override = str(model_overrides.get("opus") or "").strip()
-    if opus_override and not opus_override.startswith("claude-"):
-        raise ValueError("--model-opus must be a claude-* model when --model-proxy architect is used")
     if not opus_override:
-        safe_env.pop("ANTHROPIC_DEFAULT_OPUS_MODEL", None)
+        raise ValueError("--model-opus must be set to a claude-* planner model when --model-proxy architect is used")
+    if not opus_override.startswith("claude-"):
+        raise ValueError("--model-opus must be a claude-* model when --model-proxy architect is used")
     default_override = str(model_overrides.get("default") or "").strip()
     if not default_override:
         worker_default = safe_env.get("ANTHROPIC_DEFAULT_SONNET_MODEL") or safe_env.get("ANTHROPIC_DEFAULT_HAIKU_MODEL")
         if worker_default:
             safe_env["ANTHROPIC_MODEL"] = worker_default
     return safe_env
+
+
+def _model_proxy_route_models(env: Dict[str, str]) -> Dict[str, List[str]]:
+    backend_models: List[str] = []
+    anthropic_models: List[str] = []
+    for key in (
+        "ANTHROPIC_MODEL",
+        "ANTHROPIC_SMALL_FAST_MODEL",
+        "ANTHROPIC_DEFAULT_OPUS_MODEL",
+        "ANTHROPIC_DEFAULT_SONNET_MODEL",
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL",
+    ):
+        model = str(env.get(key) or "").strip()
+        if not model:
+            continue
+        target = anthropic_models if model.startswith("claude-") else backend_models
+        if model not in target:
+            target.append(model)
+    if not backend_models:
+        raise ValueError("--model-proxy architect requires at least one non-claude worker model")
+    if not anthropic_models:
+        raise ValueError("--model-proxy architect requires at least one claude-* planner model")
+    return {"backendModels": backend_models, "anthropicModels": anthropic_models}
 
 
 def _model_proxy_port(value: Optional[object]):
@@ -303,6 +329,21 @@ def _model_proxy_port(value: Optional[object]):
     if port < 1 or port > 65535:
         raise ValueError("model proxy port must be between 1 and 65535")
     return port
+
+
+def _model_proxy_timeout_ms(value: Optional[object]) -> int:
+    if value in (None, ""):
+        return 600_000
+    try:
+        timeout = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("model proxy API_TIMEOUT_MS must be an integer") from exc
+    if timeout < 1:
+        raise ValueError("model proxy API_TIMEOUT_MS must be positive")
+    if timeout > _MODEL_PROXY_MAX_TIMEOUT_MS:
+        raise ValueError("model proxy API_TIMEOUT_MS exceeds maximum allowed timeout")
+    return timeout
+
 
 def apply_variant(
     variant_id: str,
@@ -534,8 +575,5 @@ def run_variant(name: str, args: Optional[List[str]] = None, root=None) -> int:
     wrapper = _canonical_wrapper_path(variant_id, root=root)
     if not wrapper.exists():
         raise ValueError(f"Variant wrapper is missing: {wrapper}")
-    try:
-        result = subprocess.run([str(wrapper), *(args or [])], check=False, timeout=300)
-    except subprocess.TimeoutExpired as exc:
-        raise RuntimeError(f"Variant '{name}' timed out after 300s") from exc
+    result = subprocess.run([str(wrapper), *(args or [])], check=False)
     return result.returncode

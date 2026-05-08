@@ -25,12 +25,16 @@ def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
         elem_idx = body.find(f"createElement({inner_name},")
         if elem_idx == -1:
             continue
+        if body.lstrip().startswith("return null;"):
+            return PatchOutcome(js=js, status="skipped")
         next_func_idx = body.find("function ")
         if next_func_idx != -1 and next_func_idx < elem_idx:
             continue
         new_js = js[:body_start] + "return null;" + js[body_start:]
         return PatchOutcome(js=new_js, status="applied")
     inner_start = lookback_start + funcs[-1].end()
+    if js[inner_start:inner_start + 32].lstrip().startswith("return null;"):
+        return PatchOutcome(js=js, status="skipped")
     new_js = js[:inner_start] + "return null;" + js[inner_start:]
     return PatchOutcome(js=new_js, status="applied")
 

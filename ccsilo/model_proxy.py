@@ -7,6 +7,7 @@ configured backend provider credential.
 """
 
 import argparse
+import codecs
 import http.client
 import json
 import os
@@ -22,7 +23,11 @@ from urllib.parse import urlsplit
 ANTHROPIC_FALLBACK = "https://api.anthropic.com"
 MODEL_PROXY_MODE = "architect"
 MODEL_PATHS = {"/v1/messages"}
-REQUEST_TIMEOUT_SECONDS = 300
+DEFAULT_REQUEST_TIMEOUT_MS = 600_000
+MAX_REQUEST_TIMEOUT_MS = 24 * 60 * 60 * 1000
+MAX_REQUEST_BYTES = 64 * 1024 * 1024
+MAX_RESPONSE_BYTES = 64 * 1024 * 1024
+MAX_SSE_EVENT_BYTES = 1024 * 1024
 HOP_BY_HOP_HEADERS = {
     "connection",
     "content-length",
@@ -42,17 +47,21 @@ class ModelProxyConfig:
     mode: str
     backend_url: str
     backend_auth: str
+    backend_models: Tuple[str, ...]
+    anthropic_models: Tuple[str, ...]
     anthropic_url: str = ANTHROPIC_FALLBACK
+    timeout_ms: int = DEFAULT_REQUEST_TIMEOUT_MS
 
 
 class ModelProxyServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
 
-    def __init__(self, server_address, handler, *, config: ModelProxyConfig, api_key: str):
+    def __init__(self, server_address, handler, *, config: ModelProxyConfig, api_key: str, auth_nonce: str):
         super().__init__(server_address, handler)
         self.config = config
         self.api_key = api_key
+        self.auth_nonce = auth_nonce
         self.had_backend_session = False
         self.state_lock = threading.Lock()
 
@@ -65,10 +74,38 @@ def load_config(path: os.PathLike) -> ModelProxyConfig:
         mode=str(payload.get("mode") or ""),
         backend_url=str(payload.get("backendUrl") or payload.get("backend_url") or ""),
         backend_auth=str(payload.get("backendAuth") or payload.get("backend_auth") or ""),
+        backend_models=_model_list(payload.get("backendModels") or payload.get("backend_models")),
+        anthropic_models=_model_list(payload.get("anthropicModels") or payload.get("anthropic_models")),
         anthropic_url=str(payload.get("anthropicUrl") or payload.get("anthropic_url") or ANTHROPIC_FALLBACK),
+        timeout_ms=_timeout_ms(payload.get("timeoutMs", payload.get("timeout_ms"))),
     )
     validate_config(config)
     return config
+
+
+def _model_list(value) -> Tuple[str, ...]:
+    if not isinstance(value, list):
+        return ()
+    out = []
+    for item in value:
+        text = str(item).strip()
+        if text and text not in out:
+            out.append(text)
+    return tuple(out)
+
+
+def _timeout_ms(value) -> int:
+    if value in (None, ""):
+        return DEFAULT_REQUEST_TIMEOUT_MS
+    try:
+        timeout = int(value)
+    except (TypeError, ValueError):
+        raise ValueError("model proxy timeoutMs must be an integer number of milliseconds") from None
+    if timeout < 1:
+        raise ValueError("model proxy timeoutMs must be positive")
+    if timeout > MAX_REQUEST_TIMEOUT_MS:
+        raise ValueError("model proxy timeoutMs exceeds maximum allowed timeout")
+    return timeout
 
 
 def validate_config(config: ModelProxyConfig) -> None:
@@ -78,23 +115,37 @@ def validate_config(config: ModelProxyConfig) -> None:
         raise ValueError("model proxy backend_url is required")
     if config.backend_auth not in {"x-api-key", "bearer"}:
         raise ValueError("model proxy backend_auth must be x-api-key or bearer")
+    if not config.backend_models:
+        raise ValueError("model proxy backendModels must list at least one backend model")
+    if not config.anthropic_models:
+        raise ValueError("model proxy anthropicModels must list at least one claude model")
+    overlap = set(config.backend_models) & set(config.anthropic_models)
+    if overlap:
+        raise ValueError(f"model proxy route maps overlap: {', '.join(sorted(overlap))}")
+    for model in config.anthropic_models:
+        if not model.startswith("claude-"):
+            raise ValueError("model proxy anthropicModels entries must be claude-* model ids")
     for label, value in (("backend_url", config.backend_url), ("anthropic_url", config.anthropic_url)):
         parsed = urlsplit(value)
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
             raise ValueError(f"model proxy {label} must be an http(s) URL")
+    _timeout_ms(config.timeout_ms)
 
 
 def start_model_proxy(
     config: ModelProxyConfig,
     *,
     api_key: str,
+    auth_nonce: str,
     host: str = "127.0.0.1",
     port: int = 0,
 ) -> ModelProxyServer:
     validate_config(config)
     if not api_key:
         raise ValueError("model proxy api key is required")
-    return ModelProxyServer((host, port), _ModelProxyHandler, config=config, api_key=api_key)
+    if not auth_nonce or "/" in auth_nonce or auth_nonce in {".", ".."}:
+        raise ValueError("model proxy auth nonce is required and must be a single path segment")
+    return ModelProxyServer((host, port), _ModelProxyHandler, config=config, api_key=api_key, auth_nonce=auth_nonce)
 
 
 def strip_all_thinking_blocks(body: Dict) -> None:
@@ -141,46 +192,99 @@ def normalize_json_body(data: bytes) -> bytes:
 
 
 class SseUsageNormalizer:
-    def __init__(self):
-        self.buffer = ""
+    def __init__(self, *, max_event_bytes: int = MAX_SSE_EVENT_BYTES):
+        self.decoder = codecs.getincrementaldecoder("utf-8")("replace")
+        self.pending_line = ""
+        self.event_lines = []
+        self.max_event_bytes = max_event_bytes
 
     def feed(self, chunk: bytes) -> Iterable[bytes]:
-        self.buffer += chunk.decode("utf-8", "replace")
-        parts = self.buffer.split("\n\n")
-        self.buffer = parts.pop()
-        for part in parts:
-            yield (self._fix_event(part) + "\n\n").encode("utf-8")
+        yield from self._feed_text(self.decoder.decode(chunk), final=False)
 
     def flush(self) -> Iterable[bytes]:
-        if self.buffer.strip():
-            yield (self._fix_event(self.buffer) + "\n\n").encode("utf-8")
-        self.buffer = ""
+        yield from self._feed_text(self.decoder.decode(b"", final=True), final=True)
+        if self.pending_line:
+            self.event_lines.append(self.pending_line)
+            self.pending_line = ""
+        if self.event_lines:
+            yield self._emit_event()
 
-    def _fix_event(self, event: str) -> str:
-        for line in event.splitlines():
-            if not line.startswith("data: "):
-                continue
-            raw = line[6:]
-            try:
-                payload = json.loads(raw)
-            except json.JSONDecodeError:
-                return event
-            if not isinstance(payload, dict):
-                return event
-            changed = False
-            if payload.get("type") == "message_start" and isinstance(payload.get("message"), dict):
-                message = payload["message"]
-                if not isinstance(message.get("usage"), dict):
-                    message["usage"] = {"input_tokens": 0, "output_tokens": 0}
-                    changed = True
-            if payload.get("type") == "message_delta" and not isinstance(payload.get("usage"), dict):
-                payload["usage"] = {"output_tokens": 0}
+    def _feed_text(self, text: str, *, final: bool) -> Iterable[bytes]:
+        self.pending_line += text.replace("\r\n", "\n").replace("\r", "\n")
+        lines = self.pending_line.split("\n")
+        self.pending_line = lines.pop()
+        for line in lines:
+            if line == "":
+                if self.event_lines:
+                    yield self._emit_event()
+            else:
+                self.event_lines.append(line)
+                self._check_event_size()
+        if final and self.pending_line:
+            self._check_event_size(include_pending=True)
+        else:
+            self._check_event_size(include_pending=True)
+
+    def _check_event_size(self, *, include_pending: bool = False) -> None:
+        parts = list(self.event_lines)
+        if include_pending and self.pending_line:
+            parts.append(self.pending_line)
+        if not parts:
+            return
+        if len("\n".join(parts).encode("utf-8")) > self.max_event_bytes:
+            raise ValueError("upstream SSE event exceeded model proxy size limit")
+
+    def _emit_event(self) -> bytes:
+        lines = self._fix_event_lines(self.event_lines)
+        self.event_lines = []
+        return ("\n".join(lines) + "\n\n").encode("utf-8")
+
+    def _fix_event_lines(self, lines):
+        data_values = []
+        for line in lines:
+            field, value = _sse_field(line)
+            if field == "data":
+                data_values.append(value)
+        if not data_values:
+            return lines
+        raw = "\n".join(data_values)
+        if raw.strip() == "[DONE]":
+            return lines
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError:
+            return lines
+        if not isinstance(payload, dict):
+            return lines
+        changed = False
+        if payload.get("type") == "message_start" and isinstance(payload.get("message"), dict):
+            message = payload["message"]
+            if not isinstance(message.get("usage"), dict):
+                message["usage"] = {"input_tokens": 0, "output_tokens": 0}
                 changed = True
-            if changed:
-                fixed = json.dumps(payload, separators=(",", ":"))
-                return event.replace(raw, fixed, 1)
-            return event
-        return event
+        if payload.get("type") == "message_delta" and not isinstance(payload.get("usage"), dict):
+            payload["usage"] = {"output_tokens": 0}
+            changed = True
+        if not changed:
+            return lines
+        fixed = json.dumps(payload, separators=(",", ":"))
+        out = []
+        replaced = False
+        for line in lines:
+            field, _value = _sse_field(line)
+            if field != "data":
+                out.append(line)
+            elif not replaced:
+                out.append(f"data: {fixed}")
+                replaced = True
+        return out
+
+
+class _ProxyHttpError(Exception):
+    def __init__(self, status: int, message: str):
+        super().__init__(message)
+        self.status = status
+        self.message = message
 
 
 class _ModelProxyHandler(BaseHTTPRequestHandler):
@@ -191,45 +295,84 @@ class _ModelProxyHandler(BaseHTTPRequestHandler):
         return
 
     def do_GET(self):
-        self._proxy()
+        self._reject_method_or_path()
+
+    def do_HEAD(self):
+        self._reject_method_or_path()
 
     def do_POST(self):
         self._proxy()
 
     def do_PUT(self):
-        self._proxy()
+        self._reject_method_or_path()
+
+    def do_PATCH(self):
+        self._reject_method_or_path()
 
     def do_DELETE(self):
-        self._proxy()
+        self._reject_method_or_path()
+
+    def do_OPTIONS(self):
+        self._reject_method_or_path()
 
     def _proxy(self) -> None:
-        path = urlsplit(self.path).path
-        body = self._read_body()
         try:
-            target_url, use_backend, body = self._prepare_target(path, body)
-            self._forward(target_url, use_backend, body)
+            client_path = self._authorized_client_path()
+            body = self._read_body()
+            target_url, use_backend, body = self._prepare_target(body)
+            self._forward(target_url, use_backend, body, client_path)
+        except _ProxyHttpError as exc:
+            self._send_json(exc.status, {"error": {"message": exc.message}})
         except Exception as exc:
             self._send_json(502, {"error": {"message": f"model proxy upstream error: {exc}"}})
 
-    def _read_body(self) -> bytes:
+    def _reject_method_or_path(self) -> None:
         try:
-            length = int(self.headers.get("content-length") or "0")
+            self._authorized_client_path()
+        except _ProxyHttpError as exc:
+            self._send_json(exc.status, {"error": {"message": exc.message}})
+            return
+        self._send_json(405, {"error": {"message": "model proxy only accepts POST /v1/messages"}})
+
+    def _authorized_client_path(self) -> str:
+        parsed = urlsplit(self.path)
+        expected = f"/{self.server.auth_nonce}/v1/messages"
+        if parsed.path != expected:
+            self.close_connection = True
+            raise _ProxyHttpError(404, "model proxy endpoint not found")
+        client_path = "/v1/messages"
+        if parsed.query:
+            client_path += "?" + parsed.query
+        return client_path
+
+    def _read_body(self) -> bytes:
+        raw_length = self.headers.get("content-length")
+        if raw_length is None:
+            raise _ProxyHttpError(413, "model proxy requires Content-Length")
+        try:
+            length = int(raw_length)
         except ValueError:
-            length = 0
+            raise _ProxyHttpError(413, "model proxy received invalid Content-Length") from None
+        if length < 0:
+            raise _ProxyHttpError(413, "model proxy received invalid Content-Length")
+        if length > MAX_REQUEST_BYTES:
+            raise _ProxyHttpError(413, "model proxy request body too large")
         return self.rfile.read(length) if length else b""
 
-    def _prepare_target(self, path: str, body: bytes) -> Tuple[str, bool, bytes]:
-        is_model_call = path in MODEL_PATHS
-        use_backend = False
-        parsed_body = None
-        if is_model_call and body:
-            try:
-                parsed_body = json.loads(body.decode("utf-8"))
-            except (UnicodeDecodeError, json.JSONDecodeError):
-                parsed_body = None
-            if isinstance(parsed_body, dict):
-                model = str(parsed_body.get("model") or "")
-                use_backend = bool(model and not model.startswith("claude-"))
+    def _prepare_target(self, body: bytes) -> Tuple[str, bool, bytes]:
+        try:
+            parsed_body = json.loads(body.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            raise _ProxyHttpError(400, "model proxy request body must be valid JSON") from None
+        if not isinstance(parsed_body, dict):
+            raise _ProxyHttpError(400, "model proxy request body must be a JSON object")
+        model = str(parsed_body.get("model") or "")
+        if model in self.server.config.backend_models:
+            use_backend = True
+        elif model in self.server.config.anthropic_models:
+            use_backend = False
+        else:
+            raise _ProxyHttpError(400, f"model proxy model is not in the route map: {model or '(missing)'}")
 
         if use_backend:
             strip_all_thinking_blocks(parsed_body)
@@ -238,19 +381,18 @@ class _ModelProxyHandler(BaseHTTPRequestHandler):
                 self.server.had_backend_session = True
             return self.server.config.backend_url, True, body
 
-        if is_model_call and isinstance(parsed_body, dict):
-            with self.server.state_lock:
-                had_backend_session = self.server.had_backend_session
-            if had_backend_session:
-                strip_all_thinking_blocks(parsed_body)
-            else:
-                strip_unsigned_thinking_blocks(parsed_body)
-            body = json.dumps(parsed_body, separators=(",", ":")).encode("utf-8")
+        with self.server.state_lock:
+            had_backend_session = self.server.had_backend_session
+        if had_backend_session:
+            strip_all_thinking_blocks(parsed_body)
+        else:
+            strip_unsigned_thinking_blocks(parsed_body)
+        body = json.dumps(parsed_body, separators=(",", ":")).encode("utf-8")
         return self.server.config.anthropic_url, False, body
 
-    def _forward(self, target_url: str, use_backend: bool, body: bytes) -> None:
+    def _forward(self, target_url: str, use_backend: bool, body: bytes, client_path: str) -> None:
         target = urlsplit(target_url)
-        upstream_path = _upstream_path(target.path, self.path)
+        upstream_path = _upstream_path(target.path, client_path)
         headers = _upstream_headers(self.headers.items(), target.netloc)
         if use_backend:
             headers.pop("authorization", None)
@@ -262,7 +404,7 @@ class _ModelProxyHandler(BaseHTTPRequestHandler):
         headers["content-length"] = str(len(body))
 
         conn_cls = http.client.HTTPSConnection if target.scheme == "https" else http.client.HTTPConnection
-        conn = conn_cls(target.hostname, target.port, timeout=REQUEST_TIMEOUT_SECONDS)
+        conn = conn_cls(target.hostname, target.port, timeout=self.server.config.timeout_ms / 1000)
         try:
             conn.request(self.command, upstream_path, body=body, headers=headers)
             response = conn.getresponse()
@@ -274,22 +416,37 @@ class _ModelProxyHandler(BaseHTTPRequestHandler):
         content_type = response.getheader("content-type", "")
         if use_backend and "text/event-stream" in content_type:
             headers = _response_headers(response.getheaders(), omit_content_length=True)
+            _set_header(headers, "Content-Type", "text/event-stream")
+            _set_header(headers, "Cache-Control", "no-cache")
+            _set_header(headers, "Connection", "keep-alive")
             self._send_headers(response.status, response.reason, headers)
             normalizer = SseUsageNormalizer()
             while True:
                 chunk = response.read(8192)
                 if not chunk:
                     break
-                for fixed in normalizer.feed(chunk):
+                try:
+                    fixed_chunks = tuple(normalizer.feed(chunk))
+                except ValueError:
+                    self.close_connection = True
+                    return
+                for fixed in fixed_chunks:
                     self.wfile.write(fixed)
                     self.wfile.flush()
-            for fixed in normalizer.flush():
+            try:
+                fixed_chunks = tuple(normalizer.flush())
+            except ValueError:
+                self.close_connection = True
+                return
+            for fixed in fixed_chunks:
                 self.wfile.write(fixed)
                 self.wfile.flush()
             self.close_connection = True
             return
 
-        raw = response.read()
+        raw = response.read(MAX_RESPONSE_BYTES + 1)
+        if len(raw) > MAX_RESPONSE_BYTES:
+            raise _ProxyHttpError(502, "model proxy upstream response body too large")
         if use_backend and "application/json" in content_type:
             raw = normalize_json_body(raw)
         headers = _response_headers(response.getheaders(), content_length=len(raw))
@@ -357,6 +514,24 @@ def _response_headers(items, *, content_length: Optional[int] = None, omit_conte
     return headers
 
 
+def _set_header(headers: Dict[str, str], key: str, value: str) -> None:
+    for existing in list(headers):
+        if existing.lower() == key.lower():
+            del headers[existing]
+    headers[key] = value
+
+
+def _sse_field(line: str):
+    if line.startswith(":"):
+        return None, None
+    if ":" not in line:
+        return line, ""
+    field, value = line.split(":", 1)
+    if value.startswith(" "):
+        value = value[1:]
+    return field, value
+
+
 def _parse_port(value: str) -> int:
     if value in {"", "auto"}:
         return 0
@@ -380,11 +555,13 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     parser.add_argument("--port", default="auto", help="Port number or auto")
     parser.add_argument("--port-file", required=True, help="File to write the selected port into")
     parser.add_argument("--api-key-env", default="CCSILO_MODEL_PROXY_API_KEY", help="Environment variable containing the backend API key")
+    parser.add_argument("--auth-nonce-env", default="CCSILO_MODEL_PROXY_AUTH_NONCE", help="Environment variable containing the local proxy path nonce")
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     config = load_config(args.config)
     api_key = os.environ.get(args.api_key_env, "")
-    server = start_model_proxy(config, api_key=api_key, port=_parse_port(args.port))
+    auth_nonce = os.environ.get(args.auth_nonce_env, "")
+    server = start_model_proxy(config, api_key=api_key, auth_nonce=auth_nonce, port=_parse_port(args.port))
     port = int(server.server_address[1])
     port_file = Path(args.port_file)
     port_file.parent.mkdir(parents=True, exist_ok=True)

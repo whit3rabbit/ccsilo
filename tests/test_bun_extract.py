@@ -162,6 +162,46 @@ def test_parse_rejects_excessive_module_count_before_iterating():
         parse_bun_binary(data)
 
 
+def test_parse_rejects_invalid_entry_point_id():
+    fixture = build_bun_fixture(platform="elf", module_struct_size=52, modules=SAMPLE_MODULES)
+    broken = bytearray(fixture["buf"])
+    offsets_start = len(broken) - len(TRAILER) - OFFSETS_SIZE
+    struct.pack_into("<I", broken, offsets_start + 16, len(SAMPLE_MODULES) + 10)
+
+    with pytest.raises(BunFormatError, match="entryPointId"):
+        parse_bun_binary(bytes(broken))
+
+
+def test_parse_rejects_invalid_utf8_module_name():
+    fixture = build_bun_fixture(platform="elf", module_struct_size=52, modules=SAMPLE_MODULES)
+    broken = bytearray(fixture["buf"])
+    broken[fixture["expected"]["data_start"]] = 0xFF
+
+    with pytest.raises(BunFormatError, match="valid UTF-8"):
+        parse_bun_binary(bytes(broken))
+
+
+def test_parse_rejects_macho_bun_section_offset_outside_file():
+    fixture = build_bun_fixture(platform="macho", module_struct_size=52, modules=SAMPLE_MODULES)
+    broken = bytearray(fixture["buf"])
+    section_header_off = 32 + 72
+    struct.pack_into("<I", broken, section_header_off + 48, len(broken) + 1024)
+
+    with pytest.raises(BunFormatError, match="Computed dataStart"):
+        parse_bun_binary(bytes(broken))
+
+
+def test_parse_rejects_pe_bun_section_offset_outside_file():
+    fixture = build_bun_fixture(platform="pe", module_struct_size=52, modules=SAMPLE_MODULES)
+    broken = bytearray(fixture["buf"])
+    pe_offset = struct.unpack_from("<I", broken, 0x3C)[0]
+    section_base = pe_offset + 24
+    struct.pack_into("<I", broken, section_base + 20, len(broken) + 1024)
+
+    with pytest.raises(BunFormatError, match="Computed dataStart"):
+        parse_bun_binary(bytes(broken))
+
+
 def test_path_prefixes_are_stripped():
     fixture = build_bun_fixture(
         platform="elf",
