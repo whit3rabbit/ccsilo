@@ -109,12 +109,15 @@ gh run watch
 
 If a PyPI upload has already happened and only the GitHub tag/release is
 missing, do not dispatch the PyPI workflow again. Create the matching tag and
-GitHub Release manually:
+GitHub Release manually. The tag commit must contain the current safe
+`.github/workflows/release.yml` behavior and a matching `pyproject.toml`
+version, because GitHub Release events run workflow files from the tagged
+commit:
 
 ```bash
 VERSION="$(.venv/bin/python -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"])')"
 TAG="v${VERSION}"
-git tag -a "$TAG" -m "ccsilo ${VERSION}" <published-commit>
+git tag -a "$TAG" -m "ccsilo ${VERSION}" <commit-with-matching-version-and-safe-release-workflow>
 git push upstream "$TAG"
 gh release create "$TAG" --title "$TAG" --generate-notes --latest --verify-tag
 ```
@@ -144,6 +147,12 @@ The release tag must be `v<project.version>` from `pyproject.toml`. For PyPI
 dispatches, the workflow fails unless `--ref` is that exact tag. If the tag or
 GitHub Release is wrong after a successful upload, fix the tag/release metadata
 only. Do not re-run the PyPI publish for the same version.
+
+Do not create or publish a GitHub Release from a tag whose
+`.github/workflows/release.yml` still publishes on `release.published`; that can
+attempt to upload an already-immutable PyPI version. Move the tag to a commit
+with the safe workflow and the same project version before publishing the
+GitHub Release.
 
 TestPyPI is also effectively immutable for a given filename. For repeated
 TestPyPI dry runs, bump the version or use a local build and `twine check`

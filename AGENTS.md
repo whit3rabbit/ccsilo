@@ -175,6 +175,10 @@ Release rules:
 * If PyPI already contains a version but the GitHub tag/release is missing,
   create the `v<version>` tag and GitHub Release manually. Do not rerun the
   PyPI publish for the same version.
+* GitHub Release events run workflow files from the tagged commit. Do not
+  create or publish a GitHub Release from a tag whose `release.yml` still
+  publishes on `release.published`; move the tag to a commit with the safe
+  workflow and matching `pyproject.toml` version first.
 * After publishing, verify `pipx install ccsilo`, `ccsilo --help`, and
   `ccsilo variant providers --json`.
 * Keep release process details in `docs/RELEASE.md` synchronized with the
