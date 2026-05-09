@@ -164,10 +164,10 @@ def variant_options(state):
                         f"Model proxy port: {state.variant_model_proxy_port or 'auto'}",
                     )
                 )
-        tweak_ids = variant_setup_tweak_ids(state)
-        for tweak_id in tweak_ids:
-            marker = "[x]" if tweak_id in state.selected_variant_tweaks else "[ ]"
-            options.append(MenuOption("variant-tweak", f"{marker} {_tweak_display_name(tweak_id)}  ({tweak_id})", tweak_id))
+        for _group, tweak_ids in variant_tweak_groups(state):
+            for tweak_id in tweak_ids:
+                marker = "[x]" if tweak_id in state.selected_variant_tweaks else "[ ]"
+                options.append(MenuOption("variant-tweak", f"{marker} {_tweak_display_name(tweak_id)}  ({tweak_id})", tweak_id))
         if state.tweak_filter == "recommended":
             options.append(MenuOption("variant-tweak-view", "Show advanced tweaks", "all"))
         else:

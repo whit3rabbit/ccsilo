@@ -431,6 +431,19 @@ Avoid full-screen clears in steady-state TUI render loops.
 * For flicker regressions, use PTY capture or TUI MCP smoke and count repeated full-clear escape sequences such as `ESC[2J` while idle.
 * Keep constructor-flag tests for TUI entry points that use `ratatui_py.App`.
 
+Grouped TUI selectors must keep selectable option order and rendered row order
+aligned.
+
+* If a screen renders non-selectable group headers, `selected_index` must still
+  advance through visible selectable rows in the same order users see them.
+* Build `MenuOption` lists in the same grouped order used by the renderer, or
+  provide an explicit option-index to rendered-row mapping that is monotonic.
+* Add regression tests that map each selectable option index to its rendered row
+  and assert positions increase with only header-sized gaps.
+* For setup tweak changes, run
+  `.venv/bin/python -m pytest -q tests/test_tui.py -k "variant_tweak"` and
+  use TUI MCP to replay `Show advanced tweaks` followed by several `Down` keys.
+
 ## TUI MCP Behavioral Testing
 
 Use the TUI MCP testing tool for workflows that cannot be validated by pure state/render tests alone.

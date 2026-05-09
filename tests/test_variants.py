@@ -16,9 +16,11 @@ from ccsilo.variants import (
     default_install_dir,
     discover_install_candidates,
     doctor_variant,
+    inspect_variant_command_install,
     install_variant_command,
     list_variant_providers,
     load_variant,
+    preflight_variant_command_install,
     remove_variant,
     run_variant,
     scan_variants,
@@ -246,6 +248,53 @@ def test_install_variant_command_records_symlink_and_refuses_unmanaged_target(tm
     os.symlink(other, result.path)
     with pytest.raises(ValueError, match="pointing elsewhere"):
         install_variant_command(variant, bin_dir=install_dir)
+
+
+def test_preflight_variant_command_install_refuses_blocked_command_without_creating_dir(tmp_path):
+    install_dir = tmp_path / "home" / ".local" / "bin"
+    install_dir.mkdir(parents=True)
+    blocked = install_dir / "demo"
+    blocked.write_text("#!/bin/sh\n", encoding="utf-8")
+    target = tmp_path / ".ccsilo" / "bin" / "demo"
+
+    with pytest.raises(ValueError, match="Refusing to overwrite non-symlink command"):
+        preflight_variant_command_install("demo", target=target, bin_dir=install_dir)
+
+    missing_dir = tmp_path / "home" / "new-bin"
+    result = preflight_variant_command_install("demo", target=target, bin_dir=missing_dir, yes=True)
+
+    assert result.status == "available"
+    assert result.path == missing_dir / "demo"
+    assert not missing_dir.exists()
+    assert blocked.read_text(encoding="utf-8") == "#!/bin/sh\n"
+
+
+@pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlink not supported")
+def test_inspect_variant_command_install_classifies_existing_command_states(tmp_path):
+    install_dir = tmp_path / "home" / ".local" / "bin"
+    install_dir.mkdir(parents=True)
+    target = tmp_path / ".ccsilo" / "bin" / "demo"
+
+    available = inspect_variant_command_install("demo", target=target, bin_dir=install_dir)
+    assert available.status == "available"
+
+    command = install_dir / "demo"
+    command.write_text("#!/bin/sh\n", encoding="utf-8")
+    blocked_file = inspect_variant_command_install("demo", target=target, bin_dir=install_dir)
+    assert blocked_file.status == "blocked"
+    assert "non-symlink command" in blocked_file.warning
+    command.unlink()
+
+    os.symlink(target, command)
+    already_installed = inspect_variant_command_install("demo", target=target, bin_dir=install_dir)
+    assert already_installed.status == "already-installed"
+    command.unlink()
+
+    other = tmp_path / "other-wrapper"
+    os.symlink(other, command)
+    blocked_symlink = inspect_variant_command_install("demo", target=target, bin_dir=install_dir)
+    assert blocked_symlink.status == "blocked"
+    assert "symlink pointing elsewhere" in blocked_symlink.warning
 
 
 @pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlink not supported")
@@ -1679,6 +1728,58 @@ def test_remove_variant_requires_confirmation_and_removes_wrapper(tmp_path):
     assert scan_variants(root) == []
 
 
+@pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlink not supported")
+def test_remove_variant_removes_unrecorded_symlink_to_wrapper(tmp_path, monkeypatch):
+    root = tmp_path / ".ccsilo"
+    home = tmp_path / "home"
+    install_dir = home / ".local" / "bin"
+    install_dir.mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(home))
+    artifact = write_source_artifact(tmp_path)
+    result = create_variant(
+        name="Zai Test",
+        provider_key="zai",
+        credential_env="Z_AI_API_KEY",
+        root=root,
+        source_artifact=artifact,
+        force=True,
+    )
+    orphan = install_dir / "zai-test"
+    os.symlink(result.wrapper_path, orphan)
+    manifest = json.loads((result.variant.path / "variant.json").read_text(encoding="utf-8"))
+    assert "installs" not in manifest
+
+    assert remove_variant("zai-test", yes=True, root=root) is True
+
+    assert not orphan.exists()
+    assert not orphan.is_symlink()
+    assert scan_variants(root) == []
+
+
+def test_remove_variant_preserves_unrecorded_non_symlink_command(tmp_path, monkeypatch):
+    root = tmp_path / ".ccsilo"
+    home = tmp_path / "home"
+    install_dir = home / ".local" / "bin"
+    install_dir.mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(home))
+    artifact = write_source_artifact(tmp_path)
+    create_variant(
+        name="Zai Test",
+        provider_key="zai",
+        credential_env="Z_AI_API_KEY",
+        root=root,
+        source_artifact=artifact,
+        force=True,
+    )
+    command = install_dir / "zai-test"
+    command.write_text("#!/bin/sh\n", encoding="utf-8")
+
+    assert remove_variant("zai-test", yes=True, root=root) is True
+
+    assert command.read_text(encoding="utf-8") == "#!/bin/sh\n"
+    assert scan_variants(root) == []
+
+
 def test_remove_variant_ignores_tampered_manifest_wrapper(tmp_path):
     root = tmp_path / ".ccsilo"
     variant_dir = root / "variants" / "fake"
@@ -1967,6 +2068,68 @@ def test_variant_cli_create_show_doctor_and_remove(monkeypatch, tmp_path, capsys
         assert uninstall_payload["removedWorkspace"] is True
     finally:
         sys.argv = old_argv
+
+
+def test_variant_cli_create_install_reports_blocked_existing_command(monkeypatch, tmp_path, capsys):
+    from ccsilo import __main__ as cli
+    import sys
+
+    root = tmp_path / ".ccsilo"
+    home = tmp_path / "home"
+    install_dir = home / ".local" / "bin"
+    install_dir.mkdir(parents=True)
+    blocked = install_dir / "zai"
+    blocked.write_text("#!/bin/sh\n", encoding="utf-8")
+    calls = []
+
+    class FakeVariant:
+        variant_id = "zai"
+        manifest = {
+            "schemaVersion": 1,
+            "id": "zai",
+            "name": "zai",
+            "provider": {"key": "zai"},
+            "source": {"version": "latest"},
+            "paths": {"wrapper": str(root / "bin" / "zai")},
+            "createdAt": "2026-01-01T00:00:00Z",
+            "updatedAt": "2026-01-01T00:00:00Z",
+        }
+
+    class FakeResult:
+        variant = FakeVariant()
+        binary_path = tmp_path / "claude"
+        wrapper_path = root / "bin" / "zai"
+        output_sha256 = "a" * 64
+        applied_tweaks = []
+        skipped_tweaks = []
+        missing_prompt_keys = []
+        stages = []
+
+    def fake_create_variant(**kwargs):
+        calls.append(kwargs)
+        return FakeResult()
+
+    def fake_install_variant_command(*_args, **_kwargs):
+        raise ValueError(f"Refusing to overwrite non-symlink command: {blocked}")
+
+    monkeypatch.setenv("CCSILO_WORKSPACE", str(root))
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setattr(cli, "create_variant", fake_create_variant)
+    monkeypatch.setattr(cli, "install_variant_command", fake_install_variant_command)
+
+    old_argv = sys.argv
+    sys.argv = ["ccsilo", "variant", "create", "--name", "zai", "--provider", "zai", "--install", "--json"]
+    try:
+        cli.main()
+    finally:
+        sys.argv = old_argv
+
+    payload = json.loads(capsys.readouterr().out)
+    assert len(calls) == 1
+    assert payload["install"]["status"] == "blocked"
+    assert payload["install"]["path"] == str(blocked)
+    assert "Refusing to overwrite non-symlink command" in payload["install"]["warning"]
+    assert blocked.read_text(encoding="utf-8") == "#!/bin/sh\n"
 
 
 def test_variant_cli_update_passes_source_binary_args(monkeypatch, tmp_path, capsys):

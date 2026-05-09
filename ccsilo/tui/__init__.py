@@ -18,7 +18,7 @@ import sys
 __all__ = [
     "TUI_THEMES", "TuiTheme",
     "apply_dashboard_tweaks_to_native", "apply_patch_packages_to_native", "apply_variant",
-    "CCR_PACKAGE_DEFAULT", "create_variant", "default_ccrouter_config_mode", "default_install_dir", "doctor_variant", "install_variant_command", "load_variant", "remove_variant", "run_ccrouter_command", "update_variant_models", "update_variants",
+    "CCR_PACKAGE_DEFAULT", "create_variant", "default_ccrouter_config_mode", "default_install_dir", "doctor_variant", "inspect_variant_command_install", "install_variant_command", "load_variant", "preflight_variant_command_install", "remove_variant", "run_ccrouter_command", "update_variant_models", "update_variants", "variant_install_cleanup_paths",
     "download_binary", "download_versions", "extract_all",
     "load_download_index", "list_variant_providers", "parse_bun_binary",
     "provider_default_variant_name", "refresh_download_index", "scan_variants",
@@ -95,14 +95,17 @@ from ..variants import (
     default_ccrouter_config_mode,
     default_install_dir,
     doctor_variant,
+    inspect_variant_command_install,
     install_variant_command,
     list_variant_providers,
     load_variant,
+    preflight_variant_command_install,
     remove_variant,
     run_ccrouter_command,
     scan_variants,
     update_variant_models,
     update_variants,
+    variant_install_cleanup_paths,
 )
 from ..variants.model import default_bin_dir, variant_id_from_name
 from ..variants.wrapper import stored_credential_value

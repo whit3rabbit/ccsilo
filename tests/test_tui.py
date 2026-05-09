@@ -1,7 +1,11 @@
 import concurrent.futures
+import json
+import os
 import threading
 import time
 from pathlib import Path
+
+import pytest
 
 from ccsilo import tui
 from ccsilo.workspace import (
@@ -1377,6 +1381,83 @@ def test_run_variant_create_installs_selected_command(monkeypatch, tmp_path):
     assert str(InstallResult.path) in "\n".join(state.last_action_summary)
 
 
+def test_run_variant_create_skips_blocked_install_command(monkeypatch, tmp_path):
+    root = tmp_path / ".ccsilo"
+    home = tmp_path / "home"
+    install_dir = home / ".local" / "bin"
+    install_dir.mkdir(parents=True)
+    blocked = install_dir / "zai"
+    blocked.write_text("#!/bin/sh\n", encoding="utf-8")
+    calls = []
+    install_calls = []
+
+    class FakeVariant:
+        variant_id = "zai"
+        name = "zai"
+        path = root / "variants" / "zai"
+        manifest = {
+            "schemaVersion": 1,
+            "id": "zai",
+            "name": "zai",
+            "provider": {"key": "zai"},
+            "source": {"version": "latest"},
+            "paths": {"wrapper": str(root / "bin" / "zai")},
+            "createdAt": "2026-01-01T00:00:00Z",
+            "updatedAt": "2026-01-01T00:00:00Z",
+        }
+
+    class Result:
+        variant = FakeVariant()
+        wrapper_path = root / "bin" / "zai"
+        stages = []
+
+    def fake_create_variant(**kwargs):
+        calls.append(kwargs)
+        return Result()
+
+    def fake_install_variant_command(*args, **kwargs):
+        install_calls.append((args, kwargs))
+        raise AssertionError("blocked command install should be skipped")
+
+    monkeypatch.setenv("CCSILO_WORKSPACE", str(root))
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setattr(tui, "create_variant", fake_create_variant)
+    monkeypatch.setattr(tui, "install_variant_command", fake_install_variant_command)
+    monkeypatch.setattr(tui, "doctor_variant", lambda name: [{"id": name, "ok": True, "checks": []}])
+    monkeypatch.setattr(tui, "_refresh_state", lambda state_arg: True)
+    provider = {
+        "key": "zai",
+        "label": "Z.AI",
+        "description": "Z.AI",
+        "authMode": "none",
+        "credentialEnv": "",
+        "models": {},
+        "defaultVariantName": "zai",
+    }
+    state = tui.TuiState(
+        mode="create-preview",
+        variant_name="zai",
+        variant_providers=[provider],
+        variant_install_command=True,
+    )
+
+    tui._run_variant_create(state)
+
+    summary = "\n".join(state.last_action_summary)
+    assert len(calls) == 1
+    assert install_calls == []
+    assert state.mode == "health-result"
+    assert "Setup created." in summary
+    assert f"Run it with:\n  {root / 'bin' / 'zai'}" in summary
+    assert f"Installed command: skipped, existing command preserved: {blocked}" in summary
+    assert "Install warning: Refusing to overwrite non-symlink command" in summary
+    assert "Health: healthy" in summary
+    assert state.message.startswith("Setup created; command install skipped:")
+    assert state.selected_setup_id == "zai"
+    assert calls[0]["provider_key"] == "zai"
+    assert blocked.read_text(encoding="utf-8") == "#!/bin/sh\n"
+
+
 def test_variants_model_refresh_applies_selected_model(monkeypatch):
     provider = {
         "key": "lmstudio",
@@ -1461,7 +1542,7 @@ def test_variants_wizard_all_tweaks_lists_latest_curated_ports():
     assert "statusline-update-throttle" in text
 
 
-def test_variants_wizard_tweak_step_groups_labels_without_selectable_headers():
+def test_variant_tweak_step_groups_labels_without_selectable_headers():
     state = tui.TuiState(mode="variants", variant_step=5, tweak_filter="all")
 
     options = tui._variant_options(state)
@@ -1478,6 +1559,18 @@ def test_variants_wizard_tweak_step_groups_labels_without_selectable_headers():
     assert state.item_count() == len(options)
     assert tui.options.variant_tweak_selected_label_index(state) == labels.index(options[0].label)
     assert tui._selected_variant_option(state).value == "opusplan1m"
+
+    row_by_option_index = {
+        option_index: row_index
+        for row_index, (_label, option_index) in enumerate(tui.options.variant_tweak_selector_rows(state))
+        if option_index is not None
+    }
+    rendered_positions = [row_by_option_index[index] for index in range(len(options))]
+    assert all(left < right for left, right in zip(rendered_positions, rendered_positions[1:]))
+    assert max(
+        (right - left for left, right in zip(rendered_positions, rendered_positions[1:])),
+        default=0,
+    ) <= 2
 
 
 def test_variants_wizard_recommended_tweaks_include_mcp_and_rtk():
@@ -2687,6 +2780,58 @@ def test_delete_requires_typed_setup_id(monkeypatch, tmp_path):
     assert state.mode == "setup-manager"
     assert "Shared downloads untouched: yes" in "\n".join(state.last_action_summary)
     assert "Installed commands removed: yes" in "\n".join(state.last_action_summary)
+
+
+@pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlink not supported")
+def test_delete_removes_unrecorded_setup_command_symlink(monkeypatch, tmp_path):
+    root = tmp_path / ".ccsilo"
+    home = tmp_path / "home"
+    setup_dir = root / "variants" / "zai"
+    wrapper = root / "bin" / "zai"
+    install_dir = home / ".local" / "bin"
+    setup_dir.mkdir(parents=True)
+    wrapper.parent.mkdir(parents=True)
+    install_dir.mkdir(parents=True)
+    wrapper.write_text("#!/bin/sh\n", encoding="utf-8")
+    wrapper.chmod(0o755)
+    installed = install_dir / "zai"
+    os.symlink(wrapper, installed)
+    manifest = {
+        "schemaVersion": 1,
+        "id": "zai",
+        "name": "zai",
+        "provider": {"key": "zai"},
+        "source": {"version": "1.2.3"},
+        "paths": {"wrapper": str(wrapper)},
+        "createdAt": "2026-01-01T00:00:00Z",
+        "updatedAt": "2026-01-01T00:00:00Z",
+    }
+    (setup_dir / "variant.json").write_text(json.dumps(manifest), encoding="utf-8")
+    monkeypatch.setenv("CCSILO_WORKSPACE", str(root))
+    monkeypatch.setenv("HOME", str(home))
+    variant = tui.load_variant("zai")
+
+    def fake_refresh(state_arg):
+        state_arg.variants = []
+        return True
+
+    monkeypatch.setattr(tui, "_refresh_state", fake_refresh)
+    state = tui.TuiState(
+        mode="delete-confirm",
+        variants=[variant],
+        selected_setup_id="zai",
+        delete_confirm_text="zai",
+    )
+
+    tui._run_setup_delete(state)
+
+    summary = "\n".join(state.last_action_summary)
+    assert state.mode == "setup-manager"
+    assert not setup_dir.exists()
+    assert not wrapper.exists()
+    assert not installed.exists()
+    assert not installed.is_symlink()
+    assert "Installed commands removed: yes" in summary
 
 
 def test_delete_failure_summary_uses_failure_wording(monkeypatch, tmp_path):

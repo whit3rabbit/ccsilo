@@ -29,6 +29,7 @@ from .variants import (
     apply_variant,
     create_variant,
     doctor_variant,
+    inspect_variant_command_install,
     install_variant_command,
     list_variant_providers,
     load_variant,
@@ -97,15 +98,17 @@ def _provider_next_steps(variant, provider_key: str, install_result=None):
         credential_envs.append(provider.credential_env)
     credential_envs = sorted(set(credential_envs))
 
+    install_blocked = _install_result_blocked(install_result)
+    fallback_run = paths.get("wrapper") or f"ccsilo variant run {variant.variant_id} --"
     next_steps = {
-        "command": getattr(install_result, "alias", None) or provider.key,
+        "command": fallback_run if install_blocked else getattr(install_result, "alias", None) or provider.key,
         "workspace": str(workspace_root()),
         "setupRoot": paths.get("root") or str(getattr(variant, "path", "")),
         "wrapper": paths.get("wrapper") or "",
         "configDir": paths.get("configDir") or "",
         "credentialEnv": credential_envs,
         "providerMcpServers": sorted(provider.mcp_servers),
-        "run": getattr(install_result, "alias", None) or paths.get("wrapper") or f"ccsilo variant run {variant.variant_id} --",
+        "run": fallback_run if install_blocked else getattr(install_result, "alias", None) or fallback_run,
         "doctor": f"ccsilo variant doctor {variant.variant_id}",
         "warnings": [],
     }
@@ -115,6 +118,8 @@ def _provider_next_steps(variant, provider_key: str, install_result=None):
         next_steps["installOnPath"] = bool(install_result.on_path)
         if install_result.warning:
             next_steps["warnings"].append(install_result.warning)
+        if install_blocked:
+            next_steps["installSkipped"] = True
     ccrouter = manifest.get("ccrouter")
     if isinstance(ccrouter, dict):
         next_steps["ccrouter"] = {
@@ -137,7 +142,11 @@ def _print_provider_summary(action: str, variant, provider_key: str, *, install_
     provider = get_provider(provider_key)
     steps = _provider_next_steps(variant, provider.key, install_result)
     print(f"[+] Provider setup {action}: {variant.variant_id}")
-    if install_result is not None:
+    install_blocked = _install_result_blocked(install_result)
+    if install_result is not None and install_blocked:
+        print(f"    command install skipped: {install_result.path}")
+        print(f"    reason: {install_result.warning}")
+    elif install_result is not None:
         print(f"    command: {install_result.alias}")
         print(f"    installed: {install_result.path}")
         print(f"    target: {install_result.target}")
@@ -159,11 +168,38 @@ def _print_provider_summary(action: str, variant, provider_key: str, *, install_
             print(f"    ccrouter home: {ccrouter['homeDir']}")
         if ccrouter.get("runtimeDir"):
             print(f"    ccrouter runtime: {ccrouter['runtimeDir']}")
-    if install_result is not None:
+    if install_result is not None and not install_blocked:
         print(f"    run: {install_result.alias}")
         print(f"    doctor: {steps['doctor']}")
         if install_result.warning:
             print(f"    warning: {install_result.warning}")
+    elif install_result is not None:
+        print(f"    run: {steps['run']}")
+        print(f"    doctor: {steps['doctor']}")
+
+
+def _install_result_blocked(install_result) -> bool:
+    return getattr(install_result, "status", "") == "blocked"
+
+
+def _install_variant_command_or_skip(variant, *, alias=None, bin_dir=None, yes=False):
+    try:
+        return install_variant_command(variant, alias=alias, bin_dir=bin_dir, yes=yes)
+    except ValueError as exc:
+        if not str(exc).startswith("Refusing to overwrite"):
+            raise
+        manifest = variant.manifest or {}
+        target = (manifest.get("paths") or {}).get("wrapper") or ""
+        plan = inspect_variant_command_install(
+            variant.variant_id,
+            target=Path(target),
+            alias=alias,
+            bin_dir=bin_dir,
+            yes=yes,
+        )
+        if plan.status == "blocked" and plan.warning.startswith("Refusing to overwrite"):
+            return plan
+        raise
 
 
 def _print_provider_help(args):
@@ -204,7 +240,7 @@ def cmd_provider_install(args):
         )
         variant = result.variant
         created = True
-    install_result = install_variant_command(
+    install_result = _install_variant_command_or_skip(
         variant,
         alias=args.alias or provider.key,
         bin_dir=args.bin_dir,
@@ -223,7 +259,7 @@ def cmd_provider_update(args):
     provider = get_provider(provider_key)
     variant = _resolve_provider_variant(provider.key, required=True)
     result = update_variants(variant.name, claude_version=args.claude_version)[0]
-    install_result = install_variant_command(result.variant, alias=provider.key, yes=args.yes)
+    install_result = _install_variant_command_or_skip(result.variant, alias=provider.key, yes=args.yes)
     if args.json:
         print_json(_provider_payload(result.variant, provider.key, install_result=install_result))
     else:
@@ -310,7 +346,7 @@ def cmd_variant(args, variant_parser):
         )
         install_result = None
         if args.install:
-            install_result = install_variant_command(result.variant)
+            install_result = _install_variant_command_or_skip(result.variant)
         if args.json:
             payload = variant_result_payload(result)
             if install_result is not None:
@@ -324,10 +360,14 @@ def cmd_variant(args, variant_parser):
             print(f"    run: ccsilo variant run {result.variant.variant_id} --")
             print(f"    doctor: ccsilo variant doctor {result.variant.variant_id}")
             if install_result is not None:
-                print(f"    installed: {install_result.path}")
-                print(f"    run installed command: {install_result.alias}")
-                if install_result.warning:
-                    print(f"    warning: {install_result.warning}")
+                if _install_result_blocked(install_result):
+                    print(f"    install skipped: {install_result.path}")
+                    print(f"    reason: {install_result.warning}")
+                else:
+                    print(f"    installed: {install_result.path}")
+                    print(f"    run installed command: {install_result.alias}")
+                    if install_result.warning:
+                        print(f"    warning: {install_result.warning}")
     elif sub == "install":
         variant = load_variant(variant_id_from_name(args.name))
         result = install_variant_command(

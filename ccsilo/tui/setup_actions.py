@@ -35,8 +35,10 @@ update_variant_models = _proxy('update_variant_models')
 provider_default_variant_name = _proxy('provider_default_variant_name')
 variant_id_from_name = _proxy('variant_id_from_name')
 create_variant = _proxy('create_variant')
+inspect_variant_command_install = _proxy('inspect_variant_command_install')
 install_variant_command = _proxy('install_variant_command')
 run_ccrouter_command = _proxy('run_ccrouter_command')
+variant_install_cleanup_paths = _proxy('variant_install_cleanup_paths')
 _models_pending_diff = _proxy('_models_pending_diff')
 download_versions = _proxy('download_versions')
 refresh_download_index = _proxy('refresh_download_index')
@@ -284,7 +286,7 @@ def _variant_setup_snapshot(variant):
         "config": _path_snapshot(variant.path / "variant.json"),
     }
 
-def _create_failure_summary(setup_id, before, exc):
+def _create_failure_summary(setup_id, before, exc, failed_stage="create setup"):
     after = _expected_setup_snapshot(setup_id)
     setup_created = not before["setup_dir"]["exists"] and after["setup_dir"]["exists"]
     command_created = not before["wrapper"]["exists"] and after["wrapper"]["exists"]
@@ -299,7 +301,7 @@ def _create_failure_summary(setup_id, before, exc):
         f"Setup config created: {_yes_no(config_created)}",
         f"Previous state changed: {_yes_no(changed)}",
         f"Cleanup needed: {_yes_no(cleanup_needed)}",
-        f"Failed stage: create setup: {exc}",
+        f"Failed stage: {failed_stage}: {exc}",
     ]
 
 def _target_version_for_summary(state, target):
@@ -344,11 +346,7 @@ def _active_setup_status(snapshot):
 
 
 def _managed_install_paths(variant):
-    paths = []
-    for item in ((variant.manifest or {}).get("installs") or []):
-        if isinstance(item, dict) and item.get("managedBy") == "ccsilo" and item.get("path"):
-            paths.append(Path(str(item["path"])))
-    return paths
+    return list(variant_install_cleanup_paths(variant))
 
 
 def _run_setup_health(state, setup_id, *, show_result=False):
@@ -861,7 +859,18 @@ def _run_variant_create(state):
         state.message = message
         return
     before = _expected_setup_snapshot(expected_setup_id)
+    failed_stage = "create setup"
+    install_plan = None
     try:
+        if state.variant_install_command:
+            failed_stage = "validate install command"
+            install_plan, _install_plan_output = _run_quiet(
+                inspect_variant_command_install,
+                expected_setup_id,
+                target=workspace_root() / "bin" / expected_setup_id,
+                yes=True,
+            )
+        failed_stage = "create setup"
         result, output = _run_quiet(
             create_variant,
             name=name,
@@ -887,7 +896,12 @@ def _run_variant_create(state):
         install_output = ""
         result_variant = getattr(result, "variant", None)
         if state.variant_install_command and result_variant is not None:
-            install_result, install_output = _run_quiet(install_variant_command, result_variant, yes=True)
+            if getattr(install_plan, "status", "") == "blocked":
+                install_result = install_plan
+                install_output = f"Skipped command install: {install_plan.warning}"
+            else:
+                failed_stage = "install command"
+                install_result, install_output = _run_quiet(install_variant_command, result_variant, yes=True)
         state.selected_setup_id = setup_id
         health = _run_setup_health(state, setup_id, show_result=False)
         log_sections = [
@@ -897,12 +911,15 @@ def _run_variant_create(state):
         if install_result is not None:
             log_sections.append(("Install command", install_output))
         log_sections.append(("Health", health.get("output", "")))
-        run_command = Path(wrapper_path).name if wrapper_path else setup_id
+        run_command = str(wrapper_path) if wrapper_path else f"ccsilo variant run {setup_id} --"
         install_summary = "no"
         install_warning = ""
         if install_result is not None:
-            run_command = install_result.alias
-            install_summary = str(install_result.path)
+            if getattr(install_result, "status", "") == "blocked":
+                install_summary = f"skipped, existing command preserved: {install_result.path}"
+            else:
+                run_command = install_result.alias
+                install_summary = str(install_result.path)
             install_warning = install_result.warning
         summary = [
             "Setup created.",
@@ -928,7 +945,10 @@ def _run_variant_create(state):
             *log_sections,
         )
         state.last_action_summary = _append_backend_stages(summary, stage_lines)
-        state.message = f"Setup created: {wrapper_path or setup_id}"
+        if getattr(install_result, "status", "") == "blocked":
+            state.message = f"Setup created; command install skipped: {install_result.warning}"
+        else:
+            state.message = f"Setup created: {wrapper_path or setup_id}"
         _tui()._reset_variant(state)
         message = state.message
         _tui()._set_mode(state, "health-result")
@@ -942,7 +962,7 @@ def _run_variant_create(state):
             "\n".join(stage_lines),
         )
         state.last_action_summary = _append_backend_stages(
-            _create_failure_summary(expected_setup_id, before, exc),
+            _create_failure_summary(expected_setup_id, before, exc, failed_stage=failed_stage),
             stage_lines,
         )
         state.message = f"Setup create failed: {exc}"
