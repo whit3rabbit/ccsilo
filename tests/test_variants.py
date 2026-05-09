@@ -184,6 +184,13 @@ def wrapper_manifest(tmp_path, env):
     }
 
 
+def _write_executable(path, text):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    os.chmod(path, 0o755)
+    return path
+
+
 def install_test_variant(root, wrapper):
     variant_dir = root / "variants" / "demo"
     variant_dir.mkdir(parents=True, exist_ok=True)
@@ -1249,6 +1256,149 @@ def test_write_wrapper_refuses_symlink_target(tmp_path):
         write_wrapper(manifest)
 
     assert target.read_text(encoding="utf-8") == "keep me\n"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX wrapper execution")
+def test_write_wrapper_prefers_homebrew_rtk_over_local_path(tmp_path):
+    manifest = wrapper_manifest(tmp_path, {})
+    manifest["tweaks"] = ["rtk-shell-prefix"]
+    binary = Path(manifest["paths"]["binary"])
+    binary.write_text(
+        "#!/bin/sh\ncommand -v rtk\nprintf 'RTK_BIN:%s\\n' \"${CCSILO_RTK_BIN:-}\"\n",
+        encoding="utf-8",
+    )
+    local_rtk = _write_executable(tmp_path / "home" / ".local" / "bin" / "rtk", "#!/bin/sh\nexit 0\n")
+    homebrew_prefix = tmp_path / "homebrew" / "opt" / "rtk"
+    homebrew_rtk = _write_executable(homebrew_prefix / "bin" / "rtk", "#!/bin/sh\nexit 0\n")
+    brew = _write_executable(
+        tmp_path / "homebrew" / "bin" / "brew",
+        "#!/bin/sh\n"
+        'if [ "${1:-}" = "--prefix" ] && [ "${2:-}" = "rtk" ]; then\n'
+        '  printf "%s\\n" "$FAKE_BREW_RTK_PREFIX"\n'
+        "  exit 0\n"
+        "fi\n"
+        "exit 1\n",
+    )
+    wrapper = write_wrapper(manifest)
+    env = dict(os.environ)
+    env.pop("CCSILO_RTK_BIN", None)
+    env["FAKE_BREW_RTK_PREFIX"] = str(homebrew_prefix)
+    env["PATH"] = os.pathsep.join([str(local_rtk.parent), str(brew.parent), "/usr/bin", "/bin"])
+
+    result = subprocess.run([str(wrapper)], capture_output=True, text=True, check=True, env=env)
+
+    output = result.stdout.splitlines()
+    assert output[0] == str(homebrew_rtk)
+    assert f"RTK_BIN:{homebrew_rtk}" in output
+
+
+def test_write_wrapper_omits_rtk_detection_without_tweak(tmp_path):
+    manifest = wrapper_manifest(tmp_path, {})
+
+    wrapper = write_wrapper(manifest).read_text(encoding="utf-8")
+
+    assert "brew --prefix rtk" not in wrapper
+    assert "CCSILO_RTK_BIN" not in wrapper
+    assert "CCSILO_RTK_FALLBACK_BIN" not in wrapper
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX wrapper execution")
+def test_write_wrapper_rtk_override_wins_over_homebrew(tmp_path):
+    manifest = wrapper_manifest(tmp_path, {})
+    manifest["tweaks"] = ["rtk-shell-prefix"]
+    binary = Path(manifest["paths"]["binary"])
+    binary.write_text(
+        "#!/bin/sh\ncommand -v rtk\nprintf 'RTK_BIN:%s\\n' \"${CCSILO_RTK_BIN:-}\"\n",
+        encoding="utf-8",
+    )
+    override_rtk = _write_executable(tmp_path / "override" / "rtk", "#!/bin/sh\nexit 0\n")
+    local_rtk = _write_executable(tmp_path / "home" / ".local" / "bin" / "rtk", "#!/bin/sh\nexit 0\n")
+    homebrew_prefix = tmp_path / "homebrew" / "opt" / "rtk"
+    _write_executable(homebrew_prefix / "bin" / "rtk", "#!/bin/sh\nexit 0\n")
+    brew = _write_executable(
+        tmp_path / "homebrew" / "bin" / "brew",
+        "#!/bin/sh\n"
+        'if [ "${1:-}" = "--prefix" ] && [ "${2:-}" = "rtk" ]; then\n'
+        '  printf "%s\\n" "$FAKE_BREW_RTK_PREFIX"\n'
+        "  exit 0\n"
+        "fi\n"
+        "exit 1\n",
+    )
+    wrapper = write_wrapper(manifest)
+    env = dict(os.environ)
+    env["CCSILO_RTK_BIN"] = str(override_rtk)
+    env["FAKE_BREW_RTK_PREFIX"] = str(homebrew_prefix)
+    env["PATH"] = os.pathsep.join([str(local_rtk.parent), str(brew.parent), "/usr/bin", "/bin"])
+
+    result = subprocess.run([str(wrapper)], capture_output=True, text=True, check=True, env=env)
+
+    output = result.stdout.splitlines()
+    assert output[0] == str(override_rtk)
+    assert f"RTK_BIN:{override_rtk}" in output
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX wrapper execution")
+def test_write_wrapper_uses_path_rtk_when_homebrew_is_absent(tmp_path):
+    manifest = wrapper_manifest(tmp_path, {})
+    manifest["tweaks"] = ["rtk-shell-prefix"]
+    binary = Path(manifest["paths"]["binary"])
+    binary.write_text(
+        "#!/bin/sh\n"
+        "command -v rtk\n"
+        "printf 'RTK_BIN:%s\\n' \"${CCSILO_RTK_BIN:-}\"\n"
+        "printf 'FALLBACK:%s\\n' \"${CCSILO_RTK_FALLBACK_BIN:-}\"\n",
+        encoding="utf-8",
+    )
+    path_rtk = _write_executable(tmp_path / "tools" / "bin" / "rtk", "#!/bin/sh\nexit 0\n")
+    wrapper = write_wrapper(manifest)
+    env = dict(os.environ)
+    env.pop("CCSILO_RTK_BIN", None)
+    env.pop("CCSILO_RTK_FALLBACK_BIN", None)
+    env["CCSILO_RTK_HOMEBREW_DIRS"] = ""
+    env["PATH"] = os.pathsep.join([str(path_rtk.parent), "/usr/bin", "/bin"])
+
+    result = subprocess.run([str(wrapper)], capture_output=True, text=True, check=True, env=env)
+
+    output = result.stdout.splitlines()
+    assert output[0] == str(path_rtk)
+    assert f"RTK_BIN:{path_rtk}" in output
+    assert "FALLBACK:" in output
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX wrapper execution")
+def test_write_wrapper_creates_rtk_fallback_when_no_real_rtk_exists(tmp_path):
+    manifest = wrapper_manifest(tmp_path, {})
+    manifest["tweaks"] = ["rtk-shell-prefix"]
+    binary = Path(manifest["paths"]["binary"])
+    binary.write_text(
+        "#!/bin/sh\n"
+        "command -v rtk\n"
+        "printf 'RTK_BIN:%s\\n' \"${CCSILO_RTK_BIN:-}\"\n"
+        "printf 'FALLBACK:%s\\n' \"${CCSILO_RTK_FALLBACK_BIN:-}\"\n"
+        "rtk --version\n"
+        "rtk gain\n"
+        "rtk printf 'PASSTHROUGH:%s\\n' ok\n",
+        encoding="utf-8",
+    )
+    wrapper = write_wrapper(manifest)
+    env = dict(os.environ)
+    env.pop("CCSILO_RTK_BIN", None)
+    env.pop("CCSILO_RTK_FALLBACK_BIN", None)
+    env["CCSILO_RTK_HOMEBREW_DIRS"] = ""
+    env["PATH"] = os.pathsep.join(["/usr/bin", "/bin"])
+
+    result = subprocess.run([str(wrapper)], capture_output=True, text=True, check=True, env=env)
+
+    fallback = Path(manifest["paths"]["tmpDir"]) / "rtk-fallback" / "bin" / "rtk"
+    output = result.stdout.splitlines()
+    assert output[0] == str(fallback)
+    assert "RTK_BIN:" in output
+    assert f"FALLBACK:{fallback}" in output
+    assert "ccsilo rtk fallback (real rtk unavailable)" in output
+    assert "ccsilo rtk fallback: real rtk unavailable; no gain data" in output
+    assert "PASSTHROUGH:ok" in output
+    assert fallback.is_file()
+    assert os.access(fallback, os.X_OK)
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX mode check")

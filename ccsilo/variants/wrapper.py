@@ -144,6 +144,8 @@ def write_wrapper(manifest: Dict) -> Path:
     for key in manifest.get("envUnset") or []:
         env_key = require_env_name(key, label="wrapper unset env key")
         lines.append(f"unset {env_key}")
+    if "rtk-shell-prefix" in (manifest.get("tweaks") or []):
+        lines.extend(_rtk_homebrew_preference_lines(paths["tmpDir"]))
     credential = manifest.get("credential", {})
     if credential.get("mode") == "stored":
         lines.extend(
@@ -232,6 +234,82 @@ def _model_proxy_config(manifest: Dict) -> Optional[Dict]:
     if not isinstance(config, dict) or config.get("mode") != "architect":
         return None
     return config
+
+
+def _rtk_homebrew_preference_lines(tmp_dir: str) -> list:
+    fallback_dir = Path(str(tmp_dir)) / "rtk-fallback" / "bin"
+    return [
+        "unset CCSILO_RTK_FALLBACK_BIN",
+        'if [ -n "${CCSILO_RTK_BIN:-}" ] && [ -x "$CCSILO_RTK_BIN" ]; then',
+        '  case "$CCSILO_RTK_BIN" in */*) _ccsilo_rtk_dir="${CCSILO_RTK_BIN%/*}" ;; *) _ccsilo_rtk_dir="." ;; esac',
+        "else",
+        "  unset CCSILO_RTK_BIN",
+        '  _ccsilo_rtk_dir=""',
+        "  if command -v brew >/dev/null 2>&1; then",
+        '    _ccsilo_rtk_prefix="$(brew --prefix rtk 2>/dev/null || true)"',
+        '    if [ -n "$_ccsilo_rtk_prefix" ] && [ -x "$_ccsilo_rtk_prefix/bin/rtk" ]; then',
+        '      _ccsilo_rtk_dir="$_ccsilo_rtk_prefix/bin"',
+        "    fi",
+        "  fi",
+        '  if [ -z "$_ccsilo_rtk_dir" ]; then',
+        '    if [ "${CCSILO_RTK_HOMEBREW_DIRS+x}" ]; then',
+        '      _ccsilo_rtk_homebrew_dirs="$CCSILO_RTK_HOMEBREW_DIRS"',
+        "    else",
+        '      _ccsilo_rtk_homebrew_dirs="/opt/homebrew/opt/rtk/bin /usr/local/opt/rtk/bin /home/linuxbrew/.linuxbrew/opt/rtk/bin"',
+        "    fi",
+        '    for _ccsilo_rtk_candidate in $_ccsilo_rtk_homebrew_dirs; do',
+        '      if [ -x "$_ccsilo_rtk_candidate/rtk" ]; then _ccsilo_rtk_dir="$_ccsilo_rtk_candidate"; break; fi',
+        "    done",
+        "  fi",
+        '  if [ -n "$_ccsilo_rtk_dir" ]; then',
+        '    CCSILO_RTK_BIN="$_ccsilo_rtk_dir/rtk"',
+        "  fi",
+        '  if [ -z "${CCSILO_RTK_BIN:-}" ]; then',
+        '    _ccsilo_path_rtk="$(command -v rtk 2>/dev/null || true)"',
+        '    case "$_ccsilo_path_rtk" in */rtk-fallback/bin/rtk) _ccsilo_path_rtk="" ;; esac',
+        '    if [ -n "$_ccsilo_path_rtk" ] && [ -x "$_ccsilo_path_rtk" ]; then',
+        '      CCSILO_RTK_BIN="$_ccsilo_path_rtk"',
+        '      case "$CCSILO_RTK_BIN" in */*) _ccsilo_rtk_dir="${CCSILO_RTK_BIN%/*}" ;; *) _ccsilo_rtk_dir="." ;; esac',
+        "    fi",
+        "  fi",
+        "fi",
+        'if [ -n "${CCSILO_RTK_BIN:-}" ] && [ -x "$CCSILO_RTK_BIN" ]; then',
+        '  case "$CCSILO_RTK_BIN" in */*) _ccsilo_rtk_dir="${CCSILO_RTK_BIN%/*}" ;; *) _ccsilo_rtk_dir="." ;; esac',
+        '  export PATH="$_ccsilo_rtk_dir${PATH:+:$PATH}"',
+        "  export CCSILO_RTK_BIN",
+        "else",
+        "  unset CCSILO_RTK_BIN",
+        f"  _ccsilo_rtk_dir={shlex.quote(str(fallback_dir))}",
+        '  mkdir -p "$_ccsilo_rtk_dir"',
+        '  CCSILO_RTK_FALLBACK_BIN="$_ccsilo_rtk_dir/rtk"',
+        '  _ccsilo_rtk_tmp="$CCSILO_RTK_FALLBACK_BIN.$$"',
+        '  cat >"$_ccsilo_rtk_tmp" <<\'SH\'',
+        "#!/bin/sh",
+        'case "${1:-}" in',
+        "  --version|-V|version)",
+        "    printf '%s\\n' 'ccsilo rtk fallback (real rtk unavailable)'",
+        "    exit 0",
+        "    ;;",
+        "  gain)",
+        "    printf '%s\\n' 'ccsilo rtk fallback: real rtk unavailable; no gain data'",
+        "    exit 0",
+        "    ;;",
+        "esac",
+        'if [ "$#" -eq 0 ]; then',
+        "  printf '%s\\n' 'ccsilo rtk fallback: pass a command to run' >&2",
+        "  exit 2",
+        "fi",
+        'if [ "$#" -gt 0 ]; then',
+        '  exec "$@"',
+        "fi",
+        "SH",
+        '  chmod 755 "$_ccsilo_rtk_tmp"',
+        '  mv "$_ccsilo_rtk_tmp" "$CCSILO_RTK_FALLBACK_BIN"',
+        '  export PATH="$_ccsilo_rtk_dir${PATH:+:$PATH}"',
+        "  export CCSILO_RTK_FALLBACK_BIN",
+        "fi",
+        "unset _ccsilo_rtk_dir _ccsilo_rtk_prefix _ccsilo_rtk_candidate _ccsilo_rtk_homebrew_dirs _ccsilo_path_rtk _ccsilo_rtk_tmp",
+    ]
 
 
 def _ccrouter_home_lines(manifest: Dict, config: Dict) -> list:
