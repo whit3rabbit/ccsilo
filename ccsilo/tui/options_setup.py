@@ -200,7 +200,7 @@ def setup_detail_lines(state):
     model_proxy = manifest.get("modelProxy")
     if isinstance(model_proxy, dict):
         lines.extend([
-            "Model proxy: OAuth architect proxy",
+            "Model proxy: OAuth architect proxy (CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1)",
             "Model proxy requirement: Requires Claude Code account/login",
             "Model proxy account: claude-* requests use Claude Code OAuth/session",
             "Model proxy routing: non-Claude model aliases use the provider backend",

@@ -185,7 +185,15 @@ def validate_variant_manifest(manifest: Dict) -> None:
         for value in model_proxy["anthropicModels"]:
             if not value.startswith("claude-"):
                 raise ValueError("variant modelProxy.anthropicModels must contain claude-* models")
-        for field in ("runtimeConfigPath", "logPath", "portFilePath", "pythonExecutable"):
+        for field in (
+            "runtimeConfigPath",
+            "logPath",
+            "portFilePath",
+            "pythonExecutable",
+            "backendProviderKey",
+            "backendProviderLabel",
+            "backendModelsUrl",
+        ):
             value = model_proxy.get(field)
             if value is not None and not isinstance(value, str):
                 raise ValueError(f"variant modelProxy.{field} must be a string")

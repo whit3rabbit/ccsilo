@@ -3,7 +3,11 @@
 import os
 
 from ..variants import CCR_PROVIDER_KEYS
-from ..variant_tweaks import default_tweak_ids_for_provider
+from ..variant_tweaks import (
+    GATEWAY_MODEL_DISCOVERY_ENV,
+    GATEWAY_MODEL_DISCOVERY_TWEAK_ID,
+    default_tweak_ids_for_provider,
+)
 from ..variants.model import default_bin_dir, variant_id_from_name
 from ..variants.install import default_install_dir
 from ..workspace import short_sha, workspace_root
@@ -252,6 +256,7 @@ def _create_preview_model_proxy_lines(state):
         "Model proxy requirement: Requires Claude Code account/login",
         "Model proxy auth: claude-* calls use Claude Code OAuth/session",
         "Model proxy routing: non-Claude aliases use the provider backend",
+        f"Model proxy discovery: sets {GATEWAY_MODEL_DISCOVERY_ENV}=1",
     ]
 
 def _create_preview_endpoint_lines(state, provider):
@@ -573,6 +578,7 @@ def _format_tweak_detail_text(patch, status, trailing_lines):
 def _variant_model_proxy_detail_text(state) -> str:
     enabled = "yes" if state.variant_model_proxy == "architect" else "no"
     architect_mode = "yes" if ARCHITECT_MODE_TWEAK_ID in (state.selected_variant_tweaks or []) else "no"
+    gateway_discovery = "yes" if GATEWAY_MODEL_DISCOVERY_TWEAK_ID in (state.selected_variant_tweaks or []) else "no"
     return "\n".join([
         "OAuth architect proxy",
         "Group: setup",
@@ -589,6 +595,9 @@ def _variant_model_proxy_detail_text(state) -> str:
         f"Selected for new setup: {enabled}",
         f"Port: {state.variant_model_proxy_port or 'auto'}",
         f"Architect Mode tweak selected: {architect_mode}",
+        f"Gateway model discovery tweak selected: {gateway_discovery}",
+        f"Required env: {GATEWAY_MODEL_DISCOVERY_ENV}=1",
+        "Dependency: unchecking Gateway model discovery disables this proxy.",
     ])
 
 

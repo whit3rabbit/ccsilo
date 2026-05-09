@@ -5,6 +5,7 @@ from urllib.error import URLError
 import pytest
 
 import ccsilo.providers.model_discovery as model_discovery
+from ccsilo.providers.loader import REGISTRY_DIR
 from ccsilo.providers import (
     apply_provider_claude_config,
     build_provider_env,
@@ -17,6 +18,7 @@ from ccsilo.providers import (
     provider_models_url,
     provider_prompt_overlays,
 )
+from ccsilo.providers.proxy import proxy_provider_for_key
 from ccsilo.providers.schema import ProviderSchemaError, provider_from_json
 from ccsilo.variants import list_variant_providers
 from ccsilo.variants.splash import has_style, splash_ascii_art, splash_lines, splash_quote_block
@@ -77,6 +79,7 @@ def test_provider_list_includes_cc_mirror_parity_presets():
         "alibaba",
         "poe",
         "openrouter",
+        "litellm",
         "vercel",
         "ollama",
         "nanogpt",
@@ -93,6 +96,12 @@ def test_provider_list_includes_cc_mirror_parity_presets():
         "omlx",
         "local-custom",
     ]
+
+
+def test_provider_registry_uses_nested_provider_manifests():
+    assert (REGISTRY_DIR / "litellm" / "provider.json").is_file()
+    assert not (REGISTRY_DIR / "litellm.json").exists()
+    assert get_provider("litellm").key == "litellm"
 
 
 def test_zai_defaults_to_env_ref_without_storing_secret():
@@ -240,6 +249,7 @@ def test_model_discovery_providers_export_gateway_env():
         "ollama",
         "omlx",
         "openrouter",
+        "litellm",
     }
     assert all(
         provider.env["CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY"] == "1"
@@ -250,6 +260,8 @@ def test_model_discovery_providers_export_gateway_env():
 def test_model_mapping_providers_require_core_model_overrides():
     with pytest.raises(ValueError, match="requires model mapping"):
         build_provider_env("openrouter")
+    with pytest.raises(ValueError, match="requires model mapping"):
+        build_provider_env("litellm")
     with pytest.raises(ValueError, match="requires model mapping"):
         build_provider_env("9router")
     with pytest.raises(ValueError, match="requires model mapping"):
@@ -266,6 +278,24 @@ def test_model_mapping_providers_require_core_model_overrides():
 
     assert result.env["ANTHROPIC_DEFAULT_SONNET_MODEL"] == "anthropic/claude-sonnet-4"
     assert result.env["CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY"] == "1"
+
+    litellm = build_provider_env(
+        "litellm",
+        model_overrides={
+            "sonnet": "anthropic/claude-sonnet-4",
+            "opus": "anthropic/claude-opus-4",
+            "haiku": "openai/gpt-4.1-mini",
+        },
+    )
+
+    assert litellm.credential == {
+        "mode": "env",
+        "source": "LITELLM_API_KEY",
+        "targets": ["ANTHROPIC_AUTH_TOKEN"],
+    }
+    assert litellm.env["ANTHROPIC_BASE_URL"] == "http://127.0.0.1:4000"
+    assert litellm.env["ANTHROPIC_DEFAULT_HAIKU_MODEL"] == "openai/gpt-4.1-mini"
+    assert litellm.env["CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY"] == "1"
 
     router = build_provider_env(
         "9router",
@@ -489,6 +519,8 @@ def test_provider_payload_exposes_sections_and_model_discovery():
     assert providers["ccr-oauth"]["section"] == "pinned"
     assert "Claude Code OAuth" in providers["ccr-oauth"]["description"]
     assert providers["openrouter"]["modelDiscovery"] == {"enabled": True}
+    assert providers["litellm"]["modelDiscovery"] == {"enabled": True}
+    assert providers["litellm"]["baseUrl"] == "http://127.0.0.1:4000"
     assert providers["llamacpp"]["section"] == "local"
     assert providers["llamacpp"]["baseUrl"] == "http://localhost:8080"
     assert providers["llamacpp"]["defaultVariantName"] == "ccllamacpp"
@@ -508,6 +540,22 @@ def test_model_discovery_url_and_payload_parsing():
         "fallback-name",
     ]
     assert parse_model_ids({"data": []}) == []
+
+
+def test_proxy_provider_model_parsers():
+    openrouter = proxy_provider_for_key("openrouter")
+    litellm = proxy_provider_for_key("litellm")
+
+    assert openrouter.parse_model_ids(
+        {
+            "data": [
+                {"id": "tool-model", "supported_parameters": ["tools"]},
+                {"id": "plain-model", "supported_parameters": ["temperature"]},
+                {"id": "choice-model", "supported_parameters": ["tool_choice"]},
+            ]
+        }
+    ) == ("tool-model", "choice-model")
+    assert litellm.parse_model_ids({"data": [{"id": "anthropic/claude-sonnet"}]}) == ("anthropic/claude-sonnet",)
 
 
 def test_fetch_provider_models_success_and_errors(monkeypatch):

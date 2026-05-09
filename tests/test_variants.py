@@ -35,6 +35,7 @@ from ccsilo.variants.ccrouter import (
 from ccsilo.variants.builder import patch_entry_js
 from ccsilo.variants.wrapper import write_wrapper
 from ccsilo.variants.wrapper import write_secrets
+from ccsilo.variant_tweaks import GATEWAY_MODEL_DISCOVERY_ENV, GATEWAY_MODEL_DISCOVERY_TWEAK_ID
 from ccsilo.workspace import NativeArtifact
 from tests.helpers.bun_fixture import build_bun_fixture
 
@@ -1027,19 +1028,26 @@ def test_create_model_proxy_architect_variant_uses_oauth_safe_env(tmp_path):
     assert model_proxy["backendAuth"] == "x-api-key"
     assert model_proxy["credentialEnv"] == "DEEPSEEK_API_KEY"
     assert model_proxy["timeoutMs"] == 3000000
+    assert model_proxy["backendProviderKey"] == "deepseek"
+    assert model_proxy["backendProviderLabel"] == "DeepSeek"
+    assert "backendModelsUrl" not in model_proxy
     assert manifest["credential"] == {"mode": "env", "source": "DEEPSEEK_API_KEY", "targets": []}
     assert "ANTHROPIC_BASE_URL" not in manifest["env"]
     assert "ANTHROPIC_API_KEY" not in manifest["env"]
     assert "ANTHROPIC_AUTH_TOKEN" not in manifest["env"]
+    assert manifest["env"][GATEWAY_MODEL_DISCOVERY_ENV] == "1"
     assert manifest["env"]["ANTHROPIC_DEFAULT_OPUS_MODEL"] == "claude-opus-4-6"
     assert manifest["env"]["ANTHROPIC_DEFAULT_SONNET_MODEL"] == "deepseek-v4-flash"
     assert manifest["env"]["ANTHROPIC_MODEL"] == "deepseek-v4-flash"
+    assert GATEWAY_MODEL_DISCOVERY_TWEAK_ID in manifest["tweaks"]
     assert "forceLoginMethod" not in settings
     assert proxy_config == {
         "anthropicUrl": "https://api.anthropic.com",
         "backendAuth": "x-api-key",
         "backendModels": ["deepseek-v4-flash"],
         "backendUrl": "https://api.deepseek.com/anthropic",
+        "backendProviderKey": "deepseek",
+        "backendProviderLabel": "DeepSeek",
         "anthropicModels": ["claude-opus-4-6"],
         "mode": "architect",
         "timeoutMs": 3000000,
@@ -1135,12 +1143,17 @@ def test_create_model_proxy_openrouter_uses_bearer_backend_auth(tmp_path):
     assert manifest["modelProxy"]["backendAuth"] == "bearer"
     assert manifest["modelProxy"]["credentialEnv"] == "OPENROUTER_API_KEY"
     assert manifest["modelProxy"]["timeoutMs"] == 3000000
+    assert manifest["modelProxy"]["backendProviderKey"] == "openrouter"
+    assert manifest["modelProxy"]["backendProviderLabel"] == "OpenRouter"
+    assert manifest["modelProxy"]["backendModelsUrl"] == "https://openrouter.ai/api/v1/models"
     assert manifest["modelProxy"]["anthropicModels"] == ["claude-opus-4-6"]
     assert manifest["modelProxy"]["backendModels"] == ["deepseek/deepseek-v4-pro"]
     assert manifest["credential"] == {"mode": "env", "source": "OPENROUTER_API_KEY", "targets": []}
     assert manifest["env"]["ANTHROPIC_DEFAULT_OPUS_MODEL"] == "claude-opus-4-6"
     assert manifest["env"]["ANTHROPIC_DEFAULT_SONNET_MODEL"] == "deepseek/deepseek-v4-pro"
     assert manifest["env"]["ANTHROPIC_MODEL"] == "deepseek/deepseek-v4-pro"
+    assert manifest["env"][GATEWAY_MODEL_DISCOVERY_ENV] == "1"
+    assert GATEWAY_MODEL_DISCOVERY_TWEAK_ID in manifest["tweaks"]
     assert "ANTHROPIC_AUTH_TOKEN" not in manifest["env"]
 
 
@@ -1173,9 +1186,14 @@ def test_create_ccr_oauth_proxy_uses_managed_ccrouter_backend(tmp_path, monkeypa
     assert model_proxy["backendUrl"] == f"http://127.0.0.1:{manifest['ccrouter']['port']}"
     assert model_proxy["credentialEnv"] == "CCROUTER_AUTH_TOKEN"
     assert model_proxy["timeoutMs"] == 3000000
+    assert model_proxy["backendProviderKey"] == "ccr-oauth"
+    assert model_proxy["backendProviderLabel"] == "CCR OAuth Proxy"
+    assert "backendModelsUrl" not in model_proxy
     assert model_proxy["anthropicModels"] == ["claude-opus-test"]
     assert model_proxy["backendModels"] == ["ccr-worker"]
     assert manifest["env"]["CCROUTER_AUTH_TOKEN"] == "ccrouter-proxy"
+    assert manifest["env"][GATEWAY_MODEL_DISCOVERY_ENV] == "1"
+    assert GATEWAY_MODEL_DISCOVERY_TWEAK_ID in manifest["tweaks"]
     assert "ANTHROPIC_BASE_URL" not in manifest["env"]
     assert "ANTHROPIC_AUTH_TOKEN" not in manifest["env"]
     assert "ANTHROPIC_API_KEY" not in manifest["env"]
@@ -1622,6 +1640,41 @@ def test_apply_variant_removes_unchecked_default_tweak_env(tmp_path, monkeypatch
     assert "rtk-shell-prefix" not in rebuilt.variant.manifest["patchResults"]["appliedTweaks"]
 
 
+def test_apply_variant_backfills_gateway_discovery_for_model_proxy(tmp_path, monkeypatch):
+    import ccsilo.variants as variants_module
+
+    root = tmp_path / ".ccsilo"
+    artifact = write_source_artifact(tmp_path)
+    create_variant(
+        name="Deep Proxy Backfill",
+        provider_key="deepseek",
+        credential_env="DEEPSEEK_API_KEY",
+        model_proxy="architect",
+        model_overrides={"opus": "claude-opus-4-6"},
+        tweaks=["themes"],
+        root=root,
+        source_artifact=artifact,
+        force=True,
+    )
+    variant = load_variant("deep-proxy-backfill", root=root)
+    manifest = dict(variant.manifest)
+    manifest["tweaks"] = [
+        tweak_id
+        for tweak_id in manifest["tweaks"]
+        if tweak_id != GATEWAY_MODEL_DISCOVERY_TWEAK_ID
+    ]
+    manifest["env"] = dict(manifest["env"])
+    manifest["env"].pop(GATEWAY_MODEL_DISCOVERY_ENV, None)
+    (variant.path / "variant.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    monkeypatch.setattr(variants_module, "_download_source_artifact", lambda version, root=None: artifact)
+    rebuilt = apply_variant("deep-proxy-backfill", root=root)
+
+    assert GATEWAY_MODEL_DISCOVERY_TWEAK_ID in rebuilt.variant.manifest["tweaks"]
+    assert rebuilt.variant.manifest["env"][GATEWAY_MODEL_DISCOVERY_ENV] == "1"
+    assert GATEWAY_MODEL_DISCOVERY_ENV in rebuilt.wrapper_path.read_text(encoding="utf-8")
+
+
 def test_update_variant_models_rewrites_manifest_and_wrapper_without_rebuild(tmp_path, monkeypatch):
     import ccsilo.variants as variants_module
 
@@ -1667,6 +1720,55 @@ def test_update_variant_models_rewrites_manifest_and_wrapper_without_rebuild(tmp
     assert updated.manifest["env"]["ANTHROPIC_MODEL"] == "new-model"
     assert "export ANTHROPIC_DEFAULT_OPUS_MODEL=new-model" in wrapper
     assert "old-model" not in wrapper
+
+
+def test_update_variant_models_backfills_gateway_discovery_for_model_proxy(tmp_path, monkeypatch):
+    import ccsilo.variants as variants_module
+
+    root = tmp_path / ".ccsilo"
+    artifact = write_source_artifact(tmp_path)
+    create_variant(
+        name="Deep Proxy Update",
+        provider_key="deepseek",
+        credential_env="DEEPSEEK_API_KEY",
+        model_proxy="architect",
+        model_overrides={"opus": "claude-opus-4-6"},
+        tweaks=["themes"],
+        root=root,
+        source_artifact=artifact,
+        force=True,
+    )
+    variant = load_variant("deep-proxy-update", root=root)
+    manifest = dict(variant.manifest)
+    manifest["tweaks"] = [
+        tweak_id
+        for tweak_id in manifest["tweaks"]
+        if tweak_id != GATEWAY_MODEL_DISCOVERY_TWEAK_ID
+    ]
+    manifest["env"] = dict(manifest["env"])
+    manifest["env"].pop(GATEWAY_MODEL_DISCOVERY_ENV, None)
+    (variant.path / "variant.json").write_text(json.dumps(manifest), encoding="utf-8")
+    monkeypatch.setattr(
+        variants_module,
+        "_download_source_artifact",
+        lambda version, root=None: (_ for _ in ()).throw(AssertionError("should not rebuild")),
+    )
+
+    updated = update_variant_models(
+        "deep-proxy-update",
+        {
+            "opus": "claude-opus-4-6",
+            "sonnet": "deepseek-v4-flash",
+            "haiku": "deepseek-v4-flash",
+        },
+        root=root,
+    )
+
+    wrapper = Path(updated.manifest["paths"]["wrapper"]).read_text(encoding="utf-8")
+
+    assert GATEWAY_MODEL_DISCOVERY_TWEAK_ID in updated.manifest["tweaks"]
+    assert updated.manifest["env"][GATEWAY_MODEL_DISCOVERY_ENV] == "1"
+    assert GATEWAY_MODEL_DISCOVERY_ENV in wrapper
 
 
 def test_update_variant_models_blocks_missing_required_core_aliases(tmp_path):

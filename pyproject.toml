@@ -58,4 +58,4 @@ where = ["."]
 include = ["ccsilo*"]
 
 [tool.setuptools.package-data]
-ccsilo = ["data/*.json", "providers/registry/*.json", "variants/ascii/*.txt"]
+ccsilo = ["data/*.json", "providers/registry/*.json", "providers/registry/*/*.json", "variants/ascii/*.txt"]

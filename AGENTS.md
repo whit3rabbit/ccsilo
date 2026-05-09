@@ -1,23 +1,23 @@
-`ccsilo` is a Python toolkit for isolated Claude Code silos with provider-specific patching, binary inspection, extraction, patching, repacking, and setup management.
+`ccsilo` is a Python toolkit for isolated Claude Code silos with provider-specific patching, binary inspection, extraction, repacking, and setup management.
 
-The current product surface has three major workflows:
+Use this repository for research and controlled local patching only. Do not add behavior that silently mutates user-global Claude Code state unless that workflow explicitly owns the config write.
 
-1. Binary tooling: download, inspect, extract, unpack, replace entry JS, apply binary-level theme/prompt patches, and repack.
-2. Setup management: create isolated Claude Code setups/variants with provider configuration, model overrides, credentials, wrappers, and curated tweaks.
+## Current Product Surface
+
+1. Binary tooling: download, inspect, extract/unpack, replace entry JS, apply binary-level theme and prompt patches, and repack.
+2. Setup management: create isolated provider variants with model overrides, credentials, wrappers, optional MCP servers, ccrouter support, model proxy support, and curated tweaks.
 3. TUI workflow: manage setups, build patched binaries from curated tweaks, inspect/download artifacts, extract bundles, and apply workspace patch packages.
-
-Use this repository for research and controlled local patching only. Avoid adding behavior that silently mutates user-global Claude Code state unless the relevant workflow explicitly owns that config write.
+4. Release tracking: extract prompt catalogs and generate Docker-backed patch compatibility reports.
 
 ## Commands
 
 Use `.venv/bin/python` from the repository root.
 
 ```bash
-# Install
-.venv/bin/python -m pip install -e .
+# Install for development
 .venv/bin/python -m pip install -e '.[dev]'
 
-# Open TUI
+# Open the TUI
 .venv/bin/python -m ccsilo
 
 # Binary / bundle commands
@@ -35,11 +35,21 @@ Use `.venv/bin/python` from the repository root.
 .venv/bin/python -m ccsilo patch init <patch-dir>
 .venv/bin/python -m ccsilo patch apply <patch-dir> <extract-dir> [--check] [--binary <binary>] [--source-version <version>]
 
+# Provider shortcut commands
+.venv/bin/python -m ccsilo --provider <key>
+.venv/bin/python -m ccsilo --provider <key> install [--credential-env <ENV_NAME>] [--api-key <key> --store-secret] [--json]
+.venv/bin/python -m ccsilo --provider <key> update [--claude-version <v>] [--json]
+.venv/bin/python -m ccsilo --provider <key> uninstall --yes [--json]
+.venv/bin/python -m ccsilo paths [--json]
+.venv/bin/python -m ccsilo uninstall --yes [--json]
+
 # Setup / variant commands
-.venv/bin/python -m ccsilo variant providers [--json]
+.venv/bin/python -m ccsilo variant providers [--json | --ascii-art | --quote-blocks]
+.venv/bin/python -m ccsilo variant mcp [--provider <key>] [--json]
 .venv/bin/python -m ccsilo variant create --name <name> --provider <key> [--claude-version <v>] [--patch-profile <id>] [--tweak <id> ...]
 .venv/bin/python -m ccsilo variant create --name <name> --provider <key> --credential-env <ENV_NAME>
 .venv/bin/python -m ccsilo variant create --name <name> --provider <key> --api-key <key> --store-secret
+.venv/bin/python -m ccsilo variant install <name-or-id> [--alias <cmd>] [--json]
 .venv/bin/python -m ccsilo variant list [--json]
 .venv/bin/python -m ccsilo variant show <name-or-id> [--json]
 .venv/bin/python -m ccsilo variant apply <name-or-id> [--json]
@@ -50,170 +60,98 @@ Use `.venv/bin/python` from the repository root.
 
 # Test / lint
 .venv/bin/python -m pytest -q
-ruff check ccsilo/
-ruff check --fix ccsilo/
-
-# Docker runtime smoke, linux/amd64 by default
-tools/run_patch_smoke_docker.sh --latest --run-smoke --smoke-timeout 60
-tools/run_patch_smoke_docker.sh --all --max-versions 10 --run-smoke --smoke-timeout 60
+ruff check ccsilo tests tools
+ruff check --fix ccsilo tests tools
 ```
 
-Do not document `python main.py ...` as canonical unless `main.py` is restored.
+Do not document `python main.py ...` as canonical unless `main.py` is restored. Treat `ccsilo/cli/parsers.py` and `ccsilo/__main__.py` as the command source of truth.
 
-## Prompt Catalog Updates
+## Prompt Catalogs And Patch Reports
 
-Prompt catalogs live in `prompts/<version>.json`.
+Prompt catalogs live in `prompts/<version>.json`. Patch compatibility reports live in `reports/patch-compat/<version>.json`, with the latest run index in `reports/patch-compat/index.json`.
 
-Preferred update commands:
+Preferred commands:
 
 ```bash
-# Update all released versions newer than the newest local prompt catalog
+# Prompt catalogs
 .venv/bin/python tools/extract_prompt_versions.py --since-existing-latest
-
-# Fill gaps in prompts/ without touching already-valid files
 .venv/bin/python tools/extract_prompt_versions.py --missing
-
-# Process only the newest five missing catalogs
-.venv/bin/python tools/extract_prompt_versions.py --missing --max-versions 5
-
-# Regenerate known versions intentionally
 .venv/bin/python tools/extract_prompt_versions.py --versions <v1> <v2> --force-prompts
-```
 
-Rules:
-
-* Prefer `--since-existing-latest` after upstream releases.
-* Prefer `--missing` when backfilling gaps.
-* Avoid `--all --force-prompts` unless intentionally rebuilding the whole catalog.
-* New prompt catalogs should use the nearest older local prompt JSON as metadata seed when same-version tweakcc metadata is unavailable.
-* Validate every generated file before writing.
-* Treat unnamed prompt entries as release blockers unless explicitly accepted. Use `--fail-on-unnamed` for release-prep runs.
-* Commit prompt JSON updates separately from unrelated patch or TUI changes.
-
-## Patch Compatibility Reports
-
-Patch compatibility reports live in `reports/patch-compat/<version>.json`, with
-the latest run index in `reports/patch-compat/index.json`.
-
-Preferred update commands:
-
-```bash
-# Check all released versions newer than the newest local patch report
+# Patch reports
 .venv/bin/python tools/check_patch_releases.py --since-existing-latest
-
-# Check the latest release only
 .venv/bin/python tools/check_patch_releases.py --latest
+.venv/bin/python tools/check_patch_releases.py --versions <v1> <v2> [--run-smoke]
 
-# Regenerate known reports intentionally
-.venv/bin/python tools/check_patch_releases.py --versions <v1> <v2>
-
-# Add runtime smoke coverage to any report command
-.venv/bin/python tools/check_patch_releases.py --versions <v1> <v2> --run-smoke
-
-# Run runtime smoke reports inside Docker on linux/amd64
+# Reproducible Linux runtime smoke
+tools/run_patch_smoke_docker.sh --since-existing-latest --run-smoke --smoke-timeout 60
 tools/run_patch_smoke_docker.sh --all --max-versions 10 --run-smoke --smoke-timeout 60
 ```
 
 Rules:
 
-* Run `tools/check_patch_releases.py --since-existing-latest` with the daily prompt catalog update.
-* Use `--run-smoke` for release-prep reports when native binary execution is acceptable. It builds a temporary patched binary, runs `<binary> --version` in an isolated temp environment, and records the result in each version report. A `blocked` smoke status is infrastructure evidence, such as unpatched repack failure, not patch proof.
-* Prefer `tools/run_patch_smoke_docker.sh` for committed smoke reports. It defaults to `DOCKER_PLATFORM=linux/amd64` so runtime results are reproducible across developer machines. Override `DOCKER_PLATFORM` only when intentionally producing a platform-specific report.
-* Docker smoke uses `.ccsilo/docker-linux` for downloaded Linux binaries and writes JSON reports to `reports/patch-compat`. Do not commit `.ccsilo/`.
-* The smoke flow intentionally packs and runs an unpatched baseline before applying patches. If baseline fails, fix extract/repack infrastructure before blaming a patch.
-* Runtime smoke must prove Claude Code booted, not just that a Bun executable returned success. Treat `<binary> --version` output such as `1.3.x` as a failed smoke even with exit code 0. The output must contain the expected Claude Code version.
-* On macOS smoke, ad-hoc sign the unpatched baseline before running it. An unsigned or malformed rebuilt Mach-O can be killed with exit code `-9` before user code runs.
-* Passing smoke reports are proof for that report artifact, but do not automatically widen `versions_tested`. Keep metadata pinned until fixture tests or targeted real-version tests prove the specific patch.
-* Treat failed patch reports as release blockers. `unsupported` means the patch is intentionally outside `versions_supported` and does not fail the run.
-* Treat untested warnings as validation work. Do not widen `versions_tested` until the report proves the patch against that concrete Claude Code version.
-* Patch compatibility reports may be committed with daily prompt catalog updates because both are release-tracking artifacts. Keep them separate from unrelated patch, TUI, or feature changes.
+* Prefer `--since-existing-latest` after upstream releases and `--missing` for gap filling.
+* Validate generated prompt files before writing. Treat unnamed prompt entries as release blockers unless explicitly accepted. Use `--fail-on-unnamed` for release-prep runs.
+* Commit prompt JSON updates separately from unrelated patch, TUI, or feature changes.
+* Use Docker smoke for committed patch reports. It defaults to `DOCKER_PLATFORM=linux/amd64` and writes reports to `reports/patch-compat`.
+* Do not commit `.ccsilo/`.
+* Runtime smoke must prove Claude Code booted. `<binary> --version` must contain the expected Claude Code version, not only a Bun runtime version.
+* If the unpatched baseline repack does not boot, fix extract/repack infrastructure before blaming a patch.
+* Passing smoke reports are proof for that report artifact only. Do not widen `versions_tested` until tests or targeted real-version reports prove that concrete Claude Code version.
 
-## CI
+## CI And Release
 
-GitHub Actions workflows:
+GitHub Actions:
 
-* `.github/workflows/ci.yml` runs on push and pull request. It installs `.[dev]`, installs `ruff`, runs `ruff check ccsilo tests tools`, then runs the full `pytest -q` suite on Python 3.11.
-* The `CI` workflow also has a manual Docker patch smoke job. Run it with `workflow_dispatch`, set `run_docker_smoke=true`, and optionally pass space-separated `smoke_versions`. If no versions are provided, it smokes the latest release and uploads `reports/patch-compat` as an artifact.
+* `.github/workflows/ci.yml` runs on push, pull request, and manual dispatch. It installs `.[dev]`, runs `ruff check ccsilo tests tools`, runs `pytest -q`, builds a wheel, installs it in a clean venv, and smoke-checks `ccsilo --help` plus `ccsilo variant providers --json`.
+* The `CI` workflow has an optional manual Docker patch smoke job controlled by `run_docker_smoke`.
 * `.github/workflows/update-prompts.yml` is the daily release-tracking workflow. It updates prompt catalogs, runs Docker patch smoke for releases newer than the newest local report, validates prompt/report tooling, and commits prompt/report changes.
-
-CI rules:
-
-* Before committing and pushing, pull/rebase the current branch against its upstream first, then resolve conflicts and rerun the relevant verification. CI and daily release-tracking jobs may commit prompt catalogs or patch reports while local work is in progress, and pushing stale report/index data creates avoidable conflicts.
-* Keep Docker smoke out of normal PR CI unless explicitly requested. It downloads and executes upstream native binaries, so it is slower and network-dependent.
-* If Docker smoke fails with `status=blocked`, treat it as infrastructure failure. If it fails at `stage=run`, inspect `smoke.stderr`, the attempted patch list, and run single-patch bisection before changing version metadata.
-* The daily workflow should not use raw local smoke results. Commit reproducible Docker reports instead.
-
-## Release / PyPI
-
-PyPI publishing uses `.github/workflows/release.yml` with Trusted Publishing
-(OIDC). Do not store PyPI API tokens in GitHub.
-
-Trusted Publisher fields:
-
-* Project name: `ccsilo`
-* Owner: `whit3rabbit`
-* Repository: `ccsilo`
-* Workflow name: `release.yml`
-* PyPI environment: `pypi`
-* TestPyPI environment: `testpypi`
+* `.github/workflows/release.yml` builds and validates on published GitHub releases, but PyPI/TestPyPI publishing is manual `workflow_dispatch` through Trusted Publishing.
 
 Release rules:
 
-* Create matching GitHub environments named `testpypi` and `pypi`. Require
-  manual approval on `pypi`.
-* Use the manual `Release` workflow with `repository=testpypi` before the first
-  real PyPI upload for a version.
-* Publish to real PyPI by manually dispatching `Release` with
-  `repository=pypi` from a version tag, not from `main`. The workflow requires
-  the dispatch ref to be the exact `v<pyproject.toml version>` tag.
+* PyPI publishing uses Trusted Publishing. Do not store PyPI API tokens.
+* TestPyPI and PyPI environments must be named `testpypi` and `pypi`; require manual approval on `pypi`.
+* Dispatch `Release` with `repository=testpypi` before the first real upload for a version.
+* Publish to real PyPI by manually dispatching `Release` with `repository=pypi` from the exact `v<pyproject.toml version>` tag.
 * Derive release tags from `pyproject.toml`, do not hand-type them:
   `VERSION="$(.venv/bin/python -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"])')"; TAG="v${VERSION}"`.
-* After a successful PyPI publish, the workflow creates or updates the matching
-  GitHub Release. Creating a GitHub Release by itself must not publish to PyPI.
-* PyPI versions are immutable. If a real PyPI publish succeeds or partially
-  creates a version, bump `pyproject.toml` before trying again.
-* If PyPI already contains a version but the GitHub tag/release is missing,
-  create the `v<version>` tag and GitHub Release manually. Do not rerun the
-  PyPI publish for the same version.
-* GitHub Release events run workflow files from the tagged commit. Do not
-  create or publish a GitHub Release from a tag whose `release.yml` still
-  publishes on `release.published`; move the tag to a commit with the safe
-  workflow and matching `pyproject.toml` version first.
-* After publishing, verify `pipx install ccsilo`, `ccsilo --help`, and
-  `ccsilo variant providers --json`.
-* Keep release process details in `docs/RELEASE.md` synchronized with the
-  workflow file.
+* PyPI versions are immutable. If a real upload succeeds or partially creates a version, bump `pyproject.toml` before trying again.
+* After publishing, verify `pipx install ccsilo`, `ccsilo --help`, and `ccsilo variant providers --json`.
+* Keep `docs/RELEASE.md` synchronized with the workflow.
 
-## Architecture
+Before committing and pushing, pull/rebase against upstream and rerun relevant checks. Daily release-tracking may commit prompt catalogs or patch reports while local work is in progress.
+
+## Architecture Map
 
 ```text
-__main__.py                  -> CLI entrypoint, simple dispatcher, variant dispatcher, TUI launch when attached to TTY
+__main__.py                  -> CLI entrypoint, provider shortcuts, variant dispatcher, TUI launch
 cli/parsers.py               -> argparse tree only
-cli/handlers.py              -> top-level command handlers for download/extract/unpack/inspect/replace-entry/apply-binary/pack/patch
+cli/handlers.py              -> top-level non-variant handlers
 cli/payloads.py              -> JSON payload helpers and variant argument mappers
 
-bun_extract/                 -> Bun standalone parser, extract, same-size replacement, shared binary metadata types
-binary_patcher/              -> Native binary patching, entry replacement, platform repack, theme/prompt patching, codesign, unpacked fallback
-patches/                     -> Curated regex-tweak registry; each patch module exposes PATCH
+bun_extract/                 -> Bun standalone parser, extract, replacement, binary metadata
+binary_patcher/              -> Native binary patching, entry replacement, platform repack, codesign, unpacked fallback
+patches/                     -> Curated regex-tweak registry. See ccsilo/patches/AGENTS.md before editing patches.
 patch_workflow.py            -> Native artifact workflows for patch packages and dashboard tweak builds
 patcher.py                   -> Legacy extracted-text patch manifest workflow
 
-providers/                   -> Provider registry package
-providers/registry/*.json    -> Provider templates
+providers/registry/<key>/provider.json -> Provider templates
 providers/schema.py          -> Provider JSON schema validation/deserialization
 providers/loader.py          -> Provider lookup, env building, theme/prompt overlay helpers
 providers/config.py          -> Claude config merges for settings permissions and MCP servers
+providers/mcp_catalog.py     -> Optional MCP catalog and plugin recommendations
+providers/model_discovery.py -> OpenAI-compatible model-list fetching
+providers/proxy/             -> Model proxy provider adapters for discovery, gateway ids, and provider quirks
+model_proxy.py               -> Stdlib-only Architect proxy for Claude OAuth planner calls plus one backend provider
 
-variants/                    -> Setup/variant lifecycle
-variants/__init__.py         -> Action layer for create/apply/update/remove/doctor/run
-variants/model.py            -> Variant dataclasses, manifest validation, provider list payloads
-variants/builder.py          -> Source resolution, patch refs, entry JS patch helpers
-variants/tweaks.py           -> Curated tweak application and env-only tweak handling
-variants/wrapper.py          -> Wrapper script, config, and secrets file writing
+variants/                    -> Setup/variant lifecycle, build, install, ccrouter, model updates, wrapper writing
+variants/model.py            -> Variant dataclasses and manifest validation authority
+variants/tweaks.py           -> Curated tweak selection, env-only tweaks, prompt-only tweaks
 variant_tweaks.py            -> Backwards-compatible shim over variants.tweaks
 
-workspace/                   -> Workspace models, paths, artifact scanning, patch/tweak profile persistence, TUI settings
-tui/                         -> TUI action layer, rendering, state, navigation, dashboard, setup actions, keys, themes
+workspace/                   -> Workspace paths, models, artifact scanning, profiles, TUI settings
+tui/                         -> TUI state, rendering, navigation, dashboard, setup actions, keys, themes
 download_index.py            -> Cached live/seed version index
 download_picker.py           -> Interactive version picker
 downloader.py                -> Native and NPM download logic
@@ -221,19 +159,6 @@ extractor.py                 -> Compatibility wrapper over bun_extract
 bundler.py                   -> Compatibility wrapper over binary_patcher.repack_binary
 _utils.py                    -> stdlib-only helpers shared across modules
 ```
-
-## TUI Notes
-
-* The TUI tabs are: `Manage Setup`, `Dashboard`, `Inspect`, `Extract`, `Patch`.
-* Startup routing:
-
-  * if setups/variants exist, start in `setup-manager`;
-  * if none exist, start in `first-run-setup`.
-* `Manage Setup` owns setup lifecycle: create, run, upgrade, health check, delete, logs, tweak editing, and command/config copy actions.
-* `Dashboard` is a guided native-binary tweak workflow: choose source, choose curated dashboard tweaks, manage tweak profiles, review, then build.
-* `Patch` is for workspace patch packages under `.ccsilo/patches/packages/`.
-* `Tweaks` editing is scoped to an existing setup and rebuilds through `variants.apply_variant`.
-* Keep action-layer functions that tests monkey-patch in `tui/__init__.py`. Pure rendering/options/navigation helpers belong in submodules.
 
 ## Workspace Layout
 
@@ -256,262 +181,105 @@ Default workspace root is the platform user data directory (`~/Library/Applicati
 
 Important distinctions:
 
-* `patches/packages/` stores patch package manifests and operations.
+* `patches/packages/` stores workspace patch package manifests and operations.
 * `patches/profiles/` stores patch-package profile refs.
 * `patches/tweak-profiles/` stores Dashboard curated tweak profile refs.
 * `variants/<id>/variant.json` is the setup manifest.
-* `variants/<id>/secrets.env` may exist only when the user explicitly uses stored credentials.
+* `variants/<id>/secrets.env` may exist only when the user explicitly uses stored credentials. Secrets files must be regular, owner-owned, non-symlink files with mode `0600`.
 * `bin/` stores wrapper commands.
 
-## Behavior Notes
+## Binary And Patch Invariants
 
 * `parse_bun_binary` is the single source of truth for binary layout.
 * Use `info.entry_point_id` to find the entry module. Do not assume entry names like `claude` or `cli.js`.
 * Bun module bytes use `cont_off` and `cont_len`; do not invent `data_offset` or `data_size`.
 * Manifest `name` is the sanitized display/extract path. Manifest `rawName` is the runtime Bun module name and may include `/$bunfs/root/`. Repacking must preserve `rawName`.
-* Manifest offsets such as `nameOffset`, `contentOffset`, `bytecodeOffset`, and `execArgvOffset` are not decorative. Use them to relocate the original payload when repacking.
+* Manifest offsets such as `nameOffset`, `contentOffset`, `bytecodeOffset`, and `execArgvOffset` are relocation inputs, not decorative metadata.
+* Real ELF payloads can contain unreferenced prefix bytes before the first module name. When a base binary is available, use the base payload as the template and replace relocated ranges.
+* On Mach-O, prompt overlays that grow the entry module must force the unpacked Node runtime fallback even if later shrink tweaks make the final byte length fit.
+* Mach-O repacking must preserve and relocate non-signature `__LINKEDIT` data. The `__BUN` section starts with an 8-byte size header for the full inner payload.
+* After Mach-O repack changes, check `otool -l <binary>` for `past end of file`, run `codesign --verify --strict --verbose=4 -- <binary>` after ad-hoc signing, and verify `--version`.
+* Bun CJS entry modules must keep a valid `// @bun ... @bun-cjs` function wrapper. Inject runtime code inside the existing wrapper, immediately after the opening `{`.
 * `extractor.py` and `bundler.py` are compatibility wrappers, not independent implementations.
 * Keep `patcher.py` separate from `binary_patcher`; it handles legacy extracted-text patch manifests.
 * `ccsilo.patches.apply_patches` applies curated regex tweaks.
 * `ccsilo.binary_patcher.index.apply_patches` applies binary theme/prompt patches.
 * `patch_workflow.apply_patch_packages_to_native` extracts, applies workspace patch packages, repacks, and writes patched metadata.
 * `patch_workflow.apply_dashboard_tweaks_to_native` applies curated tweak IDs directly for Dashboard builds.
-* Theme anchor misses are fatal structured failures.
-* Prompt anchor misses are recorded and non-fatal.
-* Real ELF payloads can contain unreferenced prefix bytes before the first module name. Do not rebuild full bundle payloads from concatenated manifest files when a base binary is available. Use the base payload as the template and replace relocated ranges.
-* For a no-op extract and pack from a real ELF binary, the rebuilt binary should be byte-identical or at minimum the unpatched baseline should execute `<binary> --version` before any patch smoke result is trusted.
-* On Mach-O, prompt overlays that grow the entry module must force the unpacked Node runtime fallback even if a later shrink tweak makes the final byte length fit. Do not let net shrinkage mask intermediate prompt-overlay growth.
-* Mach-O repacking must preserve and relocate non-signature `__LINKEDIT` data. Do not drop chained fixups, exports, symbol tables, function starts, or data-in-code payloads when stripping `LC_CODE_SIGNATURE`.
-* Mach-O `__BUN` starts with an 8-byte size header for the full section inner payload: raw Bun bytes plus the 32-byte offsets struct plus the Bun trailer. Writing only `byteCount` can parse locally but make Bun run as its own runtime instead of Claude Code.
-* After Mach-O repack changes, check `otool -l <binary>` for `past end of file`, run `codesign --verify --strict --verbose=4 -- <binary>` after ad-hoc signing, and verify `--version` prints the expected Claude Code version.
-* Bun CJS entry modules must keep a valid `// @bun ... @bun-cjs` function wrapper. Same-size shrink padding must not be appended after the closing wrapper.
-* Patches that add top-level runtime code to Bun CJS entries must inject inside the existing function wrapper, immediately after the opening `{`, not before the `// @bun` header. Bun may fall back from bytecode to source after repack, and pre-wrapper code can fail with `Expected CommonJS module to have a function wrapper`.
-* Text-level parse tests are not enough for entry patches that change byte lengths or wrapper shape. Pair anchor tests with Docker runtime smoke before using a report as release signal.
-* Mach-O signing is explicit and soft-failing through `binary_patcher/codesign.py`.
-* Unpacked fallback supports both Python `.bundle_manifest.json` and TS-style `manifest.json`.
-* Unpacked Node runtime entry JS must be passed through `binary_patcher.bun_compat.ensure_bun_node_compat` after stripping the Bun wrapper and after any later variant-only JS tweak writes. Preserve the `ccsilo:bun-node-compat` marker.
-* `variant doctor` includes a `node-bun-compat` check for stale Node-runtime entries that still reference `Bun.*` without the compat marker. Reapply or update the setup to regenerate the entry.
+* Theme anchor misses are fatal structured failures. Prompt anchor misses are recorded and non-fatal.
+* Text-level parse tests are not enough for entry patches that change byte length or wrapper shape. Pair anchor tests with Docker runtime smoke before using a report as release signal.
+* Unpacked Node runtime entry JS must pass through `binary_patcher.bun_compat.ensure_bun_node_compat` after stripping the Bun wrapper and after later variant-only JS tweak writes. Preserve the `ccsilo:bun-node-compat` marker.
+* `variant doctor` includes a `node-bun-compat` check for stale Node-runtime entries that still reference `Bun.*` without the compat marker.
 * PE resize requires `.bun` to be the last raw-data section.
-* On non-Windows, written binaries/wrappers should be chmodded executable.
+* On non-Windows, written binaries and wrappers should be executable.
 
-## Provider Notes
+## Providers And Variants
 
-* Provider definitions live in `providers/registry/*.json`.
-* Validate provider JSON through `providers/schema.py`.
+* Provider definitions live in `providers/registry/<provider-key>/provider.json`.
+* Validate provider JSON through `providers/schema.py`; unknown schema keys are errors.
+* The provider loader recursively reads JSON under `providers/registry/`. Keep each active provider manifest named `provider.json` under its provider-key directory.
 * Build runtime env through `build_provider_env`; do not hand-roll provider env dictionaries.
 * Provider auth modes are `apiKey`, `authToken`, and `none`.
-* Provider templates may define model mappings, prompt overlays, themes, denied tools, MCP servers, setup links, and TUI metadata.
-* `providers/config.py` is responsible for merging provider-specific Claude config into `settings.json` and `.claude.json`.
-
-## Variant / Setup Notes
-
+* Provider templates may define model mappings, prompt overlays, themes, denied tools, MCP servers, setup links, TUI metadata, and model discovery.
+* Providers with `tui.modelDiscovery.enabled` must export `CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1` unless a provider intentionally overrides it.
+* Provider-aware model proxy behavior belongs under `providers/proxy/`, not inside registry JSON.
+* Keep `model_proxy.py` stdlib-only. Do not add LiteLLM, FastAPI, httpx, OpenAI SDK, or Pydantic dependencies to the local proxy without explicit approval.
+* The `litellm` provider is an external gateway provider. It assumes the user runs LiteLLM separately and maps Claude Code model tiers to LiteLLM model ids. Do not embed the LiteLLM SDK in ccsilo by default.
 * Variants are addressable by name or id; `variant_id_from_name` derives lower-kebab-case ids.
 * `validate_variant_manifest` is the manifest authority. Do not bypass it.
 * Runtime may be `native` or `node`.
 * Node runtime wrappers require a Node version with explicit resource management support and allow `NODE=/path/to/node` override.
 * If a Node-runtime setup fails `node-bun-compat`, run `.venv/bin/python -m ccsilo variant apply <name-or-id> --json` instead of hand-editing generated unpacked files.
-* `DEFAULT_TWEAK_IDS` are selected on create.
-* `ENV_TWEAK_IDS` affect wrapper environment rather than patching JS.
+* `DEFAULT_TWEAK_IDS` are selected on create. `ENV_TWEAK_IDS` affect wrapper environment rather than patching JS.
+* The OAuth Architect model proxy requires the `gateway-model-discovery` env tweak. Setup flows should keep enabling the proxy and selecting that tweak tied together.
+* Model proxy runtime config may include `backendProviderKey`, `backendProviderLabel`, and `backendModelsUrl`. Discovered backend models are advertised as `anthropic/<provider-key>/<provider-model>` and decoded before forwarding.
 * In-place rebuild optimization applies only to supported theme/prompt/env tweak changes; otherwise rebuild from source.
+
+## TUI Notes
+
+* The TUI tabs are `Manage Setup`, `Dashboard`, `Inspect`, `Extract`, and `Patch`.
+* Startup routes to `setup-manager` when variants exist and `first-run-setup` when none exist.
+* `Manage Setup` owns setup lifecycle: create, run, upgrade, health check, delete, logs, tweak editing, and command/config copy actions.
+* `Dashboard` is a guided native-binary tweak workflow: choose source, choose curated dashboard tweaks, manage tweak profiles, review, then build.
+* `Patch` is for workspace patch packages under `.ccsilo/patches/packages/`.
+* Keep action-layer functions that tests monkey-patch in `tui/__init__.py` and `variants/__init__.py`.
+* Pure rendering, options, navigation, and state helpers belong in submodules.
+* Do not enable `ratatui_py.App(clear_each_frame=True)` for steady-state TUI render loops. Use startup clear via `on_start` and keep constructor-flag tests.
+* Grouped selectors must keep selectable option order and rendered row order aligned. Add regression tests when group headers or selection mapping changes.
+* TUI MCP tests should use isolated `CCSILO_WORKSPACE`, named keys (`Down`, `Up`, `Tab`, `Enter`, `Space`, `Esc`, `q`), one key per send, and assertions on visible text/mode transitions.
+
+## Patch Development
+
+Curated regex tweaks live in `ccsilo/patches/` and are registered in `ccsilo/patches/_registry.py`. Read `ccsilo/patches/AGENTS.md` before changing patch modules; it is the directory-local source of truth for patch format, regex rules, version rules, TUI visibility, and required checks.
+
+Root-level reminders:
+
+* Do not confuse curated regex tweaks with workspace patch packages.
+* Add a patch module, synthetic fixture, real fixture test file, registry entry, and visibility update when creating a new curated tweak.
+* Return only `applied`, `skipped`, or `missed` from `_apply`.
+* Do not silently return `applied` when output is identical.
+* Keep regex windows narrow enough to avoid unrelated minified code.
+* Do not widen `versions_tested` until a concrete Claude Code version is proven.
+* Expected environment-gated skips are not failures. Use `pytest -q -rs` to verify skip reasons.
+
+Useful patch checks:
+
+```bash
+.venv/bin/python -m pytest -q tests/patches/
+.venv/bin/python -m pytest -q -rs tests/patches/
+.venv/bin/python -m pytest -q tests/test_variant_tweaks.py tests/test_tui.py
+tools/run_patch_smoke_docker.sh --all --max-versions 10 --run-smoke --smoke-timeout 60
+```
+
+Use TUI MCP behavioral tests for workflows that cannot be validated by pure state/render tests alone: first-run setup, setup manager navigation, tweak selection/edit/apply, Dashboard source and profile flows, patch package profile selection, focus, resize, and keyboard navigation.
 
 ## Development Notes
 
 * Python target: 3.8+.
-* TUI dependency is the holo-q `ratatui-py` shim imported as `ratatui_py`.
+* The TUI dependency is the holo-q `ratatui-py` shim imported as `ratatui_py`.
 * Do not swap to `pyratatui` unless the TUI/test API is deliberately migrated.
-* TUI changes should include widget-independent state tests and, when available, headless/smoke coverage.
-* For TUI MCP/key tests, use single named keys like `Down`, `Up`, `Tab`, `Enter`, `Space`, and `q`. Avoid strings like `"Tab Tab"`.
-* `Down`/`Up` are the expected named keys; `ArrowDown`/`ArrowUp` silently no-op in the current test harness.
-* Keep monkey-patch-sensitive action functions in `tui/__init__.py` and `variants/__init__.py`.
 * Keep `_utils.py` stdlib-only to avoid circular imports.
 * Do not move `downloader.py` without updating tests that patch `ccsilo.downloader.*`.
 * Do not stage or commit submodule/vendor changes unless explicitly requested.
-
-
-## Adding Curated Regex Tweaks
-
-Curated tweaks live under `ccsilo/patches/` and are registered explicitly in
-`ccsilo/patches/_registry.py`.
-
-Use this flow when adding a new tweak:
-
-1. Create a new module under `patches/` using snake_case, for example:
-
-   ```text
-   patches/my_new_tweak.py
-   ```
-
-2. Implement `_apply(js: str, ctx: PatchContext) -> PatchOutcome`.
-
-   Required behavior:
-
-   * Return `PatchOutcome(js=new_js, status="applied")` when the patch changed JS.
-   * Return `PatchOutcome(js=js, status="skipped")` when the patch is already present or intentionally inactive.
-   * Return `PatchOutcome(js=js, status="missed", notes=(...))` when the expected anchor cannot be found.
-     Include the missing sub-anchor in `notes`.
-   * Make patches idempotent when possible by checking for a stable marker or already-patched shape.
-   * Do not silently return `applied` when the output is identical.
-   * Keep regex windows narrow enough to avoid unrelated minified code.
-
-3. Define `PATCH = Patch(...)` at the bottom of the module.
-
-   Required fields:
-
-   * `id`: lower-kebab-case, stable public id.
-   * `name`: short human-readable label.
-   * `group`: one of `ui`, `thinking`, `prompts`, `tools`, or `system`.
-   * `versions_supported`: broad compatible range, usually `>=2.0.0,<3`.
-   * `versions_tested`: concrete coverage proven by real fixture tests.
-     Use `DEFAULT_VERSION_RANGES` only when that pinned range has been proven, and widen only after testing the new Claude Code version.
-   * `apply`: `_apply`.
-   * `description`: one sentence explaining user-visible behavior.
-   * `on_miss`: default is `fatal`; use `warn` only for optional/provider-dependent anchors.
-
-4. Register the module in `patches/_registry.py`.
-
-   Add the import and add the `PATCH` object to `REGISTRY`. Registry order controls display order inside groups, so place the patch near related tweaks.
-
-5. If the patch should be selectable in the Dashboard default/recommended flow, update the relevant tweak list in `variant_tweaks.py` or `variants/tweaks.py`.
-   Do not add risky or behavior-changing patches to defaults without explicit reason.
-
-6. Add tests before widening `versions_tested`.
-
-   Minimum tests:
-
-   * anchor/applies test with a representative JS fixture;
-   * idempotency test if the patch injects code;
-   * miss test that verifies `missed` or the configured `on_miss` behavior;
-   * user-facing detail test if the patch can miss multiple sub-anchors;
-   * registry test that confirms the patch id is registered and grouped correctly;
-   * version-range test that confirms every `versions_tested` range is inside `versions_supported`.
-
-7. Do not confuse curated tweaks with workspace patch packages.
-
-   `ccsilo.patches.apply_patches` is the regex-tweak registry.
-   `ccsilo.binary_patcher.index.apply_patches` is the binary theme/prompt patch API.
-   `patch_workflow.apply_patch_packages_to_native` applies workspace patch packages.
-
-## Patch Testing
-
-Use layered validation for patch work.
-
-```bash
-# Fast unit/registry/anchor tests
-.venv/bin/python -m pytest -q tests/patches/
-
-# Show skip reasons while validating patch support
-.venv/bin/python -m pytest -q -rs tests/patches/
-
-# Full suite
-.venv/bin/python -m pytest -q
-
-# Runtime smoke against released Linux binaries
-tools/run_patch_smoke_docker.sh --all --max-versions 10 --run-smoke --smoke-timeout 60
-```
-
-Patch test expectations:
-
-* L1 anchor tests should prove the regex finds the intended minified structure.
-* L2 parse tests may use `node --check`, but Bun-bundled `cli.js` can fail under Node because of `bun:` imports. Pre-check the unpatched JS and skip L2 if the baseline does not parse.
-* L3 real-binary boot smoke tests must be gated behind `CCSILO_REAL_BINARY=1`.
-* L4 TUI/MCP behavioral tests must be gated behind `CCSILO_TUI_MCP=1`.
-* Real download/patch/execute integration tests must be separately gated behind `CCSILO_RUN_REAL_BINARY_TEST=1`.
-* Docker patch smoke is the preferred release-prep runtime proof. It downloads Linux binaries, extracts them, confirms an unpatched repack boots, applies all supported patches, repacks again, and runs `<patched-binary> --version`.
-* Expected environment-gated skips are not failures. Use `pytest -q -rs` to verify skip reasons.
-
-Before updating `versions_tested`, prove the patch against a concrete Claude Code version. Do not widen `versions_tested` just because `versions_supported` is broad. Avoid open-ended future minor ranges for regex anchors unless the future releases are intentionally treated as already verified.
-
-## TUI Rendering Stability
-
-Avoid full-screen clears in steady-state TUI render loops.
-
-* Do not set `ratatui_py.App(clear_each_frame=True)` for `ccsilo.tui.run_tui` or other idle-redrawing TUI flows without a measured reason.
-* The `App` loop renders every tick. Clearing every frame causes visible flashing even when the user is idle.
-* Prefer a startup clear through `on_start`, then normal redraws without per-frame clear.
-* For flicker regressions, use PTY capture or TUI MCP smoke and count repeated full-clear escape sequences such as `ESC[2J` while idle.
-* Keep constructor-flag tests for TUI entry points that use `ratatui_py.App`.
-
-Grouped TUI selectors must keep selectable option order and rendered row order
-aligned.
-
-* If a screen renders non-selectable group headers, `selected_index` must still
-  advance through visible selectable rows in the same order users see them.
-* Build `MenuOption` lists in the same grouped order used by the renderer, or
-  provide an explicit option-index to rendered-row mapping that is monotonic.
-* Add regression tests that map each selectable option index to its rendered row
-  and assert positions increase with only header-sized gaps.
-* For setup tweak changes, run
-  `.venv/bin/python -m pytest -q tests/test_tui.py -k "variant_tweak"` and
-  use TUI MCP to replay `Show advanced tweaks` followed by several `Down` keys.
-
-## TUI MCP Behavioral Testing
-
-Use the TUI MCP testing tool for workflows that cannot be validated by pure state/render tests alone.
-
-Use MCP smoke tests for:
-- first-run setup flow;
-- setup manager navigation;
-- tweak selection/edit/apply flow;
-- Dashboard source selection;
-- Dashboard tweak profile save/load/rename/delete;
-- patch package profile selection;
-- focus, resize, and keyboard navigation regressions.
-
-Always run MCP TUI tests with an isolated workspace:
-
-```bash
-CCSILO_WORKSPACE="$(mktemp -d)" \
-CCSILO_TUI_MCP=1 \
-.venv/bin/python -m pytest -q tests/patches_behavioral/
-```
-
-Rules for writing TUI MCP tests:
-
-* Use a temporary `CCSILO_WORKSPACE`.
-* Do not depend on the developer’s real `.ccsilo` workspace.
-* Prefer fixture-created variant manifests over real binaries for list/edit flows.
-* Variant manifest stubs only need:
-
-  * `schemaVersion`
-  * `id`
-  * `name`
-  * `provider.key`
-  * `source.version`
-  * `paths`
-  * `createdAt`
-  * `updatedAt`
-* Use named keys exactly as supported by the harness:
-
-  * `Down`
-  * `Up`
-  * `Tab`
-  * `Enter`
-  * `Space`
-  * `Esc`
-  * `q`
-* Do not use `ArrowDown` or `ArrowUp`; they silently no-op in the current harness.
-* Each `send_keys` call sends one named key. Do not send `"Tab Tab"` because spaces and letters are interpreted as character input.
-* Assert visible text and mode transitions, not implementation details.
-* For layout changes, assert that key panels still render after resize and that important controls are not clipped.
-* Pair MCP tests with widget-independent state tests. MCP should cover user workflow, not every state transition.
-
-## Definition of Done for a New Tweak
-
-A new curated tweak is not complete until:
-
-- patch module exists under `patches/`;
-- `PATCH.id` is stable lower-kebab-case;
-- `PATCH.group` is valid;
-- `_apply` is idempotent or intentionally documents why not;
-- `_apply` returns only `applied`, `skipped`, or `missed`;
-- patch is registered in `_registry.py`;
-- registry grouping still works;
-- tests cover apply, miss, and idempotency paths;
-- version tests prove `versions_tested` is inside `versions_supported`;
-- Dashboard/Tweaks visibility is intentional;
-- TUI MCP smoke test exists if the patch changes visible UI behavior;
-- real-binary smoke test is gated, not run by default.
-
-## Patch Source Code
-
-- When creating patches you can use @original as source of truth when creating patches. This is a reference only and will be to understand original code. Do not commit.
+* Do not add or upgrade dependencies without approval.
+* Do not document destructive commands, global config writes, or release workflow shortcuts as safe defaults.

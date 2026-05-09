@@ -16,13 +16,23 @@ import time
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Dict, Iterable, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 from urllib.parse import urlsplit
+
+from .providers.proxy import (
+    decode_gateway_model_id,
+    fetch_provider_model_ids,
+    gateway_model_id,
+    proxy_provider_for_key,
+    validate_gateway_provider_key,
+)
 
 
 ANTHROPIC_FALLBACK = "https://api.anthropic.com"
 MODEL_PROXY_MODE = "architect"
 MESSAGES_PATH = "/v1/messages"
+MODELS_PATH = "/v1/models"
+DISCOVERED_MODEL_CREATED_AT = "1970-01-01T00:00:00Z"
 MIN_AUTH_NONCE_CHARS = 24
 DEFAULT_REQUEST_TIMEOUT_MS = 600_000
 MAX_REQUEST_TIMEOUT_MS = 24 * 60 * 60 * 1000
@@ -55,6 +65,9 @@ class ModelProxyConfig:
     anthropic_models: Tuple[str, ...]
     anthropic_url: str = ANTHROPIC_FALLBACK
     timeout_ms: int = DEFAULT_REQUEST_TIMEOUT_MS
+    backend_provider_key: str = ""
+    backend_provider_label: str = ""
+    backend_models_url: str = ""
 
 
 class ModelProxyServer(ThreadingHTTPServer):
@@ -82,6 +95,9 @@ def load_config(path: os.PathLike) -> ModelProxyConfig:
         anthropic_models=_model_list(payload.get("anthropicModels") or payload.get("anthropic_models")),
         anthropic_url=str(payload.get("anthropicUrl") or payload.get("anthropic_url") or ANTHROPIC_FALLBACK),
         timeout_ms=_timeout_ms(payload.get("timeoutMs", payload.get("timeout_ms"))),
+        backend_provider_key=str(payload.get("backendProviderKey") or payload.get("backend_provider_key") or "").strip(),
+        backend_provider_label=str(payload.get("backendProviderLabel") or payload.get("backend_provider_label") or "").strip(),
+        backend_models_url=str(payload.get("backendModelsUrl") or payload.get("backend_models_url") or "").strip(),
     )
     validate_config(config)
     return config
@@ -133,6 +149,14 @@ def validate_config(config: ModelProxyConfig) -> None:
         parsed = urlsplit(value)
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
             raise ValueError(f"model proxy {label} must be an http(s) URL")
+    if config.backend_provider_key:
+        validate_gateway_provider_key(config.backend_provider_key)
+    if config.backend_models_url:
+        if not config.backend_provider_key:
+            raise ValueError("model proxy backendModelsUrl requires backendProviderKey")
+        parsed = urlsplit(config.backend_models_url)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("model proxy backendModelsUrl must be an http(s) URL")
     _timeout_ms(config.timeout_ms)
 
 
@@ -199,6 +223,76 @@ def normalize_json_body(data: bytes) -> bytes:
         payload["usage"] = {"input_tokens": 0, "output_tokens": 0}
         return json.dumps(payload, separators=(",", ":")).encode("utf-8")
     return data
+
+
+def backend_model_for_request(config: ModelProxyConfig, model: str) -> str:
+    if model in config.backend_models:
+        return model
+    provider_model = _decode_gateway_model(config, model)
+    return provider_model or ""
+
+
+def _decode_gateway_model(config: ModelProxyConfig, model: str) -> str:
+    if not config.backend_provider_key:
+        return ""
+    decoded = decode_gateway_model_id(model, expected_provider_key=config.backend_provider_key)
+    return decoded.provider_model if decoded else ""
+
+
+def build_models_payload(config: ModelProxyConfig, api_key: str) -> Dict[str, object]:
+    model_ids = advertised_model_ids(config, api_key)
+    data = [_model_response(model_id, config) for model_id in model_ids]
+    return {
+        "data": data,
+        "first_id": model_ids[0] if model_ids else None,
+        "has_more": False,
+        "last_id": model_ids[-1] if model_ids else None,
+    }
+
+
+def advertised_model_ids(config: ModelProxyConfig, api_key: str) -> List[str]:
+    model_ids: List[str] = []
+    for model in (*config.anthropic_models, *config.backend_models):
+        _append_unique(model_ids, model)
+    if not config.backend_provider_key or not config.backend_models_url:
+        return model_ids
+    for model in _fetch_backend_model_ids(config, api_key):
+        _append_unique(model_ids, gateway_model_id(config.backend_provider_key, model))
+    return model_ids
+
+
+def _model_response(model_id: str, config: ModelProxyConfig) -> Dict[str, object]:
+    display_name = model_id
+    decoded = _decode_gateway_model(config, model_id)
+    if decoded:
+        adapter = proxy_provider_for_key(config.backend_provider_key)
+        display_name = adapter.display_name(config.backend_provider_label, config.backend_provider_key, decoded)
+    return {
+        "id": model_id,
+        "type": "model",
+        "display_name": display_name,
+        "created_at": DISCOVERED_MODEL_CREATED_AT,
+    }
+
+
+def _append_unique(model_ids: List[str], model_id: str) -> None:
+    model_id = str(model_id or "").strip()
+    if model_id and model_id not in model_ids:
+        model_ids.append(model_id)
+
+
+def _fetch_backend_model_ids(config: ModelProxyConfig, api_key: str) -> Tuple[str, ...]:
+    try:
+        return fetch_provider_model_ids(
+            provider_key=config.backend_provider_key,
+            models_url=config.backend_models_url,
+            backend_auth=config.backend_auth,
+            api_key=api_key,
+            timeout=min(config.timeout_ms / 1000, MAX_IDLE_SECONDS),
+            max_response_bytes=MAX_RESPONSE_BYTES,
+        )
+    except Exception:
+        return ()
 
 
 class SseUsageNormalizer:
@@ -305,9 +399,13 @@ class _ModelProxyHandler(BaseHTTPRequestHandler):
         return
 
     def do_GET(self):
+        if self._try_probe(MODELS_PATH, allow="GET, HEAD, OPTIONS", status=200, body=True):
+            return
         self._reject_method_or_path()
 
     def do_HEAD(self):
+        if self._try_probe(MODELS_PATH, allow="GET, HEAD, OPTIONS", status=204):
+            return
         self._reject_method_or_path()
 
     def do_POST(self):
@@ -323,6 +421,8 @@ class _ModelProxyHandler(BaseHTTPRequestHandler):
         self._reject_method_or_path()
 
     def do_OPTIONS(self):
+        if self._try_probe(MODELS_PATH, allow="GET, HEAD, OPTIONS", status=204):
+            return
         self._reject_method_or_path()
 
     def _proxy(self) -> None:
@@ -345,15 +445,29 @@ class _ModelProxyHandler(BaseHTTPRequestHandler):
         self._send_json(405, {"error": {"message": "model proxy only accepts POST /v1/messages"}})
 
     def _authorized_client_path(self) -> str:
+        return self._authorized_client_path_for(MESSAGES_PATH)
+
+    def _authorized_client_path_for(self, endpoint_path: str) -> str:
         parsed = urlsplit(self.path)
-        expected = f"/{self.server.auth_nonce}{MESSAGES_PATH}"
+        expected = f"/{self.server.auth_nonce}{endpoint_path}"
         if parsed.path != expected:
             self.close_connection = True
             raise _ProxyHttpError(404, "model proxy endpoint not found")
-        client_path = MESSAGES_PATH
+        client_path = endpoint_path
         if parsed.query:
             client_path += "?" + parsed.query
         return client_path
+
+    def _try_probe(self, endpoint_path: str, *, allow: str, status: int, body: bool = False) -> bool:
+        try:
+            self._authorized_client_path_for(endpoint_path)
+        except _ProxyHttpError:
+            return False
+        if body:
+            self._send_json(status, build_models_payload(self.server.config, self.server.api_key))
+        else:
+            self._send_headers(status, "No Content", {"Allow": allow, "content-length": "0"})
+        return True
 
     def _read_body(self) -> bytes:
         raw_length = self.headers.get("content-length")
@@ -377,7 +491,8 @@ class _ModelProxyHandler(BaseHTTPRequestHandler):
         if not isinstance(parsed_body, dict):
             raise _ProxyHttpError(400, "model proxy request body must be a JSON object")
         model = str(parsed_body.get("model") or "")
-        if model in self.server.config.backend_models:
+        backend_model = backend_model_for_request(self.server.config, model)
+        if backend_model:
             use_backend = True
         elif model in self.server.config.anthropic_models:
             use_backend = False
@@ -385,6 +500,7 @@ class _ModelProxyHandler(BaseHTTPRequestHandler):
             raise _ProxyHttpError(400, f"model proxy model is not in the route map: {model or '(missing)'}")
 
         if use_backend:
+            parsed_body["model"] = backend_model
             strip_all_thinking_blocks(parsed_body)
             body = json.dumps(parsed_body, separators=(",", ":")).encode("utf-8")
             with self.server.state_lock:

@@ -27,17 +27,22 @@ def write_variant_config(manifest: Dict) -> None:
     write_json(Path(paths["configDir"]) / "settings.json", {"env": env})
     model_proxy = manifest.get("modelProxy")
     if isinstance(model_proxy, dict) and model_proxy.get("mode") == "architect":
+        runtime_config = {
+            "mode": "architect",
+            "backendUrl": model_proxy["backendUrl"],
+            "backendAuth": model_proxy["backendAuth"],
+            "backendModels": list(model_proxy["backendModels"]),
+            "anthropicModels": list(model_proxy["anthropicModels"]),
+            "anthropicUrl": model_proxy.get("anthropicUrl") or "https://api.anthropic.com",
+            "timeoutMs": int(model_proxy.get("timeoutMs") or 600_000),
+        }
+        for key in ("backendProviderKey", "backendProviderLabel", "backendModelsUrl"):
+            value = model_proxy.get(key)
+            if value:
+                runtime_config[key] = value
         write_json(
             Path(model_proxy["runtimeConfigPath"]),
-            {
-                "mode": "architect",
-                "backendUrl": model_proxy["backendUrl"],
-                "backendAuth": model_proxy["backendAuth"],
-                "backendModels": list(model_proxy["backendModels"]),
-                "anthropicModels": list(model_proxy["anthropicModels"]),
-                "anthropicUrl": model_proxy.get("anthropicUrl") or "https://api.anthropic.com",
-                "timeoutMs": int(model_proxy.get("timeoutMs") or 600_000),
-            },
+            runtime_config,
         )
     apply_provider_claude_config(
         manifest["provider"]["key"],

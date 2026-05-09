@@ -8,7 +8,7 @@ from typing import Dict, Iterable, List, Optional
 
 from ..binary_patcher.bun_compat import has_bun_node_compat
 from .._utils import require_env_name, safe_read_json as _safe_read_json, utc_now as _utc_now
-from ..providers import build_provider_env, get_provider, normalize_mcp_ids, provider_default_variant_name
+from ..providers import build_provider_env, get_provider, normalize_mcp_ids, provider_default_variant_name, provider_models_url
 from ..workspace import NativeArtifact, SEMVER_RE, import_local_native_binary, read_json, workspace_root
 from .builder import patch_refs_for_profile as _patch_refs_for_profile
 from .constants import VARIANT_METADATA
@@ -25,7 +25,15 @@ from .model import (
     variant_root,
 )
 from .install import remove_variant_managed_installs
-from .tweaks import default_tweak_ids_for_provider, env_for_tweaks, normalize_tweak_ids, sync_tweak_env
+from .tweaks import (
+    CURATED_TWEAK_IDS,
+    GATEWAY_MODEL_DISCOVERY_ENV,
+    GATEWAY_MODEL_DISCOVERY_TWEAK_ID,
+    default_tweak_ids_for_provider,
+    env_for_tweaks,
+    normalize_tweak_ids,
+    sync_tweak_env,
+)
 from .wrapper import (
     SECRETS_FILE,
     SECRETS_FILE_MODE,
@@ -144,6 +152,8 @@ def create_variant(
         model_overrides=model_overrides or {},
     )
     tweak_ids = normalize_tweak_ids(tweaks or default_tweak_ids_for_provider(provider.key))
+    if model_proxy_payload is not None:
+        tweak_ids = _model_proxy_tweak_ids(tweak_ids)
     selected_mcp_ids = normalize_mcp_ids(mcp_ids or [])
     safe_env.update(env_for_tweaks(tweak_ids, tweak_options))
     now = _utc_now()
@@ -238,9 +248,18 @@ def _model_proxy_for_create(
         "credentialEnv": source_env,
         "anthropicUrl": "https://api.anthropic.com",
         "timeoutMs": _model_proxy_timeout_ms(safe_env.get("API_TIMEOUT_MS")),
+        "backendProviderKey": provider.key,
+        "backendProviderLabel": provider.label,
         **_model_proxy_route_models(safe_env),
     }
+    if _provider_model_discovery_enabled(provider):
+        payload["backendModelsUrl"] = provider_models_url(backend_url)
     return payload, safe_env, credential, secret_env
+
+
+def _provider_model_discovery_enabled(provider) -> bool:
+    discovery = (provider.tui or {}).get("modelDiscovery") or {}
+    return isinstance(discovery, dict) and bool(discovery.get("enabled"))
 
 
 def _model_proxy_credential_source(provider, provider_env) -> str:
@@ -293,7 +312,23 @@ def _model_proxy_safe_env(env: Dict[str, str], model_overrides: Dict[str, str]) 
         worker_default = safe_env.get("ANTHROPIC_DEFAULT_SONNET_MODEL") or safe_env.get("ANTHROPIC_DEFAULT_HAIKU_MODEL")
         if worker_default:
             safe_env["ANTHROPIC_MODEL"] = worker_default
+    safe_env[GATEWAY_MODEL_DISCOVERY_ENV] = "1"
     return safe_env
+
+
+def _model_proxy_tweak_ids(tweak_ids: List[str]) -> List[str]:
+    if GATEWAY_MODEL_DISCOVERY_TWEAK_ID in tweak_ids:
+        return list(tweak_ids)
+    result = list(tweak_ids)
+    result.append(GATEWAY_MODEL_DISCOVERY_TWEAK_ID)
+    return sorted(result, key=lambda item: _tweak_sort_index(item))
+
+
+def _tweak_sort_index(tweak_id: str) -> int:
+    try:
+        return CURATED_TWEAK_IDS.index(tweak_id)
+    except ValueError:
+        return len(CURATED_TWEAK_IDS)
 
 
 def _model_proxy_route_models(env: Dict[str, str]) -> Dict[str, List[str]]:
@@ -390,6 +425,8 @@ def _apply_variant_manifest(
             "type": "download",
             "version": claude_version,
         }
+    if isinstance(manifest.get("modelProxy"), dict):
+        manifest["tweaks"] = _model_proxy_tweak_ids(list(manifest.get("tweaks", []) or []))
     manifest["env"] = sync_tweak_env(
         manifest.get("env", {}),
         manifest.get("tweaks", []),

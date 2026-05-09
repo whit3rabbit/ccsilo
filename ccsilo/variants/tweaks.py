@@ -29,7 +29,18 @@ NON_MIRROR_DEFAULT_TWEAK_IDS = [
     "disable-prompt-caching",
 ]
 VALUE_ENV_TWEAK_IDS = ["context-limit", "file-read-limit", "subagent-model"]
+GATEWAY_MODEL_DISCOVERY_TWEAK_ID = "gateway-model-discovery"
+GATEWAY_MODEL_DISCOVERY_ENV = "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY"
 BOOLEAN_ENV_TWEAKS = {
+    GATEWAY_MODEL_DISCOVERY_TWEAK_ID: {
+        "name": "Gateway model discovery",
+        "env": GATEWAY_MODEL_DISCOVERY_ENV,
+        "value": "1",
+        "description": (
+            "Enables Claude Code gateway model discovery. Required for OAuth architect proxy model ids; "
+            "unchecking this disables the proxy."
+        ),
+    },
     "disable-telemetry": {
         "name": "Disable telemetry",
         "env": "DISABLE_TELEMETRY",

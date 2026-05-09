@@ -3,6 +3,8 @@ import pytest
 from ccsilo.variant_tweaks import (
     BOOLEAN_ENV_TWEAKS,
     DEFAULT_TWEAK_IDS,
+    GATEWAY_MODEL_DISCOVERY_ENV,
+    GATEWAY_MODEL_DISCOVERY_TWEAK_ID,
     RTK_SHELL_PREFIX_TEXT,
     TweakPatchError,
     apply_variant_tweaks,
@@ -205,11 +207,20 @@ def test_mcp_batch_size_setup_tweak_emits_wrapper_env():
 
 
 def test_boolean_env_tweaks_emit_documented_on_off_values():
-    env = env_for_tweaks(["disable-telemetry", "disable-prompt-caching", "mcp-allowlist-env"])
+    env = env_for_tweaks(
+        [
+            GATEWAY_MODEL_DISCOVERY_TWEAK_ID,
+            "disable-telemetry",
+            "disable-prompt-caching",
+            "mcp-allowlist-env",
+        ]
+    )
 
+    assert env[GATEWAY_MODEL_DISCOVERY_ENV] == "1"
     assert env["DISABLE_TELEMETRY"] == "1"
     assert env["DISABLE_PROMPT_CACHING"] == "1"
     assert env["CLAUDE_CODE_MCP_ALLOWLIST_ENV"] == "1"
+    assert BOOLEAN_ENV_TWEAKS[GATEWAY_MODEL_DISCOVERY_TWEAK_ID]["env"] == GATEWAY_MODEL_DISCOVERY_ENV
     assert BOOLEAN_ENV_TWEAKS["disable-telemetry"]["env"] == "DISABLE_TELEMETRY"
 
 
@@ -222,6 +233,7 @@ def test_sync_tweak_env_removes_unselected_managed_env():
         "CLAUDE_CODE_CONTEXT_LIMIT": "1000000",
         "DISABLE_COMPACT": "1",
         "DISABLE_TELEMETRY": "1",
+        GATEWAY_MODEL_DISCOVERY_ENV: "1",
     }
 
     synced = sync_tweak_env(env, ["themes"], {})

@@ -8,7 +8,11 @@ from ..providers.schema import MODEL_ENV_KEYS
 from ..workspace import write_json
 from .constants import VARIANT_METADATA
 from .model import Variant, validate_variant_manifest
-from .tweaks import sync_tweak_env
+from .tweaks import (
+    CURATED_TWEAK_IDS,
+    GATEWAY_MODEL_DISCOVERY_TWEAK_ID,
+    sync_tweak_env,
+)
 from .wrapper import write_wrapper as _write_wrapper
 
 import sys as _sys
@@ -41,6 +45,8 @@ def update_variant_models(
     _validate_existing_model_mapping(provider, env)
 
     manifest["modelOverrides"] = normalized
+    if isinstance(manifest.get("modelProxy"), dict):
+        manifest["tweaks"] = _model_proxy_tweak_ids(manifest.get("tweaks", []))
     manifest["env"] = sync_tweak_env(
         env,
         manifest.get("tweaks", []),
@@ -99,3 +105,16 @@ def _validate_existing_model_mapping(provider, env: Dict[str, str]) -> None:
     if missing:
         raise ValueError(f"{provider.label} requires model mapping for {', '.join(missing)}")
 
+
+def _model_proxy_tweak_ids(tweak_ids):
+    result = [str(tweak_id) for tweak_id in (tweak_ids or []) if str(tweak_id)]
+    if GATEWAY_MODEL_DISCOVERY_TWEAK_ID not in result:
+        result.append(GATEWAY_MODEL_DISCOVERY_TWEAK_ID)
+    return sorted(result, key=_tweak_sort_index)
+
+
+def _tweak_sort_index(tweak_id: str) -> int:
+    try:
+        return CURATED_TWEAK_IDS.index(tweak_id)
+    except ValueError:
+        return len(CURATED_TWEAK_IDS)

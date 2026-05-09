@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "key": "litellm",
+  "label": "LiteLLM",
+  "description": "External LiteLLM AI Gateway using the Anthropic Messages endpoint",
+  "displayOrder": 72,
+  "baseUrl": "http://127.0.0.1:4000",
+  "auth": {
+    "mode": "authToken",
+    "apiKeyLabel": "LiteLLM virtual key",
+    "credentialEnv": "LITELLM_API_KEY"
+  },
+  "models": {
+    "default": "",
+    "smallFast": "",
+    "opus": "",
+    "sonnet": "",
+    "haiku": "",
+    "subagent": "",
+    "requiresModelMapping": true
+  },
+  "env": {
+    "API_TIMEOUT_MS": "3000000"
+  },
+  "variant": {
+    "defaultVariantName": "cclitellm",
+    "splashStyle": "litellm",
+    "noPromptPack": true,
+    "theme": {
+      "id": "litellm-variant",
+      "name": "LiteLLM",
+      "colors": {
+        "bashBorder": "rgb(34,197,94)",
+        "claude": "rgb(125,211,252)"
+      }
+    },
+    "promptOverlays": {}
+  },
+  "claudeConfig": {
+    "settingsPermissionsDeny": [],
+    "mcpServers": {}
+  },
+  "tui": {
+    "headline": "LiteLLM Gateway",
+    "modelDiscovery": {
+      "enabled": true
+    },
+    "features": [
+      "External LiteLLM proxy at the configured endpoint",
+      "Anthropic Messages format through LiteLLM unified endpoint",
+      "Requires Opus, Sonnet, and Haiku model aliases",
+      "Virtual key is sent as bearer auth"
+    ],
+    "setupLinks": {
+      "subscribe": "https://docs.litellm.ai/docs/proxy/quick_start",
+      "apiKey": "https://docs.litellm.ai/docs/proxy/virtual_keys",
+      "docs": "https://docs.litellm.ai/"
+    },
+    "setupNote": "Run LiteLLM separately, set LITELLM_API_KEY to a LiteLLM virtual key, and map each Claude Code tier to a LiteLLM model id."
+  }
+}

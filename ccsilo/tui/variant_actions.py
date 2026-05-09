@@ -4,7 +4,12 @@ from urllib.parse import urlparse
 
 from ..variants import CCR_OAUTH_PROVIDER_KEY, CCR_PACKAGE_DEFAULT, CCR_PROVIDER_KEYS, default_ccrouter_config_mode
 from ..providers import normalize_mcp_ids, provider_default_variant_name
-from ..variant_tweaks import CURATED_TWEAK_IDS, DEFAULT_TWEAK_IDS, default_tweak_ids_for_provider
+from ..variant_tweaks import (
+    CURATED_TWEAK_IDS,
+    DEFAULT_TWEAK_IDS,
+    GATEWAY_MODEL_DISCOVERY_TWEAK_ID,
+    default_tweak_ids_for_provider,
+)
 from ._const import VARIANT_MODEL_FIELDS, VARIANT_STEPS
 from .options import (
     selected_variant_provider,
@@ -65,14 +70,26 @@ def set_variant_provider_defaults(state, provider):
     state.variant_install_choice_initialized = False
     state.selected_variant_mcp_ids = []
     state.selected_variant_tweaks = default_tweak_ids_for_provider(provider_key)
+    if state.variant_model_proxy == "architect":
+        _select_variant_tweak(state, GATEWAY_MODEL_DISCOVERY_TWEAK_ID)
 
 
 def toggle_variant_tweak(state, tweak_id: str):
-    if tweak_id in state.selected_variant_tweaks:
+    removing = tweak_id in state.selected_variant_tweaks
+    if removing:
         state.selected_variant_tweaks.remove(tweak_id)
+        if tweak_id == GATEWAY_MODEL_DISCOVERY_TWEAK_ID and state.variant_model_proxy == "architect":
+            state.variant_model_proxy = ""
+            state.message = "Gateway model discovery disabled; OAuth architect proxy disabled."
     else:
-        state.selected_variant_tweaks.append(tweak_id)
-        state.selected_variant_tweaks.sort(key=lambda item: CURATED_TWEAK_IDS.index(item))
+        _select_variant_tweak(state, tweak_id)
+
+
+def _select_variant_tweak(state, tweak_id: str) -> None:
+    if tweak_id in state.selected_variant_tweaks:
+        return
+    state.selected_variant_tweaks.append(tweak_id)
+    state.selected_variant_tweaks.sort(key=lambda item: CURATED_TWEAK_IDS.index(item))
 
 
 def toggle_variant_mcp(state, mcp_id: str):
@@ -162,11 +179,14 @@ def variant_model_proxy_options_for_create(state, provider):
 
 
 def toggle_variant_model_proxy(state):
-    state.variant_model_proxy = "" if state.variant_model_proxy == "architect" else "architect"
-    if state.variant_model_proxy == "architect" and "opusplan1m" in CURATED_TWEAK_IDS:
-        if "opusplan1m" not in state.selected_variant_tweaks:
-            state.selected_variant_tweaks.append("opusplan1m")
-            state.selected_variant_tweaks.sort(key=lambda item: CURATED_TWEAK_IDS.index(item))
+    enabling = state.variant_model_proxy != "architect"
+    state.variant_model_proxy = "architect" if enabling else ""
+    if enabling and "opusplan1m" in CURATED_TWEAK_IDS:
+        _select_variant_tweak(state, "opusplan1m")
+    if enabling:
+        _select_variant_tweak(state, GATEWAY_MODEL_DISCOVERY_TWEAK_ID)
+    elif GATEWAY_MODEL_DISCOVERY_TWEAK_ID in state.selected_variant_tweaks:
+        state.selected_variant_tweaks.remove(GATEWAY_MODEL_DISCOVERY_TWEAK_ID)
     state.message = (
         "OAuth architect proxy: enabled"
         if state.variant_model_proxy == "architect"

@@ -1659,8 +1659,10 @@ def test_ccr_oauth_provider_defaults_to_architect_proxy_and_tweak():
 
     assert state.variant_model_proxy == "architect"
     assert "opusplan1m" in state.selected_variant_tweaks
+    assert "gateway-model-discovery" in state.selected_variant_tweaks
     assert labels.count("[x] Architect Mode  (model picker alias, no Claude OAuth)") == 1
     assert sum(1 for option in options if option.value == "opusplan1m") == 1
+    assert "[x] Gateway model discovery  (gateway-model-discovery)" in labels
     assert "[x] OAuth architect proxy  (requires Claude Code account)" in labels
     assert "Model proxy port: auto" in labels
 
@@ -1669,18 +1671,62 @@ def test_ccr_oauth_provider_defaults_to_architect_proxy_and_tweak():
     assert "OAuth architect proxy" in screen
     assert "Requires Claude Code account/login" in screen
     assert "claude-* calls use Claude Code OAuth/session" in screen
+    assert "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1" in screen
+    assert "unchecking Gateway model discovery disables this proxy" in screen
     preview = "\n".join(tui.rendering.create_preview_labels(state))
     assert "Model proxy: OAuth architect proxy" in preview
     assert "Model proxy requirement: Requires Claude Code account/login" in preview
+    assert "Model proxy discovery: sets CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1" in preview
 
     tui._toggle_selected(state)
     assert state.variant_model_proxy == ""
     assert "opusplan1m" in state.selected_variant_tweaks
+    assert "gateway-model-discovery" not in state.selected_variant_tweaks
 
     state.selected_variant_tweaks.remove("opusplan1m")
     tui._toggle_selected(state)
     assert state.variant_model_proxy == "architect"
     assert "opusplan1m" in state.selected_variant_tweaks
+    assert "gateway-model-discovery" in state.selected_variant_tweaks
+
+
+def test_variants_wizard_unchecking_gateway_discovery_disables_model_proxy():
+    provider = {
+        "key": "ccr-oauth",
+        "label": "CCR OAuth Proxy",
+        "description": "CCR",
+        "section": "pinned",
+        "authMode": "authToken",
+        "credentialEnv": "CCROUTER_AUTH_TOKEN",
+        "credentialOptional": True,
+        "authTokenFallback": "ccrouter-proxy",
+        "baseUrl": "http://127.0.0.1:3456",
+        "requiresModelMapping": True,
+        "models": {},
+        "defaultVariantName": "ccr-oauth",
+    }
+    state = tui.TuiState(
+        mode="variants",
+        variant_step=5,
+        variant_provider_index=0,
+        variant_providers=[provider],
+    )
+    tui._set_variant_provider_defaults(state, provider)
+
+    options = tui._variant_options(state)
+    state.selected_index = next(
+        index
+        for index, option in enumerate(options)
+        if option.kind == "variant-tweak" and option.value == "gateway-model-discovery"
+    )
+
+    tui._toggle_selected(state)
+
+    labels = [option.label for option in tui._variant_options(state)]
+    assert state.variant_model_proxy == ""
+    assert "gateway-model-discovery" not in state.selected_variant_tweaks
+    assert "[ ] OAuth architect proxy  (requires Claude Code account)" in labels
+    assert state.message == "Gateway model discovery disabled; OAuth architect proxy disabled."
 
 
 def test_variants_wizard_architect_mode_toggle_uses_tweak_without_proxy():

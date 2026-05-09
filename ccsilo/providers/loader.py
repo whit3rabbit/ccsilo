@@ -202,12 +202,27 @@ def _require_env_names(names: List[str], *, label: str) -> List[str]:
 
 def _providers() -> Dict[str, ProviderTemplate]:
     providers = {}
-    for path in sorted(REGISTRY_DIR.glob("*.json")):
+    for path in _provider_manifest_paths():
         payload = read_json_strict(path)
         provider = provider_from_json(payload)
-        if path.stem != provider.key:
-            raise ProviderSchemaError(f"{path.name} does not match provider key {provider.key}")
+        expected_key = _expected_provider_key(path)
+        if expected_key != provider.key:
+            raise ProviderSchemaError(f"{path} does not match provider key {provider.key}")
         if provider.key in providers:
             raise ProviderSchemaError(f"Duplicate provider key: {provider.key}")
         providers[provider.key] = provider
     return providers
+
+
+def _provider_manifest_paths() -> List[Path]:
+    return sorted(
+        path
+        for path in REGISTRY_DIR.rglob("*.json")
+        if path.is_file()
+    )
+
+
+def _expected_provider_key(path: Path) -> str:
+    if path.parent == REGISTRY_DIR:
+        return path.stem
+    return path.parent.name

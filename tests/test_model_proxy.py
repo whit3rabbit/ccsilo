@@ -22,6 +22,21 @@ class _RecordingServer:
             def log_message(self, fmt, *args):
                 return
 
+            def do_GET(self):
+                record = {
+                    "path": self.path,
+                    "headers": {key.lower(): value for key, value in self.headers.items()},
+                    "body": b"",
+                }
+                records.append(record)
+                status, headers, response_body = responder(record)
+                self.send_response(status)
+                for key, value in headers.items():
+                    self.send_header(key, value)
+                self.send_header("content-length", str(len(response_body)))
+                self.end_headers()
+                self.wfile.write(response_body)
+
             def do_POST(self):
                 length = int(self.headers.get("content-length") or "0")
                 body = self.rfile.read(length) if length else b""
@@ -74,6 +89,16 @@ def _post_json_response(url, payload, headers=None):
         return response.read(), {key.lower(): value for key, value in response.headers.items()}
 
 
+def _request_response(url, *, method="GET"):
+    request = Request(url, method=method)
+    with urlopen(request, timeout=5) as response:
+        return (
+            response.status,
+            response.read(),
+            {key.lower(): value for key, value in response.headers.items()},
+        )
+
+
 def test_model_proxy_load_config_parses_timeout_ms(tmp_path):
     config_path = tmp_path / "model-proxy.json"
     config_path.write_text(
@@ -85,6 +110,9 @@ def test_model_proxy_load_config_parses_timeout_ms(tmp_path):
                 "backendModels": ["worker-model"],
                 "anthropicModels": ["claude-opus-4-6"],
                 "timeoutMs": "3000000",
+                "backendProviderKey": "openrouter",
+                "backendProviderLabel": "OpenRouter",
+                "backendModelsUrl": "https://backend.example/models",
             }
         ),
         encoding="utf-8",
@@ -93,6 +121,9 @@ def test_model_proxy_load_config_parses_timeout_ms(tmp_path):
     config = load_config(config_path)
 
     assert config.timeout_ms == 3_000_000
+    assert config.backend_provider_key == "openrouter"
+    assert config.backend_provider_label == "OpenRouter"
+    assert config.backend_models_url == "https://backend.example/models"
 
 
 def test_model_proxy_rejects_non_architect_mode():
@@ -274,6 +305,214 @@ def test_model_proxy_normalizes_backend_json_usage():
         anthropic.close()
 
 
+def test_model_proxy_lists_configured_and_discovered_models_with_backend_auth():
+    def model_list_response(_record):
+        body = json.dumps(
+            {
+                "data": [
+                    {"id": "worker-model"},
+                    {"id": "deepseek/deepseek-r1"},
+                    {"id": "worker-model"},
+                ]
+            }
+        ).encode("utf-8")
+        return 200, {"content-type": "application/json"}, body
+
+    upstream = _RecordingServer(model_list_response)
+    proxy = start_model_proxy(
+        ModelProxyConfig(
+            mode="architect",
+            backend_url=upstream.url,
+            backend_auth="bearer",
+            backend_models=("worker-model",),
+            anthropic_models=("claude-opus-4-6",),
+            anthropic_url=upstream.url,
+            backend_provider_key="litellm",
+            backend_provider_label="LiteLLM",
+            backend_models_url=f"{upstream.url}/v1/models",
+        ),
+        api_key="backend-key",
+        auth_nonce=NONCE,
+        port=0,
+    )
+    thread = threading.Thread(target=proxy.serve_forever, daemon=True)
+    thread.start()
+    proxy_url = f"http://127.0.0.1:{proxy.server_address[1]}/{NONCE}"
+
+    try:
+        status, raw, headers = _request_response(f"{proxy_url}/v1/models")
+        payload = json.loads(raw.decode("utf-8"))
+        ids = [item["id"] for item in payload["data"]]
+
+        assert status == 200
+        assert headers["content-type"] == "application/json"
+        assert ids == [
+            "claude-opus-4-6",
+            "worker-model",
+            "anthropic/litellm/worker-model",
+            "anthropic/litellm/deepseek/deepseek-r1",
+        ]
+        assert payload["first_id"] == "claude-opus-4-6"
+        assert payload["last_id"] == "anthropic/litellm/deepseek/deepseek-r1"
+        assert payload["has_more"] is False
+        display = {item["id"]: item["display_name"] for item in payload["data"]}
+        assert display["anthropic/litellm/deepseek/deepseek-r1"] == "LiteLLM/deepseek/deepseek-r1"
+        assert upstream.records[0]["path"] == "/v1/models"
+        assert upstream.records[0]["headers"]["authorization"] == "Bearer backend-key"
+
+        head_status, head_body, head_headers = _request_response(f"{proxy_url}/v1/models", method="HEAD")
+        assert head_status == 204
+        assert head_body == b""
+        assert head_headers["allow"] == "GET, HEAD, OPTIONS"
+
+        options_status, options_body, options_headers = _request_response(f"{proxy_url}/v1/models", method="OPTIONS")
+        assert options_status == 204
+        assert options_body == b""
+        assert options_headers["allow"] == "GET, HEAD, OPTIONS"
+    finally:
+        proxy.shutdown()
+        proxy.server_close()
+        thread.join(timeout=2)
+        upstream.close()
+
+
+def test_model_proxy_openrouter_discovery_advertises_only_tool_capable_models():
+    def model_list_response(_record):
+        body = json.dumps(
+            {
+                "data": [
+                    {"id": "meta/llama-3.3", "supported_parameters": ["tools", "stream"]},
+                    {"id": "openai/o3-mini", "supported_parameters": ["reasoning"]},
+                    {"id": "anthropic/claude-sonnet", "supported_parameters": ["tool_choice"]},
+                    {"id": "missing-params"},
+                ]
+            }
+        ).encode("utf-8")
+        return 200, {"content-type": "application/json"}, body
+
+    upstream = _RecordingServer(model_list_response)
+    proxy = start_model_proxy(
+        ModelProxyConfig(
+            mode="architect",
+            backend_url=upstream.url,
+            backend_auth="bearer",
+            backend_models=("worker-model",),
+            anthropic_models=("claude-opus-4-6",),
+            anthropic_url=upstream.url,
+            backend_provider_key="openrouter",
+            backend_provider_label="OpenRouter",
+            backend_models_url=f"{upstream.url}/v1/models",
+        ),
+        api_key="backend-key",
+        auth_nonce=NONCE,
+        port=0,
+    )
+    thread = threading.Thread(target=proxy.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        _status, raw, _headers = _request_response(
+            f"http://127.0.0.1:{proxy.server_address[1]}/{NONCE}/v1/models"
+        )
+        payload = json.loads(raw.decode("utf-8"))
+        assert [item["id"] for item in payload["data"]] == [
+            "claude-opus-4-6",
+            "worker-model",
+            "anthropic/openrouter/meta/llama-3.3",
+            "anthropic/openrouter/anthropic/claude-sonnet",
+        ]
+    finally:
+        proxy.shutdown()
+        proxy.server_close()
+        thread.join(timeout=2)
+        upstream.close()
+
+
+def test_model_proxy_models_endpoint_falls_back_when_discovery_fails():
+    def broken_model_list(_record):
+        return 200, {"content-type": "application/json"}, b'{"bad": true}'
+
+    upstream = _RecordingServer(broken_model_list)
+    proxy = start_model_proxy(
+        ModelProxyConfig(
+            mode="architect",
+            backend_url=upstream.url,
+            backend_auth="x-api-key",
+            backend_models=("worker-model",),
+            anthropic_models=("claude-opus-4-6",),
+            anthropic_url=upstream.url,
+            backend_provider_key="deepseek",
+            backend_provider_label="DeepSeek",
+            backend_models_url=f"{upstream.url}/v1/models",
+        ),
+        api_key="backend-key",
+        auth_nonce=NONCE,
+        port=0,
+    )
+    thread = threading.Thread(target=proxy.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        _status, raw, _headers = _request_response(
+            f"http://127.0.0.1:{proxy.server_address[1]}/{NONCE}/v1/models"
+        )
+        payload = json.loads(raw.decode("utf-8"))
+        assert [item["id"] for item in payload["data"]] == ["claude-opus-4-6", "worker-model"]
+        assert upstream.records[0]["headers"]["x-api-key"] == "backend-key"
+    finally:
+        proxy.shutdown()
+        proxy.server_close()
+        thread.join(timeout=2)
+        upstream.close()
+
+
+def test_model_proxy_routes_gateway_backend_model_after_decoding():
+    def backend_response(_record):
+        return 200, {"content-type": "application/json"}, b'{"type":"message","content":[]}'
+
+    upstream = _RecordingServer(backend_response)
+    proxy = start_model_proxy(
+        ModelProxyConfig(
+            mode="architect",
+            backend_url=upstream.url,
+            backend_auth="bearer",
+            backend_models=("worker-model",),
+            anthropic_models=("claude-opus-4-6",),
+            anthropic_url=upstream.url,
+            backend_provider_key="openrouter",
+            backend_provider_label="OpenRouter",
+        ),
+        api_key="backend-key",
+        auth_nonce=NONCE,
+        port=0,
+    )
+    thread = threading.Thread(target=proxy.serve_forever, daemon=True)
+    thread.start()
+    proxy_url = f"http://127.0.0.1:{proxy.server_address[1]}/{NONCE}"
+
+    try:
+        _post_json(
+            f"{proxy_url}/v1/messages",
+            {"model": "anthropic/openrouter/meta/llama-3.3", "messages": []},
+            {"authorization": "Bearer oauth-token"},
+        )
+        payload = json.loads(upstream.records[0]["body"].decode("utf-8"))
+        assert payload["model"] == "meta/llama-3.3"
+        assert upstream.records[0]["headers"]["authorization"] == "Bearer backend-key"
+
+        with pytest.raises(HTTPError) as wrong_provider:
+            _post_json(
+                f"{proxy_url}/v1/messages",
+                {"model": "anthropic/deepseek/meta/llama-3.3", "messages": []},
+            )
+        assert wrong_provider.value.code == 400
+    finally:
+        proxy.shutdown()
+        proxy.server_close()
+        thread.join(timeout=2)
+        upstream.close()
+
+
 def test_model_proxy_allows_only_nonce_post_messages_path_and_known_models():
     def backend_response(_record):
         return 200, {"content-type": "application/json"}, b"{}"
@@ -310,6 +549,9 @@ def test_model_proxy_allows_only_nonce_post_messages_path_and_known_models():
         with pytest.raises(HTTPError) as bad_nonce:
             _post_json(f"{base_url}/bad/v1/messages", {"model": "worker-model", "messages": []})
         assert bad_nonce.value.code == 404
+        with pytest.raises(HTTPError) as bad_models_nonce:
+            _request_response(f"{base_url}/bad/v1/models")
+        assert bad_models_nonce.value.code == 404
 
         for method in ("GET", "HEAD", "PUT", "DELETE", "OPTIONS"):
             with pytest.raises(HTTPError) as wrong_method:

@@ -7,6 +7,7 @@ from ..variant_tweaks import (
     CURATED_TWEAK_IDS,
     DEFAULT_TWEAK_IDS,
     ENV_TWEAK_IDS,
+    GATEWAY_MODEL_DISCOVERY_TWEAK_ID,
     default_tweak_ids_for_provider,
 )
 from ._const import ARCHITECT_MODE_TWEAK_ID, MenuOption, SOURCE_LATEST, VARIANT_MODEL_FIELDS, VARIANT_STEPS
@@ -31,6 +32,7 @@ GATEWAY_PROVIDER_KEYS = {
     "cerebras",
     "custom",
     "gatewayz",
+    "litellm",
     "nanogpt",
     "openrouter",
     "vercel",
@@ -444,6 +446,7 @@ def _provider_model_proxy_lines(provider):
         "- Wizard: enable OAuth architect proxy on the Tweaks step",
         "- Requires Claude Code account/login; claude-* calls use OAuth/session",
         "- Non-Claude worker aliases route to this provider backend",
+        "- Sets CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1; disabling that tweak disables the proxy",
     ]
     if provider.get("key") == CCR_OAUTH_PROVIDER_KEY:
         lines.append("- Managed CCR is started setup-locally before the proxy starts")
@@ -462,7 +465,12 @@ def variant_model_proxy_supported(provider):
 def variant_tweak_ids(state):
     provider = selected_variant_provider(state)
     recommended_ids = default_tweak_ids_for_provider(provider.get("key") if provider else None)
-    return recommended_ids if state.tweak_filter == "recommended" else list(CURATED_TWEAK_IDS)
+    if state.tweak_filter != "recommended":
+        return list(CURATED_TWEAK_IDS)
+    ids = list(recommended_ids)
+    if state.variant_model_proxy == "architect" and GATEWAY_MODEL_DISCOVERY_TWEAK_ID in state.selected_variant_tweaks:
+        ids.append(GATEWAY_MODEL_DISCOVERY_TWEAK_ID)
+    return _unique_ordered(ids)
 
 def variant_setup_tweak_ids(state):
     return [
