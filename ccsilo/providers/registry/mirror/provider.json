@@ -25,11 +25,25 @@
     "splashStyle": "mirror",
     "noPromptPack": true,
     "theme": {
-      "id": "mirror-variant",
+      "id": "dark",
       "name": "Mirror Claude",
-      "colors": {
-        "bashBorder": "rgb(136,136,136)",
-        "claude": "rgb(215,119,87)"
+      "palette": {
+        "base": "#0d0f12",
+        "surface": "#14161a",
+        "panel": "#1a1d22",
+        "border": "#3a3f48",
+        "borderStrong": "#4a5058",
+        "text": "#e8eaed",
+        "textMuted": "#b0b5bc",
+        "textDim": "#7a8088",
+        "accent": "#c0c0c0",
+        "accentSoft": "#e5e4e2",
+        "accentDeep": "#a0a0a0",
+        "blue": "#00d4ff",
+        "green": "#4ade80",
+        "red": "#f87171",
+        "orange": "#fb923c",
+        "purple": "#6b5b95"
       }
     },
     "promptOverlays": {}

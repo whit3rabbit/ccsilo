@@ -26,11 +26,25 @@
     "splashStyle": "zai",
     "noPromptPack": false,
     "theme": {
-      "id": "zai-variant",
+      "id": "dark",
       "name": "Zai Cloud",
-      "colors": {
-        "bashBorder": "rgb(218,170,80)",
-        "claude": "rgb(218,170,80)"
+      "palette": {
+        "base": "#191b1e",
+        "surface": "#222529",
+        "panel": "#292d33",
+        "border": "#3e4350",
+        "borderStrong": "#545a6a",
+        "text": "#eff0f3",
+        "textMuted": "#cdd0d8",
+        "textDim": "#9a9daa",
+        "accent": "#ffd373",
+        "accentSoft": "#ffe4a8",
+        "accentDeep": "#b2892e",
+        "blue": "#0080ff",
+        "green": "#37d995",
+        "red": "#fb2c36",
+        "orange": "#ff8e42",
+        "purple": "#9c8bff"
       }
     },
     "promptOverlays": {

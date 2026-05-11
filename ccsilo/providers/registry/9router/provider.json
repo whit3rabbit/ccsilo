@@ -26,11 +26,25 @@
     "splashStyle": "9router",
     "noPromptPack": true,
     "theme": {
-      "id": "9router-variant",
+      "id": "dark",
       "name": "9Router",
-      "colors": {
-        "bashBorder": "rgb(249,115,22)",
-        "claude": "rgb(96,165,250)"
+      "palette": {
+        "base": "#13151a",
+        "surface": "#1a1d24",
+        "panel": "#22252e",
+        "border": "#3a3e4a",
+        "borderStrong": "#4a4f5c",
+        "text": "#e8eaed",
+        "textMuted": "#b0b5bc",
+        "textDim": "#7a8088",
+        "accent": "#f97316",
+        "accentSoft": "#fb923c",
+        "accentDeep": "#ea580c",
+        "blue": "#60a5fa",
+        "green": "#37d995",
+        "red": "#fb2c36",
+        "orange": "#f97316",
+        "purple": "#9c8bff"
       }
     },
     "promptOverlays": {}

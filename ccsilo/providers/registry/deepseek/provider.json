@@ -27,11 +27,25 @@
     "splashStyle": "deepseek",
     "noPromptPack": true,
     "theme": {
-      "id": "deepseek-variant",
+      "id": "dark",
       "name": "DeepSeek",
-      "colors": {
-        "bashBorder": "rgb(14,165,233)",
-        "claude": "rgb(56,189,248)"
+      "palette": {
+        "base": "#0c1520",
+        "surface": "#1a1d24",
+        "panel": "#22252e",
+        "border": "#1e3448",
+        "borderStrong": "#2a4a64",
+        "text": "#e8eaed",
+        "textMuted": "#b0b5bc",
+        "textDim": "#7a8088",
+        "accent": "#0ea5e9",
+        "accentSoft": "#38bdf8",
+        "accentDeep": "#0284c7",
+        "blue": "#38bdf8",
+        "green": "#37d995",
+        "red": "#fb2c36",
+        "orange": "#ff8e42",
+        "purple": "#9c8bff"
       }
     },
     "promptOverlays": {}

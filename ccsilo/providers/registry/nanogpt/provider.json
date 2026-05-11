@@ -26,11 +26,24 @@
     "splashStyle": "nanogpt",
     "noPromptPack": true,
     "theme": {
-      "id": "nanogpt-variant",
+      "id": "dark",
       "name": "NanoGPT",
-      "colors": {
-        "bashBorder": "rgb(16,185,129)",
-        "claude": "rgb(45,212,191)"
+      "palette": {
+        "base": "#070b0a",
+        "surface": "#0c1411",
+        "panel": "#0f1d18",
+        "border": "#1c2d25",
+        "borderStrong": "#2a4034",
+        "text": "#eafff3",
+        "textMuted": "#c8e8d6",
+        "textDim": "#8db7a2",
+        "accent": "#00e676",
+        "accentSoft": "#74ffb8",
+        "blue": "#00d1ff",
+        "green": "#22c55e",
+        "red": "#ff3b3b",
+        "orange": "#ff8c42",
+        "purple": "#7c3aed"
       }
     },
     "promptOverlays": {}

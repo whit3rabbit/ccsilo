@@ -350,7 +350,7 @@ def test_create_variant_writes_isolated_layout_wrapper_and_metadata(tmp_path):
 
     entry_js = read_entry(result.binary_path)
     assert "cc-mirror:provider-overlay start" in entry_js
-    assert 'case"zai-variant"' in entry_js
+    assert 'case"dark"' in entry_js
     assert "isBeforeFirstMessage" not in entry_js
 
     wrapper = result.wrapper_path.read_text(encoding="utf-8")
@@ -1754,7 +1754,7 @@ def test_apply_variant_rebuilds_from_saved_metadata(tmp_path, monkeypatch):
     assert rebuilt.binary_path.read_bytes() != b"broken"
     assert rebuilt.wrapper_path == root / "bin" / "zai-test"
     assert not (evil_bin / "zai-test").exists()
-    assert 'case"zai-variant"' in read_entry(rebuilt.binary_path)
+    assert 'case"dark"' in read_entry(rebuilt.binary_path)
 
 
 def test_apply_variant_removes_unchecked_default_tweak_env(tmp_path, monkeypatch):

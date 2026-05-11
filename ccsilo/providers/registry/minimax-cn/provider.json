@@ -27,11 +27,25 @@
     "splashStyle": "minimax-cn",
     "noPromptPack": false,
     "theme": {
-      "id": "minimax-cn-variant",
+      "id": "dark",
       "name": "MiniMax China",
-      "colors": {
-        "bashBorder": "rgb(239,68,68)",
-        "claude": "rgb(250,204,21)"
+      "palette": {
+        "base": "#1a0a0a",
+        "surface": "#241212",
+        "panel": "#2e1818",
+        "border": "#4a2828",
+        "borderStrong": "#6d3a3a",
+        "text": "#f8eaea",
+        "textMuted": "#d8b8b8",
+        "textDim": "#a88080",
+        "accent": "#ef4444",
+        "accentSoft": "#f87171",
+        "accentDeep": "#dc2626",
+        "blue": "#facc15",
+        "green": "#37d995",
+        "red": "#ef4444",
+        "orange": "#ff8e42",
+        "purple": "#9c8bff"
       }
     },
     "promptOverlays": {

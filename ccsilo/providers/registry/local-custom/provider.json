@@ -30,11 +30,25 @@
     "splashStyle": "local-custom",
     "noPromptPack": true,
     "theme": {
-      "id": "local-custom-variant",
+      "id": "dark",
       "name": "Custom Local Endpoint",
-      "colors": {
-        "bashBorder": "rgb(156,163,175)",
-        "claude": "rgb(110,231,183)"
+      "palette": {
+        "base": "#13151a",
+        "surface": "#1a1d24",
+        "panel": "#22252e",
+        "border": "#3a3e4a",
+        "borderStrong": "#4a4f5c",
+        "text": "#e8eaed",
+        "textMuted": "#b0b5bc",
+        "textDim": "#7a8088",
+        "accent": "#9ca3af",
+        "accentSoft": "#d1d5db",
+        "accentDeep": "#6b7280",
+        "blue": "#6ee7b7",
+        "green": "#37d995",
+        "red": "#fb2c36",
+        "orange": "#ff8e42",
+        "purple": "#9c8bff"
       }
     },
     "promptOverlays": {}

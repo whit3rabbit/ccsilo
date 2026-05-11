@@ -9,6 +9,7 @@ from typing import Dict, Optional
 from .._utils import atomic_write_text_no_symlink, require_env_name, utc_now as _utc_now
 from ..providers import (
     apply_provider_claude_config,
+    ensure_onboarding_state,
     get_provider,
     provider_auth_bootstrap_enabled,
     provider_patch_config,
@@ -49,6 +50,15 @@ def write_variant_config(manifest: Dict) -> None:
         paths["configDir"],
         auth_bootstrap=not (isinstance(model_proxy, dict) and model_proxy.get("mode") == "architect"),
         optional_mcp_ids=(manifest.get("mcp") or {}).get("selected", []),
+        read_json=read_json,
+        write_json=write_json,
+    )
+    # Write theme and onboarding state so the variant boots directly into
+    # the branded dark theme without prompting the user.
+    ensure_onboarding_state(
+        paths["configDir"],
+        theme_id="dark",
+        skip_onboarding=True,
         read_json=read_json,
         write_json=write_json,
     )
@@ -187,8 +197,13 @@ def write_wrapper(manifest: Dict) -> Path:
         lines.extend(
             [
                 'NODE_BIN="${NODE:-node}"',
+                '_NODE_CACHE="${VARIANT_ROOT}/.node-cache"',
                 "_NODE_USING_PROBE='using x = { [Symbol.dispose]() {} };'",
                 '_node_supports_using() { "$1" --input-type=module -e "$_NODE_USING_PROBE" >/dev/null 2>&1; }',
+                'if [ -z "${NODE:-}" ] && [ -f "$_NODE_CACHE" ]; then',
+                '  _CACHED="$(cat "$_NODE_CACHE" 2>/dev/null)" || _CACHED=""',
+                '  if [ -n "$_CACHED" ] && [ -x "$_CACHED" ]; then NODE_BIN="$_CACHED"; fi',
+                'fi',
                 'if ! _node_supports_using "$NODE_BIN"; then',
                 '  for nvm_root in "${NVM_DIR:-}" "${HOME:-}/.nvm"; do',
                 '    [ -n "$nvm_root" ] || continue',
@@ -201,6 +216,9 @@ def write_wrapper(manifest: Dict) -> Path:
                 'if ! _node_supports_using "$NODE_BIN"; then',
                 '  echo "Variant node runtime requires Node with explicit resource management support. Set NODE=/path/to/node 24+." >&2',
                 "  exit 127",
+                "fi",
+                'if [ -n "$NODE_BIN" ] && [ "$NODE_BIN" != "node" ] && [ "$NODE_BIN" != "${NODE:-}" ]; then',
+                '  printf "%s" "$NODE_BIN" > "$_NODE_CACHE" 2>/dev/null || true',
                 "fi",
                 f"ENTRY_PATH={shlex.quote(paths['entryPath'])}",
                 'if [ ! -f "$ENTRY_PATH" ]; then echo "Variant entry is missing: $ENTRY_PATH" >&2; exit 127; fi',
@@ -217,7 +235,45 @@ def write_wrapper(manifest: Dict) -> Path:
         else:
             lines.append(f"exec {command}")
     atomic_write_text_no_symlink(wrapper_path, "\n".join(lines) + "\n", mode=0o755)
+    if manifest.get("runtime", "native") == "node":
+        _prepopulate_node_cache(variant_dir)
     return wrapper_path
+
+
+def _prepopulate_node_cache(variant_dir: Path) -> None:
+    """Resolve a compatible node and write .node-cache during build."""
+    import subprocess
+
+    cache_path = variant_dir / ".node-cache"
+    probe = "using x = { [Symbol.dispose]() {} };"
+    candidates = [os.environ.get("NODE", "")] if os.environ.get("NODE") else []
+    nvm_dir = os.environ.get("NVM_DIR", "") or str(Path.home() / ".nvm")
+    nvm_node_dir = Path(nvm_dir) / "versions" / "node"
+    if nvm_node_dir.is_dir():
+        for child in sorted(nvm_node_dir.iterdir()):
+            node_bin = child / "bin" / "node"
+            if node_bin.is_file():
+                candidates.append(str(node_bin))
+    for node_bin in candidates:
+        if not node_bin:
+            continue
+        try:
+            r = subprocess.run(
+                [node_bin, "--input-type=module", "-e", probe],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+            )
+        except Exception:
+            continue
+        if r.returncode != 0:
+            continue
+        if Path(node_bin).exists():
+            try:
+                cache_path.write_text(node_bin)
+            except OSError:
+                pass
+        return
 
 
 def _managed_ccrouter_config(manifest: Dict) -> Optional[Dict]:

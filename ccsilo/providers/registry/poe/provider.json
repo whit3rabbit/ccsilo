@@ -26,11 +26,25 @@
     "splashStyle": "poe",
     "noPromptPack": true,
     "theme": {
-      "id": "poe-variant",
+      "id": "dark",
       "name": "Poe",
-      "colors": {
-        "bashBorder": "rgb(168,85,247)",
-        "claude": "rgb(192,132,252)"
+      "palette": {
+        "base": "#13151a",
+        "surface": "#1a1d24",
+        "panel": "#22252e",
+        "border": "#3a3e4a",
+        "borderStrong": "#4a4f5c",
+        "text": "#e8eaed",
+        "textMuted": "#b0b5bc",
+        "textDim": "#7a8088",
+        "accent": "#a855f7",
+        "accentSoft": "#c084fc",
+        "accentDeep": "#7c3aed",
+        "blue": "#60a5fa",
+        "green": "#37d995",
+        "red": "#fb2c36",
+        "orange": "#ff8e42",
+        "purple": "#a855f7"
       }
     },
     "promptOverlays": {}

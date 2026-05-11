@@ -26,11 +26,25 @@
     "splashStyle": "gatewayz",
     "noPromptPack": true,
     "theme": {
-      "id": "gatewayz-variant",
+      "id": "dark",
       "name": "GatewayZ",
-      "colors": {
-        "bashBorder": "rgb(167,139,250)",
-        "claude": "rgb(196,181,253)"
+      "palette": {
+        "base": "#120d1d",
+        "surface": "#1a1328",
+        "panel": "#211736",
+        "border": "#35285a",
+        "borderStrong": "#4d3a80",
+        "text": "#efe8ff",
+        "textMuted": "#cfc0f2",
+        "textDim": "#9f8ec7",
+        "accent": "#9a6dff",
+        "accentSoft": "#b38dff",
+        "accentDeep": "#6a3fd6",
+        "blue": "#6f8dff",
+        "green": "#2fb37f",
+        "red": "#e06b7a",
+        "orange": "#d9a04d",
+        "purple": "#9a6dff"
       }
     },
     "promptOverlays": {}

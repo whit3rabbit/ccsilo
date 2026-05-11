@@ -28,11 +28,25 @@
     "splashStyle": "vercel",
     "noPromptPack": true,
     "theme": {
-      "id": "vercel-variant",
+      "id": "dark",
       "name": "Vercel AI Gateway",
-      "colors": {
-        "bashBorder": "rgb(34,197,94)",
-        "claude": "rgb(255,255,255)"
+      "palette": {
+        "base": "#0a0a0a",
+        "surface": "#111111",
+        "panel": "#171717",
+        "border": "#2b2b2b",
+        "borderStrong": "#3d3d3d",
+        "text": "#f5f5f5",
+        "textMuted": "#d4d4d4",
+        "textDim": "#9ca3af",
+        "accent": "#f5f5f5",
+        "accentSoft": "#cfcfcf",
+        "accentDeep": "#cfcfcf",
+        "blue": "#0070f3",
+        "green": "#22c55e",
+        "red": "#f87171",
+        "orange": "#f59e0b",
+        "purple": "#8b5cf6"
       }
     },
     "promptOverlays": {}

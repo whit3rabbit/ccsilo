@@ -156,6 +156,41 @@ def _write(path: Path, payload, write_json):
         write_json(path, payload)
 
 
+def ensure_onboarding_state(
+    config_dir,
+    *,
+    theme_id: str = "dark",
+    skip_onboarding: bool = True,
+    read_json=None,
+    write_json=None,
+) -> bool:
+    """Write theme and onboarding state to the variant's .claude.json.
+
+    Mirrors cc-mirror's ``ensureOnboardingState``: sets
+    ``hasCompletedOnboarding`` and ``theme`` so the variant boots directly
+    into the branded dark theme without prompting the user.
+
+    Returns True if the file was updated.
+    """
+    config_dir = Path(config_dir)
+    config_path = config_dir / ".claude.json"
+    existing = _read(config_path, read_json)
+
+    changed = False
+    if theme_id and existing.get("theme") != theme_id:
+        existing["theme"] = theme_id
+        changed = True
+    if skip_onboarding and existing.get("hasCompletedOnboarding") is not True:
+        existing["hasCompletedOnboarding"] = True
+        changed = True
+
+    if not changed:
+        return False
+
+    _write(config_path, existing, write_json)
+    return True
+
+
 def read_json_default(path: Path):
     import json
 

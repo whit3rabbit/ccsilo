@@ -28,11 +28,25 @@
     "splashStyle": "cerebras",
     "noPromptPack": true,
     "theme": {
-      "id": "cerebras-variant",
+      "id": "dark",
       "name": "Cerebras",
-      "colors": {
-        "bashBorder": "rgb(251,146,60)",
-        "claude": "rgb(252,211,77)"
+      "palette": {
+        "base": "#1a1208",
+        "surface": "#221a0e",
+        "panel": "#2a2014",
+        "border": "#4a3a1e",
+        "borderStrong": "#6d5430",
+        "text": "#f5efe0",
+        "textMuted": "#d5cbb0",
+        "textDim": "#a89870",
+        "accent": "#fb923c",
+        "accentSoft": "#fcd34d",
+        "accentDeep": "#ea580c",
+        "blue": "#60a5fa",
+        "green": "#37d995",
+        "red": "#fb2c36",
+        "orange": "#fb923c",
+        "purple": "#c084fc"
       }
     },
     "promptOverlays": {}

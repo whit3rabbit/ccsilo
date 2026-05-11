@@ -36,11 +36,25 @@
     "splashStyle": "ccr-oauth",
     "noPromptPack": true,
     "theme": {
-      "id": "ccr-oauth-variant",
+      "id": "dark",
       "name": "CCR OAuth Proxy",
-      "colors": {
-        "bashBorder": "rgb(56,189,248)",
-        "claude": "rgb(167,243,208)"
+      "palette": {
+        "base": "#13151a",
+        "surface": "#1a1d24",
+        "panel": "#22252e",
+        "border": "#3a3e4a",
+        "borderStrong": "#4a4f5c",
+        "text": "#e8eaed",
+        "textMuted": "#b0b5bc",
+        "textDim": "#7a8088",
+        "accent": "#38bdf8",
+        "accentSoft": "#7dd3fc",
+        "accentDeep": "#0ea5e9",
+        "blue": "#38bdf8",
+        "green": "#37d995",
+        "red": "#fb2c36",
+        "orange": "#ff8e42",
+        "purple": "#9c8bff"
       }
     },
     "promptOverlays": {}

@@ -30,11 +30,25 @@
     "splashStyle": "lmstudio",
     "noPromptPack": true,
     "theme": {
-      "id": "lmstudio-variant",
+      "id": "dark",
       "name": "LM Studio",
-      "colors": {
-        "bashBorder": "rgb(84,173,179)",
-        "claude": "rgb(127,220,213)"
+      "palette": {
+        "base": "#0d1514",
+        "surface": "#141e1c",
+        "panel": "#1a2826",
+        "border": "#2a3e3c",
+        "borderStrong": "#3a5452",
+        "text": "#e4f2f0",
+        "textMuted": "#b8d4d0",
+        "textDim": "#7aa09a",
+        "accent": "#54adb3",
+        "accentSoft": "#7fdcd5",
+        "accentDeep": "#3a8a8f",
+        "blue": "#60a5fa",
+        "green": "#37d995",
+        "red": "#fb2c36",
+        "orange": "#ff8e42",
+        "purple": "#9c8bff"
       }
     },
     "promptOverlays": {}

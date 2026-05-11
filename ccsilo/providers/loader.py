@@ -94,18 +94,43 @@ def build_provider_env(
 
 
 def provider_theme(provider_key: str) -> Dict:
+    """Return the brand theme dict for a provider.
+
+    If the provider defines a ``palette`` (compact hex colours), it is expanded
+    to the full ~60-key colour map via :mod:`ccsilo.providers.palette`.
+    Providers that already ship a full ``colors`` dict pass through unchanged.
+    """
+    from .palette import build_theme_colors
+
     provider = get_provider(provider_key)
     if provider.theme:
-        return copy.deepcopy(provider.theme)
+        theme = copy.deepcopy(provider.theme)
+        # Expand compact hex palette → full rgb colour map.
+        palette = theme.get("palette")
+        if palette and isinstance(palette, dict):
+            theme["colors"] = build_theme_colors(palette)
+            theme.pop("palette", None)
+        # Ensure the brand theme overrides the built-in "dark" entry.
+        if not theme.get("id"):
+            theme["id"] = "dark"
+        return theme
     return {
-        "id": f"{provider.key}-variant",
+        "id": "dark",
         "name": provider.label,
         "colors": {"bashBorder": "rgb(177,185,249)", "claude": "rgb(177,185,249)"},
     }
 
 
 def provider_patch_config(provider_key: str) -> Dict:
-    return {"settings": {"themes": [provider_theme(provider_key)]}}
+    """Build a tweakcc-style config with the brand theme + fallback themes."""
+    from .palette import FALLBACK_THEMES
+
+    brand = provider_theme(provider_key)
+    # Merge: brand theme first (it overrides "dark" if id matches), then
+    # fallback themes excluding any whose id collides with the brand.
+    brand_id = brand.get("id", "dark")
+    fallbacks = [t for t in FALLBACK_THEMES if t.get("id") != brand_id]
+    return {"settings": {"themes": [brand] + fallbacks}}
 
 
 def provider_prompt_overlays(provider_key: str) -> Dict[str, str]:

@@ -27,11 +27,25 @@
     "splashStyle": "litellm",
     "noPromptPack": true,
     "theme": {
-      "id": "litellm-variant",
+      "id": "dark",
       "name": "LiteLLM",
-      "colors": {
-        "bashBorder": "rgb(34,197,94)",
-        "claude": "rgb(125,211,252)"
+      "palette": {
+        "base": "#13151a",
+        "surface": "#1a1d24",
+        "panel": "#22252e",
+        "border": "#3a3e4a",
+        "borderStrong": "#4a4f5c",
+        "text": "#e8eaed",
+        "textMuted": "#b0b5bc",
+        "textDim": "#7a8088",
+        "accent": "#22c55e",
+        "accentSoft": "#4ade80",
+        "accentDeep": "#16a34a",
+        "blue": "#7dd3fc",
+        "green": "#22c55e",
+        "red": "#fb2c36",
+        "orange": "#ff8e42",
+        "purple": "#9c8bff"
       }
     },
     "promptOverlays": {}

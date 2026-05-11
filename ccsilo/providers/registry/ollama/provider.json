@@ -32,11 +32,25 @@
     "splashStyle": "ollama",
     "noPromptPack": true,
     "theme": {
-      "id": "ollama-variant",
+      "id": "dark",
       "name": "Ollama",
-      "colors": {
-        "bashBorder": "rgb(184,137,74)",
-        "claude": "rgb(217,180,119)"
+      "palette": {
+        "base": "#15110d",
+        "surface": "#1f1711",
+        "panel": "#281e16",
+        "border": "#4a3828",
+        "borderStrong": "#6d5138",
+        "text": "#f2e8dc",
+        "textMuted": "#d5c3ad",
+        "textDim": "#a88f76",
+        "accent": "#caad8d",
+        "accentSoft": "#dcc4a8",
+        "accentDeep": "#8d6e52",
+        "blue": "#6e8fae",
+        "green": "#2fb37f",
+        "red": "#e06b7a",
+        "orange": "#c98a4d",
+        "purple": "#caad8d"
       }
     },
     "promptOverlays": {}

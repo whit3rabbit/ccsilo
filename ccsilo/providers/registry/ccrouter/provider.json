@@ -34,11 +34,25 @@
     "splashStyle": "ccrouter",
     "noPromptPack": true,
     "theme": {
-      "id": "ccrouter-variant",
+      "id": "dark",
       "name": "CC Router",
-      "colors": {
-        "bashBorder": "rgb(56,189,248)",
-        "claude": "rgb(125,211,252)"
+      "palette": {
+        "base": "#0c1320",
+        "surface": "#111a2a",
+        "panel": "#16233a",
+        "border": "#2a3f61",
+        "borderStrong": "#3f5f90",
+        "text": "#e7f1ff",
+        "textMuted": "#bfd0e8",
+        "textDim": "#8ca4c4",
+        "accent": "#4da3ff",
+        "accentSoft": "#7bbcff",
+        "accentDeep": "#2a6fcb",
+        "blue": "#64d5ff",
+        "green": "#2fb37f",
+        "red": "#e06b7a",
+        "orange": "#d9a04d",
+        "purple": "#7e8fe0"
       }
     },
     "promptOverlays": {}

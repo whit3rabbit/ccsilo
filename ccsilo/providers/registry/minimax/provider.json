@@ -27,11 +27,24 @@
     "splashStyle": "minimax",
     "noPromptPack": false,
     "theme": {
-      "id": "minimax-variant",
+      "id": "dark",
       "name": "MiniMax Cloud",
-      "colors": {
-        "bashBorder": "rgb(255,105,97)",
-        "claude": "rgb(255,133,86)"
+      "palette": {
+        "base": "#0a0a12",
+        "surface": "#12121e",
+        "panel": "#18182a",
+        "border": "#2a2a44",
+        "borderStrong": "#3d3d5c",
+        "text": "#eeeef8",
+        "textMuted": "#c4c4da",
+        "textDim": "#8888aa",
+        "accent": "#a855f7",
+        "accentDeep": "#7c3aed",
+        "blue": "#6366f1",
+        "green": "#34d399",
+        "red": "#f43f5e",
+        "orange": "#f59e0b",
+        "purple": "#7c3aed"
       }
     },
     "promptOverlays": {

@@ -30,11 +30,25 @@
     "splashStyle": "llamacpp",
     "noPromptPack": true,
     "theme": {
-      "id": "llamacpp-variant",
+      "id": "dark",
       "name": "llama.cpp",
-      "colors": {
-        "bashBorder": "rgb(132,204,22)",
-        "claude": "rgb(96,165,250)"
+      "palette": {
+        "base": "#0d1208",
+        "surface": "#141e0e",
+        "panel": "#1a2812",
+        "border": "#2e4a1e",
+        "borderStrong": "#446d2e",
+        "text": "#eef5e0",
+        "textMuted": "#c8d8b0",
+        "textDim": "#8aa868",
+        "accent": "#84cc16",
+        "accentSoft": "#a3e635",
+        "accentDeep": "#65a30d",
+        "blue": "#60a5fa",
+        "green": "#84cc16",
+        "red": "#fb2c36",
+        "orange": "#ff8e42",
+        "purple": "#9c8bff"
       }
     },
     "promptOverlays": {}

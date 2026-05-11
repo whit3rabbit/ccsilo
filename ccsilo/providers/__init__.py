@@ -4,6 +4,7 @@ from .config import (
     PLACEHOLDER_CREDENTIAL,
     ProviderConfigResult,
     apply_provider_claude_config,
+    ensure_onboarding_state,
     provider_auth_bootstrap_enabled,
 )
 from .loader import (
@@ -44,6 +45,7 @@ __all__ = [
     "ProviderTemplate",
     "apply_provider_claude_config",
     "build_provider_env",
+    "ensure_onboarding_state",
     "get_provider",
     "list_mcp_catalog",
     "list_optional_mcp_entries",

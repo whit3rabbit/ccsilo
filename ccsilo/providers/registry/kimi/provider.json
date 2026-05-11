@@ -26,11 +26,25 @@
     "splashStyle": "kimi",
     "noPromptPack": true,
     "theme": {
-      "id": "kimi-variant",
+      "id": "dark",
       "name": "Kimi Code",
-      "colors": {
-        "bashBorder": "rgb(20,184,166)",
-        "claude": "rgb(6,182,212)"
+      "palette": {
+        "base": "#0c1520",
+        "surface": "#111d2b",
+        "panel": "#142231",
+        "border": "#1e3448",
+        "borderStrong": "#2a4a64",
+        "text": "#e8f0f8",
+        "textMuted": "#b8cad8",
+        "textDim": "#6b8aa0",
+        "accent": "#22d3ee",
+        "accentSoft": "#67e8f9",
+        "accentDeep": "#0891b2",
+        "blue": "#06b6d4",
+        "green": "#34d399",
+        "red": "#fb7185",
+        "orange": "#f59e0b",
+        "purple": "#8b5cf6"
       }
     },
     "promptOverlays": {}

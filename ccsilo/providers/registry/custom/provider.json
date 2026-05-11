@@ -26,11 +26,25 @@
     "splashStyle": "custom",
     "noPromptPack": true,
     "theme": {
-      "id": "custom-variant",
+      "id": "dark",
       "name": "Custom",
-      "colors": {
-        "bashBorder": "rgb(177,185,249)",
-        "claude": "rgb(177,185,249)"
+      "palette": {
+        "base": "#13151a",
+        "surface": "#1a1d24",
+        "panel": "#22252e",
+        "border": "#3a3e4a",
+        "borderStrong": "#4a4f5c",
+        "text": "#e8eaed",
+        "textMuted": "#b0b5bc",
+        "textDim": "#7a8088",
+        "accent": "#b1b9f9",
+        "accentSoft": "#c7cdfa",
+        "accentDeep": "#8b96e0",
+        "blue": "#b1b9f9",
+        "green": "#37d995",
+        "red": "#fb2c36",
+        "orange": "#ff8e42",
+        "purple": "#9c8bff"
       }
     },
     "promptOverlays": {}

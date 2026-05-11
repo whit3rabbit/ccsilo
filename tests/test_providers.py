@@ -317,7 +317,19 @@ def test_provider_patch_assets_are_safe_and_prompt_pack_skips_mirror():
     minimax_overlays = provider_prompt_overlays("minimax")
     minimax_cn_overlays = provider_prompt_overlays("minimax-cn")
 
-    assert config["settings"]["themes"][0]["id"] == "zai-variant"
+    assert config["settings"]["themes"][0]["id"] == "dark"
+    assert config["settings"]["themes"][0]["name"] == "Zai Cloud"
+    # Fallback themes should be included for theme switching
+    assert len(config["settings"]["themes"]) > 1
+    theme_ids = [t["id"] for t in config["settings"]["themes"]]
+    assert "light" in theme_ids
+    assert "monochrome" in theme_ids
+    # Brand theme should have full color palette (not just 2 keys)
+    brand_colors = config["settings"]["themes"][0]["colors"]
+    assert len(brand_colors) >= 40
+    assert "bashBorder" in brand_colors
+    assert "claude" in brand_colors
+    assert "rainbow_red" in brand_colors
     assert provider_prompt_overlays("mirror") == {}
     assert provider_prompt_overlays("deepseek") == {}
     assert set(zai_overlays) == {"webfetch", "explore", "planEnhanced"}

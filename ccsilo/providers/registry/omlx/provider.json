@@ -30,11 +30,25 @@
     "splashStyle": "omlx",
     "noPromptPack": true,
     "theme": {
-      "id": "omlx-variant",
+      "id": "dark",
       "name": "oMLX",
-      "colors": {
-        "bashBorder": "rgb(122,162,247)",
-        "claude": "rgb(187,154,247)"
+      "palette": {
+        "base": "#13151a",
+        "surface": "#1a1d24",
+        "panel": "#22252e",
+        "border": "#3a3e4a",
+        "borderStrong": "#4a4f5c",
+        "text": "#e8eaed",
+        "textMuted": "#b0b5bc",
+        "textDim": "#7a8088",
+        "accent": "#7aa2f7",
+        "accentSoft": "#a4b8f8",
+        "accentDeep": "#5b7de0",
+        "blue": "#bb9af7",
+        "green": "#37d995",
+        "red": "#fb2c36",
+        "orange": "#ff8e42",
+        "purple": "#bb9af7"
       }
     },
     "promptOverlays": {}

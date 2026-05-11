@@ -26,11 +26,25 @@
     "splashStyle": "alibaba",
     "noPromptPack": true,
     "theme": {
-      "id": "alibaba-variant",
+      "id": "dark",
       "name": "Alibaba Cloud",
-      "colors": {
-        "bashBorder": "rgb(34,211,238)",
-        "claude": "rgb(168,85,247)"
+      "palette": {
+        "base": "#13151a",
+        "surface": "#1a1d24",
+        "panel": "#22252e",
+        "border": "#3a3e4a",
+        "borderStrong": "#4a4f5c",
+        "text": "#e8eaed",
+        "textMuted": "#b0b5bc",
+        "textDim": "#7a8088",
+        "accent": "#22d3ee",
+        "accentSoft": "#67e8f9",
+        "accentDeep": "#06b6d4",
+        "blue": "#a855f7",
+        "green": "#37d995",
+        "red": "#fb2c36",
+        "orange": "#ff8e42",
+        "purple": "#a855f7"
       }
     },
     "promptOverlays": {}
