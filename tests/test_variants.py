@@ -394,6 +394,8 @@ def test_create_variant_writes_isolated_layout_wrapper_and_metadata(tmp_path):
     claude_config = json.loads((root / "variants" / "zai-test" / "config" / ".claude.json").read_text(encoding="utf-8"))
     assert settings["forceLoginMethod"] == "console"
     assert "mcp__web_reader__webReader" in settings["permissions"]["deny"]
+    assert claude_config["theme"] == "dark"
+    assert claude_config["hasCompletedOnboarding"] is True
     assert sorted(claude_config["mcpServers"]) == ["web-reader", "web-search-prime", "zai-mcp-server", "zread"]
     assert claude_config["mcpServers"]["web-reader"]["headers"] == {"Authorization": "Bearer ${Z_AI_API_KEY}"}
     assert result.variant.manifest["mcp"]["selected"] == []
@@ -1741,6 +1743,10 @@ def test_apply_variant_rebuilds_from_saved_metadata(tmp_path, monkeypatch):
         source_artifact=artifact,
         force=True,
     )
+    claude_config_path = root / "variants" / "zai-test" / "config" / ".claude.json"
+    claude_config = json.loads(claude_config_path.read_text(encoding="utf-8"))
+    claude_config["theme"] = "monochrome"
+    claude_config_path.write_text(json.dumps(claude_config), encoding="utf-8")
     variant = load_variant("zai-test", root=root)
     Path(variant.manifest["paths"]["binary"]).write_bytes(b"broken")
     evil_bin = tmp_path / "evil-bin"
@@ -1755,6 +1761,7 @@ def test_apply_variant_rebuilds_from_saved_metadata(tmp_path, monkeypatch):
     assert rebuilt.wrapper_path == root / "bin" / "zai-test"
     assert not (evil_bin / "zai-test").exists()
     assert 'case"dark"' in read_entry(rebuilt.binary_path)
+    assert json.loads(claude_config_path.read_text(encoding="utf-8"))["theme"] == "monochrome"
 
 
 def test_apply_variant_removes_unchecked_default_tweak_env(tmp_path, monkeypatch):

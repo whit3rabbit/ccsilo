@@ -9,6 +9,7 @@ from ccsilo.providers.loader import REGISTRY_DIR
 from ccsilo.providers import (
     apply_provider_claude_config,
     build_provider_env,
+    ensure_onboarding_state,
     fetch_provider_models,
     get_provider,
     list_mcp_catalog,
@@ -344,6 +345,30 @@ def test_provider_patch_assets_are_safe_and_prompt_pack_skips_mirror():
     assert "MiniMax China docs" in minimax_cn_overlays["webfetch"]
     assert "China MiniMax Anthropic-compatible endpoint" in minimax_cn_overlays["explore"]
     assert "Do not assume first-party Claude model names" in minimax_cn_overlays["planEnhanced"]
+
+
+def test_onboarding_state_preserves_valid_theme_and_migrates_stale_theme(tmp_path):
+    config_path = tmp_path / ".claude.json"
+    valid_theme_ids = {"dark", "light", "monochrome"}
+    config_path.write_text(
+        json.dumps({"theme": "monochrome", "hasCompletedOnboarding": True}),
+        encoding="utf-8",
+    )
+
+    changed = ensure_onboarding_state(tmp_path, valid_theme_ids=valid_theme_ids)
+
+    assert changed is False
+    assert json.loads(config_path.read_text(encoding="utf-8"))["theme"] == "monochrome"
+
+    config_path.write_text(
+        json.dumps({"theme": "zai-variant", "hasCompletedOnboarding": True}),
+        encoding="utf-8",
+    )
+
+    changed = ensure_onboarding_state(tmp_path, valid_theme_ids=valid_theme_ids)
+
+    assert changed is True
+    assert json.loads(config_path.read_text(encoding="utf-8"))["theme"] == "dark"
 
 
 def test_provider_splash_metadata_matches_art_registry():

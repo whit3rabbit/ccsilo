@@ -161,6 +161,7 @@ def ensure_onboarding_state(
     *,
     theme_id: str = "dark",
     skip_onboarding: bool = True,
+    valid_theme_ids=None,
     read_json=None,
     write_json=None,
 ) -> bool:
@@ -177,7 +178,15 @@ def ensure_onboarding_state(
     existing = _read(config_path, read_json)
 
     changed = False
-    if theme_id and existing.get("theme") != theme_id:
+    existing_theme = existing.get("theme")
+    has_existing_theme = isinstance(existing_theme, str) and bool(existing_theme)
+    valid_ids = {item for item in (valid_theme_ids or []) if isinstance(item, str)}
+    should_set_theme = bool(theme_id) and (
+        not has_existing_theme
+        or existing_theme == theme_id
+        or (valid_ids and existing_theme not in valid_ids)
+    )
+    if should_set_theme and existing_theme != theme_id:
         existing["theme"] = theme_id
         changed = True
     if skip_onboarding and existing.get("hasCompletedOnboarding") is not True:

@@ -53,16 +53,22 @@ def write_variant_config(manifest: Dict) -> None:
         read_json=read_json,
         write_json=write_json,
     )
-    # Write theme and onboarding state so the variant boots directly into
-    # the branded dark theme without prompting the user.
+    tweak_config = provider_patch_config(manifest["provider"]["key"])
+    theme_ids = {
+        theme.get("id")
+        for theme in tweak_config.get("settings", {}).get("themes", [])
+        if isinstance(theme.get("id"), str)
+    }
+    # Write theme and onboarding state so new variants boot directly into
+    # branded dark, while preserving existing valid theme choices.
     ensure_onboarding_state(
         paths["configDir"],
         theme_id="dark",
         skip_onboarding=True,
+        valid_theme_ids=theme_ids,
         read_json=read_json,
         write_json=write_json,
     )
-    tweak_config = provider_patch_config(manifest["provider"]["key"])
     tweak_config["ccInstallationPath"] = paths["binary"]
     tweak_config["lastModified"] = _utc_now()
     write_json(Path(paths["tweakccDir"]) / "config.json", tweak_config)
