@@ -187,6 +187,20 @@ Or run the workspace wrapper directly:
 "$(ccsilo paths --json | python -c 'import json,sys; print(json.load(sys.stdin)["workspace"])')/bin/my-setup" --version
 ```
 
+### Adding MCP Servers To A Setup
+
+Run `mcp add` through the setup command you want to modify, not through the global `claude` command. The wrapper sets `CLAUDE_CONFIG_DIR`, so Claude Code writes MCP config under `<workspace>/variants/<setup-id>/config/` instead of your normal Claude Code config.
+
+```bash
+# Installed provider/setup command.
+zai mcp add camoufox -- npx -y camoufox-mcp-server@latest
+
+# Or without installing the wrapper into PATH.
+ccsilo variant run zai -- mcp add camoufox -- npx -y camoufox-mcp-server@latest
+```
+
+Run the command from the project where you want Claude Code's local MCP scope to apply. For built-in optional MCP choices, list the catalog with `ccsilo variant mcp` and pass `--mcp <id>` when creating a setup.
+
 To install a stable command into a home PATH directory:
 
 ```bash

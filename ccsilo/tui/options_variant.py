@@ -5,7 +5,14 @@ from ..variants import CCR_PROVIDER_KEYS
 from ..variant_tweaks import (
     CURATED_TWEAK_IDS,
 )
-from ._const import ARCHITECT_MODE_TWEAK_ID, MenuOption, SOURCE_LATEST, VARIANT_MODEL_FIELDS, VARIANT_STEPS
+from ._const import (
+    ARCHITECT_MODE_TWEAK_ID,
+    MenuOption,
+    SOURCE_LATEST,
+    VARIANT_MODEL_FIELDS,
+    VARIANT_STEPS,
+    next_action_label,
+)
 from .options_variant_provider_detail import variant_model_proxy_supported, variant_provider_detail_lines  # noqa: F401
 from .options_variant_provider import (  # noqa: F401
     _default_provider_section,
@@ -57,7 +64,7 @@ def variant_options(state):
         name = state.variant_name or "(type a setup name)"
         return [
             MenuOption("variant-name", f"Name: {name}"),
-            MenuOption("variant-name-continue", "Continue to credentials"),
+            MenuOption("variant-name-continue", next_action_label("Continue to credentials")),
             MenuOption("section", "Claude Code version"),
             *_variant_version_options(state),
         ]
@@ -67,12 +74,12 @@ def variant_options(state):
             credential = state.variant_credential_env or "(none)"
             return [
                 MenuOption("variant-credential-env", f"Credential env: {credential}"),
-                MenuOption("variant-credentials-continue", "Continue to models"),
+                MenuOption("variant-credentials-continue", next_action_label("Continue to MCP")),
             ]
         if provider.get("authMode") == "none":
             return [
                 MenuOption("section", "Credentials: not required"),
-                MenuOption("variant-credentials-continue", "Continue to models"),
+                MenuOption("variant-credentials-continue", next_action_label("Continue to MCP")),
             ]
         endpoint = state.variant_base_url or str(provider.get("baseUrl") or "")
         credential = state.variant_credential_env or "(none)"
@@ -86,7 +93,7 @@ def variant_options(state):
             options.extend(_ccrouter_credential_options(state))
         if state.variant_store_secret:
             options.append(MenuOption("variant-api-key", f"API key: {_masked_secret(state.variant_api_key)}"))
-        options.append(MenuOption("variant-credentials-continue", "Continue to models"))
+        options.append(MenuOption("variant-credentials-continue", next_action_label("Continue to MCP")))
         return options
     if state.variant_step == 3:
         provider = selected_variant_provider(state)
@@ -112,14 +119,14 @@ def variant_options(state):
             options.append(MenuOption("variant-mcp", f"{marker} {entry.name}  ({entry.id}){auth}", entry.id))
         options.append(MenuOption("section", f"Plugin recommendations: {', '.join(PLUGIN_RECOMMENDATIONS)}"))
         next_label = "Continue to models" if provider and provider.get("requiresModelMapping") else "Continue to tweaks"
-        options.append(MenuOption("variant-mcp-continue", next_label))
+        options.append(MenuOption("variant-mcp-continue", next_action_label(next_label)))
         return options
     if state.variant_step == 4:
         provider = selected_variant_provider(state)
         if provider and not provider.get("requiresModelMapping"):
             return [
                 MenuOption("variant-models-default", "Using provider default models"),
-                MenuOption("variant-models-continue", "Continue to tweaks"),
+                MenuOption("variant-models-continue", next_action_label("Continue to tweaks")),
             ]
         options = []
         if _provider_model_discovery_enabled(provider):
@@ -135,7 +142,7 @@ def variant_options(state):
             value = variant_model_display_value(state, provider, key)
             source = "override" if state.variant_model_overrides.get(key, "").strip() else "default"
             options.append(MenuOption("variant-model", f"{label}: {value or '(not set)'} ({source})", key))
-        options.append(MenuOption("variant-models-continue", "Continue to tweaks"))
+        options.append(MenuOption("variant-models-continue", next_action_label("Continue to tweaks")))
         return options
     if state.variant_step == 5:
         options = []
@@ -175,10 +182,10 @@ def variant_options(state):
             options.append(MenuOption("variant-tweak-view", "Show advanced tweaks", "all"))
         else:
             options.append(MenuOption("variant-tweak-view", "Show recommended tweaks", "recommended"))
-        options.append(MenuOption("variant-tweaks-continue", "Continue to review"))
+        options.append(MenuOption("variant-tweaks-continue", next_action_label("Continue to review")))
         return options
     return [
-        MenuOption("variant-create", "Preview setup create"),
+        MenuOption("variant-create", next_action_label("Preview setup create")),
         MenuOption("variant-review-back", "Back to tweaks"),
         MenuOption("variant-reset", "Reset setup wizard"),
     ]

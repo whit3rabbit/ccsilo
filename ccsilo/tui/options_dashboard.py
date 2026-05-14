@@ -3,7 +3,7 @@
 from ..patches._registry import REGISTRY as PATCH_REGISTRY
 from ..variant_tweaks import DASHBOARD_TWEAK_IDS
 from ..workspace import short_sha
-from ._const import DASHBOARD_STEPS, MenuOption, SOURCE_ARTIFACT, SOURCE_LATEST, SOURCE_VERSION
+from ._const import DASHBOARD_STEPS, MenuOption, SOURCE_ARTIFACT, SOURCE_LATEST, SOURCE_VERSION, next_action_label
 
 def dashboard_options(state):
     if state.dashboard_step == 0:
@@ -49,7 +49,7 @@ def _dashboard_patch_options(state):
         options.append(MenuOption("profile-load", label, profile.profile_id))
 
     if selected_dashboard_tweaks(state):
-        options.append(MenuOption("patch-continue", "Continue to profile management"))
+        options.append(MenuOption("patch-continue", next_action_label("Continue to profile management")))
     return options
 
 def _dashboard_profile_options(state):
@@ -57,7 +57,7 @@ def _dashboard_profile_options(state):
     options = [
         MenuOption("profile-name", f"Name: {name}"),
         MenuOption("profile-create", "Create new profile from selected tweaks"),
-        MenuOption("review-continue", "Continue to review"),
+        MenuOption("review-continue", next_action_label("Continue to review")),
     ]
     for profile in state.dashboard_tweak_profiles:
         suffix = " [loaded]" if profile.profile_id == state.dashboard_loaded_profile_id else ""
@@ -214,4 +214,3 @@ def _format_size(artifact):
     if size >= 1024:
         return f"{size / 1024:.1f} KB"
     return f"{size} B"
-

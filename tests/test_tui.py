@@ -217,6 +217,29 @@ def test_screen_text_includes_theme_and_compact_progress():
     assert "Workspace:" in screen
 
 
+def test_wizard_next_actions_are_called_out():
+    dashboard = tui.TuiState(
+        mode="dashboard",
+        dashboard_step=1,
+        selected_dashboard_tweak_ids=[tui.DASHBOARD_TWEAK_IDS[0]],
+    )
+    variant = tui.TuiState(mode="variants", variant_step=1, variant_name="mirror")
+    credentials = tui.TuiState(
+        mode="variants",
+        variant_step=2,
+        variant_providers=[{"key": "mirror", "authMode": "none"}],
+    )
+
+    dashboard.selected_index = next(
+        index for index, option in enumerate(tui._dashboard_options(dashboard))
+        if option.kind == "patch-continue"
+    )
+
+    assert "Next > Continue to profile management" in tui._screen_text(dashboard)
+    assert "Next > Continue to credentials" in tui._screen_text(variant)
+    assert "Next > Continue to MCP" in tui._screen_text(credentials)
+
+
 def test_busy_screen_text_shows_progress_and_locks_input():
     state = tui.TuiState(
         mode="busy",
@@ -296,7 +319,7 @@ def test_dashboard_first_run_lists_curated_tweaks_without_dead_end_continue():
     assert state.selected_dashboard_tweak_ids == [tui.DASHBOARD_TWEAK_IDS[0]]
 
     option_labels = [option.label for option in tui._dashboard_options(state)]
-    assert "Continue to profile management" in option_labels
+    assert "Next > Continue to profile management" in option_labels
 
     state.selected_dashboard_tweak_ids = []
     tui._activate_dashboard(state)

@@ -33,3 +33,7 @@ class MenuOption:
     kind: str
     label: str
     value: object = None
+
+
+def next_action_label(label):
+    return f"Next > {label}"
