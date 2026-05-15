@@ -1,6 +1,7 @@
 """Key handling and activation dispatch for the TUI."""
 
 from ._const import SOURCE_ARTIFACT, SOURCE_LATEST, SOURCE_VERSION
+from .options import setup_upgrade_status
 
 import sys as _sys
 
@@ -454,10 +455,26 @@ def _open_upgrade_preview(state):
     setup_id = _tui()._current_setup_id_for_action(state)
     if setup_id is None:
         return
+    version_check_message = ""
+    if not _tui()._refresh_startup_download_index(state):
+        version_check_message = state.message
     state.selected_setup_id = setup_id
     state.setup_upgrade_target = "latest"
     state.last_action_summary = []
     _tui()._set_mode(state, "upgrade-preview")
+    variant = _tui()._selected_setup_variant(state)
+    if version_check_message:
+        state.message = version_check_message
+    elif variant is not None:
+        status = setup_upgrade_status(state, variant)
+        if status["state"] == "available":
+            state.message = f"Update available: {status['current']} -> {status['latest']}"
+        elif status["state"] == "current":
+            state.message = "No newer Claude Code version found. Rebuild will reapply patches."
+        elif status["state"] == "ahead":
+            state.message = "Current Claude Code is newer than the latest version index."
+        elif status["latest"]:
+            state.message = f"Latest Claude Code in version index: {status['latest']}"
 
 def _open_delete_confirm(state):
     setup_id = _tui()._current_setup_id_for_action(state)

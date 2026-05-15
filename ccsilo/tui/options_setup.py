@@ -100,19 +100,62 @@ def _setup_health_rank(status):
         "healthy": 4,
     }.get(str(status), 2)
 
+def setup_upgrade_action_label(state, variant):
+    status = setup_upgrade_status(state, variant)
+    current = status["current"]
+    latest = status["latest"]
+    if status["state"] == "available":
+        return f"Upgrade Claude Code ({current} -> {latest})"
+    if status["state"] == "current":
+        return f"Upgrade Claude Code (up to date: {current})"
+    if status["state"] == "ahead":
+        return f"Upgrade Claude Code (current {current}; latest {latest})"
+    if latest:
+        return f"Upgrade Claude Code (latest: {latest})"
+    return "Upgrade Claude Code (latest unknown)"
+
+def setup_upgrade_status(state, variant):
+    current = _setup_version(variant) if variant is not None else "?"
+    latest = str(((getattr(state, "download_index", {}) or {}).get("binary") or {}).get("latest") or "")
+    if not latest:
+        return {
+            "state": "unknown",
+            "current": current,
+            "latest": "",
+        }
+    if current in {"", "?", "latest"}:
+        return {
+            "state": "latest-known",
+            "current": current,
+            "latest": latest,
+        }
+    latest_key = version_sort_key(latest)
+    current_key = version_sort_key(current)
+    if latest_key > current_key:
+        state_name = "available"
+    elif latest_key == current_key:
+        state_name = "current"
+    else:
+        state_name = "ahead"
+    return {
+        "state": state_name,
+        "current": current,
+        "latest": latest,
+    }
+
 def setup_detail_options(state):
     setup_id = selected_setup_id(state)
     if setup_id is None:
         return [MenuOption("setup-action-new", "Create new setup")]
+    variant = selected_setup_variant(state)
     options = [
         MenuOption("setup-action-run", "Run Claude", setup_id),
         MenuOption("setup-action-health", "Run health check", setup_id),
-        MenuOption("setup-action-upgrade", "Upgrade Claude Code", setup_id),
+        MenuOption("setup-action-upgrade", setup_upgrade_action_label(state, variant), setup_id),
         MenuOption("setup-action-models", "Edit models", setup_id),
         MenuOption("setup-action-tweaks", "Edit tweaks", setup_id),
         MenuOption("setup-action-add-tweaks", "Add tweaks", setup_id),
     ]
-    variant = selected_setup_variant(state)
     if _managed_ccrouter(variant):
         options.extend(
             [

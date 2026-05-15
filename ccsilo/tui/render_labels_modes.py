@@ -18,6 +18,7 @@ from .options import (
     selected_variant_provider,
     setup_detail_lines,
     setup_detail_options,
+    setup_upgrade_status,
     setup_manager_control_summary,
     setup_manager_empty_label,
     setup_manager_options,
@@ -259,18 +260,38 @@ def upgrade_preview_labels(state):
     manifest = variant.manifest or {}
     current = (manifest.get("source") or {}).get("version") or "?"
     target = state.setup_upgrade_target or "latest"
+    status = setup_upgrade_status(state, variant)
+    latest = status["latest"] or "unknown"
+    target_label = target
+    if target == "latest" and status["latest"]:
+        target_label = f"{target} ({status['latest']})"
     tweaks = manifest.get("tweaks", []) or []
+    patch_refs = manifest.get("patches", []) or []
     paths = manifest.get("paths") or {}
     return [
         f"Setup: {variant.variant_id}",
         f"Current Claude Code: {current}",
-        f"Target Claude Code: {target}",
+        f"Latest available: {latest}",
+        f"Update available: {_upgrade_available_label(status)}",
+        f"Target Claude Code: {target_label}",
         f"Tweak count: {len(tweaks)}",
+        f"Patch package refs: {len(patch_refs)}",
         f"Command path: {paths.get('wrapper') or '(no command)'}",
         "Rebuild: yes",
+        "Reapply patches/tweaks: yes",
         "",
         "Proceed? y/N",
     ]
+
+def _upgrade_available_label(status):
+    state_name = status["state"]
+    if state_name == "available":
+        return "yes"
+    if state_name == "current":
+        return "no"
+    if state_name == "ahead":
+        return "no (current is newer than latest)"
+    return "unknown"
 
 def delete_confirm_labels(state):
     variant = selected_setup_variant(state)

@@ -2280,6 +2280,34 @@ def test_setup_detail_exposes_edit_and_add_tweaks_actions():
     assert "Add tweaks" in labels
 
 
+def test_setup_detail_shows_new_claude_code_version():
+    variant = _variant("deepseek-main", version="2.1.122")
+    state = tui.TuiState(
+        mode="setup-detail",
+        variants=[variant],
+        selected_setup_id="deepseek-main",
+        download_index={"binary": {"latest": "2.1.123"}},
+    )
+
+    labels = [option.label for option in tui.options.setup_detail_options(state)]
+
+    assert "Upgrade Claude Code (2.1.122 -> 2.1.123)" in labels
+
+
+def test_setup_detail_shows_when_claude_code_is_current():
+    variant = _variant("deepseek-main", version="2.1.123")
+    state = tui.TuiState(
+        mode="setup-detail",
+        variants=[variant],
+        selected_setup_id="deepseek-main",
+        download_index={"binary": {"latest": "2.1.123"}},
+    )
+
+    labels = [option.label for option in tui.options.setup_detail_options(state)]
+
+    assert "Upgrade Claude Code (up to date: 2.1.123)" in labels
+
+
 def test_setup_detail_edit_tweaks_keeps_current_view():
     variant = _variant("deepseek-main", tweaks=["themes"])
     state = tui.TuiState(
@@ -2704,7 +2732,30 @@ def test_upgrade_preview_applies_update_and_health(monkeypatch, tmp_path):
     assert calls == [("deepseek-main", "latest")]
     assert state.mode == "health-result"
     assert "2.1.122 -> 2.1.123" in "\n".join(state.last_action_summary)
+    assert "Patches/tweaks reapplied: yes" in "\n".join(state.last_action_summary)
     assert "Health: healthy" in "\n".join(state.last_action_summary)
+
+
+def test_upgrade_preview_shows_latest_status_and_patch_reapply():
+    from ccsilo.tui.render_labels_modes import upgrade_preview_labels
+
+    variant = _variant("deepseek-main", tweaks=["themes"], version="2.1.122")
+    variant.manifest["patches"] = [{"id": "replace-before", "version": "0.1.0"}]
+    state = tui.TuiState(
+        mode="upgrade-preview",
+        variants=[variant],
+        selected_setup_id="deepseek-main",
+        download_index={"binary": {"latest": "2.1.123"}},
+    )
+
+    labels = upgrade_preview_labels(state)
+
+    assert "Latest available: 2.1.123" in labels
+    assert "Update available: yes" in labels
+    assert "Target Claude Code: latest (2.1.123)" in labels
+    assert "Tweak count: 1" in labels
+    assert "Patch package refs: 1" in labels
+    assert "Reapply patches/tweaks: yes" in labels
 
 
 def test_upgrade_preview_y_enters_busy_then_finishes(monkeypatch, tmp_path):

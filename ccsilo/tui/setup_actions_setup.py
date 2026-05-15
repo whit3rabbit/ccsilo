@@ -191,7 +191,7 @@ def _run_setup_upgrade(state):
         state.last_action_summary = _append_backend_stages([
             f"Setup upgraded: {setup_id}",
             f"Claude Code: {old_version} -> {new_version or target}",
-            "Tweaks reapplied: yes",
+            "Patches/tweaks reapplied: yes",
             f"Command rebuilt path: {wrapper or '(unknown)'}",
             f"Health: {status}",
         ], stage_lines)

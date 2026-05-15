@@ -537,6 +537,56 @@ def test_update_variant_can_replace_local_source_binary(tmp_path):
     assert Path(source["path"]).read_bytes() == second_path.read_bytes()
 
 
+def test_update_variant_reapplies_selected_tweaks(tmp_path, monkeypatch):
+    import ccsilo.variants as variants_module
+
+    root = tmp_path / ".ccsilo"
+    first_dir = tmp_path / "first"
+    first_dir.mkdir()
+    first = write_macho_source_artifact(first_dir, version="2.1.122")
+    second_dir = tmp_path / "second"
+    second_dir.mkdir()
+    second = write_macho_source_artifact(second_dir, version="2.1.123")
+    patch_calls = []
+
+    def fake_apply_patches(inputs):
+        patch_calls.append(inputs)
+        return SimpleNamespace(
+            ok=True,
+            skipped_reason=None,
+            missing_prompt_keys=[],
+            resigned=False,
+            curated_applied=["hide-startup-banner"],
+            curated_skipped=[],
+            curated_missed=[],
+        )
+
+    monkeypatch.setattr(variants_module, "apply_patches", fake_apply_patches)
+
+    create_variant(
+        name="Repatch",
+        provider_key="ccrouter",
+        tweaks=["hide-startup-banner"],
+        ccrouter_mode="external",
+        root=root,
+        source_artifact=first,
+        force=True,
+    )
+    monkeypatch.setattr(
+        variants_module,
+        "_download_source_artifact",
+        lambda version, root=None: second,
+    )
+
+    updated = update_variants("repatch", claude_version="2.1.123", root=root)[0]
+
+    assert [call.claude_version for call in patch_calls] == ["2.1.122", "2.1.123"]
+    assert patch_calls[-1].regex_tweaks == ["hide-startup-banner"]
+    assert updated.variant.manifest["source"]["version"] == "2.1.123"
+    assert updated.variant.manifest["tweaks"] == ["hide-startup-banner"]
+    assert updated.variant.manifest["patchResults"]["appliedTweaks"] == ["hide-startup-banner"]
+
+
 def test_update_all_rejects_source_binary(tmp_path):
     source = write_source_artifact(tmp_path).path
 
