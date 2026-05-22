@@ -8,11 +8,13 @@ to the variant CLI handlers.
 
 import argparse
 
+from .._version import __version__
 from .payloads import add_variant_model_args, add_variant_tweak_option_args
 
 
 def build_parser():
     parser = argparse.ArgumentParser(description="Bun standalone binary manager")
+    parser.add_argument("-v", "--version", action="version", version=f"ccsilo {__version__}")
     parser.add_argument("--provider", help="Provider shortcut key for install, update, or uninstall")
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
