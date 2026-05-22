@@ -18,6 +18,20 @@ def test_synthetic_applies(cli_js_synthetic):
     assert "CC_SM_TOOL_CALLS_BETWEEN_UPDATES" in outcome.js
 
 
+def test_new_file_memory_without_past_sessions_skips_obsolete_gate():
+    js = (
+        "function enabled(){if(simple())return!1;"
+        "let flag=process.env.CLAUDE_CODE_DISABLE_AUTO_MEMORY;return!0}"
+        'const marker="CLAUDE_COWORK_MEMORY_GUIDELINES";'
+    )
+
+    outcome = PATCH.apply(js, PatchContext(claude_version=None))
+
+    assert outcome.status == "applied"
+    assert "function enabled(){return true;if(simple())return!1;" in outcome.js
+    assert "skipped obsolete past sessions gate" in outcome.notes
+
+
 def test_metadata():
     assert PATCH.id == "session-memory"
     assert PATCH.group == "prompts"

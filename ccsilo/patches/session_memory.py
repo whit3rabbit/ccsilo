@@ -79,7 +79,12 @@ def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
     notes = []
     try:
         new_js = _patch_extraction(js)
-        new_js = _patch_past_sessions(new_js)
+        try:
+            new_js = _patch_past_sessions(new_js)
+        except ValueError as exc:
+            if not _is_new_file_memory_system(new_js):
+                raise
+            notes.append(f"skipped obsolete {exc}")
         try:
             new_js = _patch_token_limits(new_js)
         except ValueError as exc:
