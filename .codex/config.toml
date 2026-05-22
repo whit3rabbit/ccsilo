@@ -1,0 +1,7 @@
+[mcp_servers.synrepo]
+args = [
+    "mcp",
+    "--repo",
+    ".",
+]
+command = "synrepo"
