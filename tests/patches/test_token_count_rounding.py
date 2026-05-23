@@ -25,6 +25,21 @@ def test_synthetic_applies_config(cli_js_synthetic):
     assert "Math.round((inputTokens+outputTokens)/50)*50" in outcome.js
 
 
+def test_statusline_template_applies_without_crossing_statements(parse_js):
+    js = (
+        'let ZH=L&&!L.isIdle?L.progress?.tokenCount??0:OH+X,'
+        'RH=D9(ZH),hH=J?`${RH} tokens`:`${$$.arrowDown} ${RH} tokens`,'
+        'UH=D8(hH),Y$=sr.useRef(0),QH=Z&&V!==null?Math.max(Y$.current,Wg7(C-V)):null;'
+    )
+
+    outcome = PATCH.apply(js, PatchContext(claude_version="2.1.149"))
+
+    assert outcome.status == "applied"
+    assert "RH=D9(Math.round((ZH)/1000)*1000),hH=" in outcome.js
+    assert "Y$=sr.useRef(0)/1000" not in outcome.js
+    parse_js(outcome.js)
+
+
 def test_metadata():
     assert PATCH.id == "token-count-rounding"
     assert PATCH.group == "ui"
