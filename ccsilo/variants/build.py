@@ -24,6 +24,7 @@ from .constants import (
     _IN_PLACE_TWEAKS,
     _NATIVE_REGEX_TWEAKS,
     _PROMPT_ONLY_TWEAKS,
+    _SETUP_CONFIG_TWEAKS,
     _SETUP_ENV_ONLY_TWEAKS,
     _THEME_PROMPT_TWEAKS,
 )
@@ -52,7 +53,7 @@ def _proxy(name):
         return getattr(_variants(), name)(*args, **kwargs)
     return call
 
-__all__ = ['_BuildStageRecorder', '_join_stage_detail', '_classify_theme_prompt_tweaks', '_selected_setup_env_tweaks', '_order_selected_tweaks', '_build_variant_from_manifest', '_download_source_artifact', '_copy_patch_or_unpack_variant_binary', '_should_use_unpacked_node_runtime', '_copy_unpack_node_runtime_variant', '_unpack_node_runtime_variant']
+__all__ = ['_BuildStageRecorder', '_join_stage_detail', '_classify_theme_prompt_tweaks', '_selected_setup_env_tweaks', '_selected_setup_config_tweaks', '_order_selected_tweaks', '_build_variant_from_manifest', '_download_source_artifact', '_copy_patch_or_unpack_variant_binary', '_should_use_unpacked_node_runtime', '_copy_unpack_node_runtime_variant', '_unpack_node_runtime_variant']
 
 class _BuildStageRecorder:
     def __init__(self, variant_id: str):
@@ -92,6 +93,9 @@ def _classify_theme_prompt_tweaks(tweak_ids, *, theme_done: bool, prompt_done: b
 
 def _selected_setup_env_tweaks(tweak_ids):
     return [tweak_id for tweak_id in _SETUP_ENV_ONLY_TWEAKS if tweak_id in tweak_ids]
+
+def _selected_setup_config_tweaks(tweak_ids):
+    return [tweak_id for tweak_id in _SETUP_CONFIG_TWEAKS if tweak_id in tweak_ids]
 
 def _order_selected_tweaks(tweak_ids, values):
     selected = list(tweak_ids)
@@ -399,12 +403,14 @@ def _copy_patch_or_unpack_variant_binary(
         )
         applied.extend(getattr(result, "curated_applied", []) or [])
         skipped.extend(getattr(result, "curated_skipped", []) or [])
-        applied.extend(_selected_setup_env_tweaks(tweak_ids))
+    applied.extend(_selected_setup_env_tweaks(tweak_ids))
+    applied.extend(_selected_setup_config_tweaks(tweak_ids))
     skipped.extend(
         tweak_id for tweak_id in tweak_ids
         if tweak_id not in _THEME_PROMPT_TWEAKS
         and tweak_id not in _NATIVE_REGEX_TWEAKS
         and tweak_id not in _SETUP_ENV_ONLY_TWEAKS
+        and tweak_id not in _SETUP_CONFIG_TWEAKS
         and tweak_id not in _PROMPT_ONLY_TWEAKS
         and tweak_id not in skipped
     )
@@ -475,12 +481,14 @@ def _unpack_node_runtime_variant(
         prompt_done=bool(result.patch.prompt_replaced),
     )
     applied.extend(_selected_setup_env_tweaks(tweak_ids))
+    applied.extend(_selected_setup_config_tweaks(tweak_ids))
 
     remaining_tweaks = [
         tweak_id for tweak_id in tweak_ids
         if tweak_id not in _THEME_PROMPT_TWEAKS
         and tweak_id not in _PROMPT_ONLY_TWEAKS
         and tweak_id not in _SETUP_ENV_ONLY_TWEAKS
+        and tweak_id not in _SETUP_CONFIG_TWEAKS
     ]
     if remaining_tweaks:
         entry_path = Path(result.entry_path)

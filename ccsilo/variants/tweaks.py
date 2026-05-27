@@ -135,8 +135,10 @@ BOOLEAN_ENV_TWEAKS = {
 BOOLEAN_ENV_TWEAK_IDS = list(BOOLEAN_ENV_TWEAKS)
 ENV_TWEAK_IDS = [*VALUE_ENV_TWEAK_IDS, *BOOLEAN_ENV_TWEAK_IDS]
 PROMPT_ONLY_TWEAK_IDS = ["rtk-shell-prefix"]
-SETUP_ONLY_TWEAK_IDS = ["mcp-batch-size", "dangerously-skip-permissions"]
-SETUP_ENV_ONLY_TWEAK_IDS = SETUP_ONLY_TWEAK_IDS
+YET_ANOTHER_STATUSLINE_TWEAK_ID = "yet-another-statusline"
+SETUP_CONFIG_TWEAK_IDS = [YET_ANOTHER_STATUSLINE_TWEAK_ID]
+SETUP_ENV_ONLY_TWEAK_IDS = ["mcp-batch-size", "dangerously-skip-permissions"]
+SETUP_ONLY_TWEAK_IDS = [*SETUP_ENV_ONLY_TWEAK_IDS, *SETUP_CONFIG_TWEAK_IDS]
 CURATED_TWEAK_IDS = [
     "themes",
     "prompt-overlays",
@@ -163,6 +165,7 @@ CURATED_TWEAK_IDS = [
     "dangerously-skip-permissions",
     "token-count-rounding",
     "statusline-update-throttle",
+    YET_ANOTHER_STATUSLINE_TWEAK_ID,
     "auto-accept-plan-mode",
     "allow-custom-agent-models",
     "patches-applied-indication",
@@ -175,6 +178,7 @@ DASHBOARD_EXCLUDED_TWEAK_IDS = {
     "rtk-shell-prefix",
     *ENV_TWEAK_IDS,
     "dangerously-skip-permissions",
+    *SETUP_CONFIG_TWEAK_IDS,
 }
 DASHBOARD_TWEAK_IDS = [
     tweak_id for tweak_id in CURATED_TWEAK_IDS
@@ -271,6 +275,7 @@ def available_tweaks() -> List[Dict[str, object]]:
             "booleanEnv": tweak_id in BOOLEAN_ENV_TWEAK_IDS,
             "promptOnly": tweak_id in PROMPT_ONLY_TWEAK_IDS,
             "setupOnly": tweak_id in SETUP_ONLY_TWEAK_IDS,
+            "setupConfig": tweak_id in SETUP_CONFIG_TWEAK_IDS,
         }
         for tweak_id in CURATED_TWEAK_IDS
     ]

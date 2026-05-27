@@ -5,6 +5,18 @@ from ccsilo.patches.suppress_prompt_caching_warning import PATCH
 from tests.patches.conftest import resolve_tested_versions
 
 
+_NOTICE_OBJECT_JS = (
+    'x$z={id:"prompt-caching-disabled",tier:"critical",type:"warning",'
+    'isActive:()=>qu4().length>0,render:()=>{let H=qu4();return '
+    'e4.createElement(p,{flexDirection:"row"},e4.createElement(k,{color:"error"},'
+    '"\\u25CF "),e4.createElement(p,{flexDirection:"column"},'
+    'e4.createElement(k,{color:"error"},"Prompt caching disabled via ",H.join(", "),'
+    '". This will impact latency and token costs."),e4.createElement(k,{dimColor:!0},'
+    '"We highly recommend disabling"," ",H.length===1?"this environment variable":'
+    '"these environment variables")))}}'
+)
+
+
 def test_synthetic_applies(cli_js_synthetic):
     js = cli_js_synthetic("suppress-prompt-caching-warning")
     outcome = PATCH.apply(js, PatchContext(claude_version=None))
@@ -12,6 +24,14 @@ def test_synthetic_applies(cli_js_synthetic):
     assert outcome.status == "applied"
     assert "Prompt caching disabled via" not in outcome.js
     assert "ccsilo:suppress-prompt-caching-warning" in outcome.js
+
+
+def test_notice_object_anchor_disables_warning():
+    outcome = PATCH.apply(_NOTICE_OBJECT_JS, PatchContext(claude_version="2.1.152"))
+
+    assert outcome.status == "applied"
+    assert 'isActive:()=>false/*ccsilo:suppress-prompt-caching-warning*/' in outcome.js
+    assert "Prompt caching disabled via" in outcome.js
 
 
 def test_idempotent(cli_js_synthetic):

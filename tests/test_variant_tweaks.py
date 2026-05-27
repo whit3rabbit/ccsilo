@@ -2,12 +2,16 @@ import pytest
 
 from ccsilo.variant_tweaks import (
     BOOLEAN_ENV_TWEAKS,
+    CURATED_TWEAK_IDS,
+    DASHBOARD_TWEAK_IDS,
     DEFAULT_TWEAK_IDS,
     GATEWAY_MODEL_DISCOVERY_ENV,
     GATEWAY_MODEL_DISCOVERY_TWEAK_ID,
     RTK_SHELL_PREFIX_TEXT,
+    SETUP_CONFIG_TWEAK_IDS,
     TweakPatchError,
     apply_variant_tweaks,
+    available_tweaks,
     compose_prompt_overlays,
     default_tweak_ids_for_provider,
     env_for_tweaks,
@@ -181,6 +185,21 @@ def test_default_tweaks_include_mcp_startup_and_rtk_instruction():
         "rtk-shell-prefix",
         "dangerously-skip-permissions",
     ]
+
+
+def test_yet_another_statusline_is_optional_setup_config_tweak():
+    tweak_id = "yet-another-statusline"
+
+    assert tweak_id in CURATED_TWEAK_IDS
+    assert tweak_id in SETUP_CONFIG_TWEAK_IDS
+    assert tweak_id not in DEFAULT_TWEAK_IDS
+    assert tweak_id not in DASHBOARD_TWEAK_IDS
+
+    meta = {item["id"]: item for item in available_tweaks()}[tweak_id]
+    assert meta["envBacked"] is False
+    assert meta["promptOnly"] is False
+    assert meta["setupOnly"] is True
+    assert meta["setupConfig"] is True
 
 
 def test_non_mirror_defaults_include_privacy_cache_env_toggles():

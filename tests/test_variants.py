@@ -393,12 +393,50 @@ def test_create_variant_writes_isolated_layout_wrapper_and_metadata(tmp_path):
     settings = json.loads((root / "variants" / "zai-test" / "config" / "settings.json").read_text(encoding="utf-8"))
     claude_config = json.loads((root / "variants" / "zai-test" / "config" / ".claude.json").read_text(encoding="utf-8"))
     assert settings["forceLoginMethod"] == "console"
+    assert "statusLine" not in settings
     assert "mcp__web_reader__webReader" in settings["permissions"]["deny"]
     assert claude_config["theme"] == "dark"
     assert claude_config["hasCompletedOnboarding"] is True
     assert sorted(claude_config["mcpServers"]) == ["web-reader", "web-search-prime", "zai-mcp-server", "zread"]
     assert claude_config["mcpServers"]["web-reader"]["headers"] == {"Authorization": "Bearer ${Z_AI_API_KEY}"}
     assert result.variant.manifest["mcp"]["selected"] == []
+
+
+def test_create_variant_with_yet_another_statusline_tweak_writes_local_config(tmp_path):
+    root = tmp_path / ".ccsilo"
+    artifact = write_source_artifact(tmp_path)
+
+    result = create_variant(
+        name="Statusline Test",
+        provider_key="zai",
+        credential_env="Z_AI_API_KEY",
+        tweaks=["yet-another-statusline", "mcp-batch-size"],
+        root=root,
+        source_artifact=artifact,
+        force=True,
+    )
+
+    variant_dir = root / "variants" / "statusline-test"
+    config_dir = variant_dir / "config"
+    settings = json.loads((config_dir / "settings.json").read_text(encoding="utf-8"))
+    statusline_root = config_dir / "statusline" / "yet-another-statusline"
+    command_path = statusline_root / "statusline_command.py"
+
+    assert settings["env"]["MCP_SERVER_CONNECTION_BATCH_SIZE"] == "10"
+    assert settings["forceLoginMethod"] == "console"
+    assert "mcp__web_reader__webReader" in settings["permissions"]["deny"]
+    assert settings["statusLine"] == {
+        "type": "command",
+        "command": f"python3 {command_path}",
+    }
+    assert command_path.is_file()
+    assert os.access(command_path, os.X_OK)
+    assert (statusline_root / "statusline" / "themes.py").is_file()
+    assert (statusline_root / "LICENSE").is_file()
+    assert result.variant.manifest["patchResults"]["appliedTweaks"] == [
+        "yet-another-statusline",
+        "mcp-batch-size",
+    ]
 
 
 def test_create_variant_with_source_binary_imports_without_download(tmp_path, monkeypatch):

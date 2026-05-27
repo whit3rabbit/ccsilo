@@ -1563,6 +1563,7 @@ def test_variants_wizard_all_tweaks_lists_latest_curated_ports():
     assert "disable-prompt-caching" in text
     assert "token-count-rounding" in text
     assert "statusline-update-throttle" in text
+    assert "yet-another-statusline" in text
 
 
 def test_variant_tweak_step_groups_labels_without_selectable_headers():
@@ -1606,6 +1607,7 @@ def test_variants_wizard_recommended_tweaks_include_mcp_and_rtk():
     assert "mcp-batch-size" in text
     assert "rtk-shell-prefix" in text
     assert "dangerously-skip-permissions" in text
+    assert "yet-another-statusline" not in text
 
 
 def test_variants_wizard_non_mirror_defaults_include_env_switches():
@@ -3138,6 +3140,7 @@ def test_tweaks_editor_advanced_view_uses_curated_tweaks_and_env_backed():
     assert "rtk-shell-prefix" not in values
     assert "token-count-rounding" in values
     assert "statusline-update-throttle" in values
+    assert "yet-another-statusline" in values
     assert "context-limit" in values
     assert "file-read-limit" in values
     assert "subagent-model" in values

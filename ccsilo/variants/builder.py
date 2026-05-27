@@ -28,6 +28,7 @@ from ..workspace import (
 from .tweaks import (
     ENV_TWEAK_IDS,
     PROMPT_ONLY_TWEAK_IDS,
+    SETUP_CONFIG_TWEAK_IDS,
     SETUP_ONLY_TWEAK_IDS,
     SETUP_ENV_ONLY_TWEAK_IDS,
     TweakResult,
@@ -110,21 +111,25 @@ def patch_entry_js(extract_dir: Path, manifest_data: Dict, *, provider_key: str,
     js = entry_path.read_text(encoding="utf-8")
     provider = get_provider(provider_key)
     provider_overlays = provider_prompt_overlays(provider_key) if "prompt-overlays" in tweak_ids else {}
-    setup_env_tweaks = [tweak_id for tweak_id in SETUP_ENV_ONLY_TWEAK_IDS if tweak_id in tweak_ids]
-    patch_tweak_ids = [tweak_id for tweak_id in tweak_ids if tweak_id not in SETUP_ENV_ONLY_TWEAK_IDS]
-    result = apply_variant_tweaks(
-        js,
-        tweak_ids=patch_tweak_ids,
-        config=provider_patch_config(provider_key),
-        overlays=compose_prompt_overlays(provider_overlays, tweak_ids),
-        provider_label=provider.label,
-        claude_version=claude_version,
-    )
+    setup_only_ids = {*SETUP_ENV_ONLY_TWEAK_IDS, *SETUP_CONFIG_TWEAK_IDS}
+    setup_only_tweaks = [tweak_id for tweak_id in tweak_ids if tweak_id in setup_only_ids]
+    patch_tweak_ids = [tweak_id for tweak_id in tweak_ids if tweak_id not in setup_only_ids]
+    if patch_tweak_ids:
+        result = apply_variant_tweaks(
+            js,
+            tweak_ids=patch_tweak_ids,
+            config=provider_patch_config(provider_key),
+            overlays=compose_prompt_overlays(provider_overlays, tweak_ids),
+            provider_label=provider.label,
+            claude_version=claude_version,
+        )
+    else:
+        result = TweakResult(js=js, applied=[], skipped=[], missing=[])
     atomic_write_text_no_symlink(entry_path, result.js)
-    if setup_env_tweaks:
+    if setup_only_tweaks:
         return TweakResult(
             js=result.js,
-            applied=[*result.applied, *setup_env_tweaks],
+            applied=[*result.applied, *setup_only_tweaks],
             skipped=result.skipped,
             missing=result.missing,
         )

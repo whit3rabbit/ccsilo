@@ -6,7 +6,13 @@ import stat
 from pathlib import Path
 from typing import Dict, Optional
 
-from .._utils import atomic_write_text_no_symlink, require_env_name, utc_now as _utc_now
+from .._utils import (
+    atomic_write_bytes_no_symlink,
+    atomic_write_text_no_symlink,
+    require_env_name,
+    safe_child_path,
+    utc_now as _utc_now,
+)
 from ..providers import (
     apply_provider_claude_config,
     ensure_onboarding_state,
@@ -17,9 +23,21 @@ from ..providers import (
 from ..workspace import read_json, write_json
 from .ccrouter import CCR_PROVIDER_KEYS
 from .splash import shell_splash_lines
+from .tweaks import YET_ANOTHER_STATUSLINE_TWEAK_ID
 
 SECRETS_FILE = "secrets.env"
 SECRETS_FILE_MODE = 0o600
+_YET_ANOTHER_STATUSLINE_SOURCE = (
+    Path(__file__).resolve().parent.parent
+    / "data"
+    / "statusline"
+    / YET_ANOTHER_STATUSLINE_TWEAK_ID
+)
+_YET_ANOTHER_STATUSLINE_FILES = (
+    ("statusline_command.py", 0o755),
+    ("statusline/themes.py", 0o644),
+    ("LICENSE", 0o644),
+)
 
 
 def write_variant_config(manifest: Dict) -> None:
@@ -53,6 +71,7 @@ def write_variant_config(manifest: Dict) -> None:
         read_json=read_json,
         write_json=write_json,
     )
+    sync_setup_config_tweaks(manifest, paths["configDir"])
     tweak_config = provider_patch_config(manifest["provider"]["key"])
     theme_ids = {
         theme.get("id")
@@ -72,6 +91,48 @@ def write_variant_config(manifest: Dict) -> None:
     tweak_config["ccInstallationPath"] = paths["binary"]
     tweak_config["lastModified"] = _utc_now()
     write_json(Path(paths["tweakccDir"]) / "config.json", tweak_config)
+
+
+def sync_setup_config_tweaks(manifest: Dict, config_dir) -> None:
+    config_dir = Path(config_dir)
+    tweak_ids = set(manifest.get("tweaks") or [])
+    if YET_ANOTHER_STATUSLINE_TWEAK_ID in tweak_ids:
+        _enable_yet_another_statusline(config_dir)
+        return
+    _disable_statusline_setting(config_dir)
+
+
+def _enable_yet_another_statusline(config_dir: Path) -> None:
+    command_path = _copy_yet_another_statusline(config_dir)
+    settings_path = config_dir / "settings.json"
+    settings = read_json(settings_path) if settings_path.exists() else {}
+    settings["statusLine"] = {
+        "type": "command",
+        "command": f"python3 {shlex.quote(str(command_path))}",
+    }
+    write_json(settings_path, settings)
+
+
+def _disable_statusline_setting(config_dir: Path) -> None:
+    settings_path = config_dir / "settings.json"
+    if not settings_path.exists():
+        return
+    settings = read_json(settings_path)
+    if settings.pop("statusLine", None) is not None:
+        write_json(settings_path, settings)
+
+
+def _copy_yet_another_statusline(config_dir: Path) -> Path:
+    target_root = config_dir / "statusline" / YET_ANOTHER_STATUSLINE_TWEAK_ID
+    for relative, mode in _YET_ANOTHER_STATUSLINE_FILES:
+        source = _YET_ANOTHER_STATUSLINE_SOURCE / relative
+        target = safe_child_path(
+            config_dir,
+            f"statusline/{YET_ANOTHER_STATUSLINE_TWEAK_ID}/{relative}",
+            label="statusline asset",
+        )
+        atomic_write_bytes_no_symlink(target, source.read_bytes(), mode=mode)
+    return target_root / "statusline_command.py"
 
 
 def stored_credential_value(manifest: Dict) -> Optional[str]:

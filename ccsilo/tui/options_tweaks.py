@@ -10,6 +10,7 @@ from ..variant_tweaks import (
     DEFAULT_TWEAK_IDS,
     ENV_TWEAK_IDS,
     PROMPT_ONLY_TWEAK_IDS,
+    SETUP_CONFIG_TWEAK_IDS,
     SETUP_ONLY_TWEAK_IDS,
 )
 from ._const import MenuOption
@@ -52,6 +53,11 @@ SETUP_ONLY_TWEAK_META = {
         "Dangerous skip permissions",
         "system",
         "Always launches this setup with --dangerously-skip-permissions.",
+    ),
+    "yet-another-statusline": (
+        "Yet Another Statusline",
+        "system",
+        "Installs the bundled tmck-code statusline renderer into this setup config.",
     ),
 }
 
@@ -159,6 +165,8 @@ def tweak_status_for_version(tweak_id, version=None, recommended_ids=None):
     if patch is None:
         if tweak_id in SETUP_ONLY_TWEAK_IDS:
             label = "ready" if tweak_id in recommended else "advanced"
+            if tweak_id in SETUP_CONFIG_TWEAK_IDS:
+                return {"label": label, "selectable": True, "reason": "Changes setup config only."}
             return {"label": label, "selectable": True, "reason": "Changes setup wrapper behavior."}
         return {"label": "unknown", "selectable": False, "reason": "Tweak is not registered."}
     if not version or version == "latest":
@@ -260,8 +268,8 @@ def _tweak_meta(tweak_id):
             id=tweak_id,
             name=name,
             group=group,
-            versions_supported="setup-wrapper",
-            versions_tested=("setup-wrapper",),
+            versions_supported="setup-config" if tweak_id in SETUP_CONFIG_TWEAK_IDS else "setup-wrapper",
+            versions_tested=("setup-config",) if tweak_id in SETUP_CONFIG_TWEAK_IDS else ("setup-wrapper",),
             versions_blacklisted=(),
             on_miss="skip",
             description=description,
