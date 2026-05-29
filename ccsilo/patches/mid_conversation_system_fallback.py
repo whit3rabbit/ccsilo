@@ -38,6 +38,13 @@ def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
         f"({request_var}.status!==400&&{request_var}.status!==422)",
         1,
     )
+    # Anthropic documents mid-conversation system messages as
+    # messages[].role="system"; Z.ai documents Claude Code through its
+    # Anthropic Messages endpoint. Some gateways still reject that newer
+    # surface with HTTP 422 instead of Claude Code's expected HTTP 400.
+    # Sources:
+    # https://platform.claude.com/docs/en/build-with-claude/mid-conversation-system-messages
+    # https://docs.z.ai/devpack/tool/others
     replacement = (
         f"{prefix}"
         f"if({request_var}.status===422&&"

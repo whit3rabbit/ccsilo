@@ -9,6 +9,30 @@ Use this repository for research and controlled local patching only. Do not add 
 3. TUI workflow: manage setups, build patched binaries from curated tweaks, inspect/download artifacts, extract bundles, and apply workspace patch packages.
 4. Release tracking: extract prompt catalogs and generate Docker-backed patch compatibility reports.
 
+## Versioned Compatibility Notes
+
+### 0.4.8
+
+Claude Code 2.1.154 / Opus 4.8 can emit mid-conversation system messages as
+`messages[].role = "system"` when the Anthropic API supports that feature.
+Anthropic documents this as a Claude API feature, but third-party
+Anthropic-compatible gateways can lag that surface.
+
+Z.ai is configured through an Anthropic Messages endpoint
+(`https://api.z.ai/api/anthropic`) and worked for normal Claude Code prompts
+after `mid-conversation-system-422-fallback` was added. The observed breakage
+was not a prompt overlay issue: Z.ai rejected `role: "system"` inside
+`messages[]` with HTTP 422 and a literal-role validation error, while Claude
+Code's bundled fallback recognized only narrower 400-class rejections.
+
+Treat this class of patch as built-in provider compatibility, not as an
+optional visual or prompt tweak. Keep it hidden from Dashboard, keep the
+predicate narrow to explicit `role/system/user/assistant` 422 validation
+failures, and prefer enabling it automatically for affected third-party
+Anthropic-compatible providers over asking users to select it manually. Do not
+solve this by changing provider prompt overlays or disabling all experimental
+betas unless a concrete version proves that is necessary.
+
 ## Commands
 
 Use `.venv/bin/python` from the repository root.
