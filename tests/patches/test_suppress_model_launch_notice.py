@@ -5,12 +5,21 @@ from ccsilo.patches.suppress_model_launch_notice import PATCH
 from tests.patches.conftest import resolve_tested_versions
 
 
-def test_synthetic_applies(cli_js_synthetic):
+def test_synthetic_opus47_applies(cli_js_synthetic):
     js = cli_js_synthetic("suppress-model-launch-notice")
     outcome = PATCH.apply(js, PatchContext(claude_version=None))
 
     assert outcome.status == "applied"
     assert "opus47LaunchSeenCount" not in outcome.js
+    assert "ccsilo:suppress-model-launch-notice" in outcome.js
+
+
+def test_synthetic_opus48_applies(cli_js_synthetic):
+    js = cli_js_synthetic("suppress-model-launch-notice-v2")
+    outcome = PATCH.apply(js, PatchContext(claude_version=None))
+
+    assert outcome.status == "applied"
+    assert "opus48LaunchSeenCount" not in outcome.js
     assert "ccsilo:suppress-model-launch-notice" in outcome.js
 
 
@@ -27,7 +36,7 @@ def test_miss_has_detail():
     outcome = PATCH.apply("function unrelated(){return!0}", PatchContext(claude_version=None))
 
     assert outcome.status == "missed"
-    assert outcome.notes == ("missing Opus 4.7 launch eligibility gate",)
+    assert outcome.notes == ("missing Opus 4.7/4.8 launch eligibility gate",)
 
 
 def test_metadata():

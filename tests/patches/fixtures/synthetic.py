@@ -29,6 +29,10 @@ SYNTHETIC = {
         'if(H.unpinOpus47LaunchEffort)return!1;'
         'if((H.opus47LaunchSeenCount??0)>=gK3)return!1;return!0}'
     ),
+    "suppress-model-launch-notice-v2": (
+        'function Xe8(){if(Zq()!=="firstParty")return!1;'
+        'if((I_().opus48LaunchSeenCount??0)>=k9O)return!1;return!0}'
+    ),
     "suppress-native-installer-warning": (
         "Claude Code has switched from npm to native installer. Run `claude install` "
         "or see https://docs.anthropic.com/en/docs/claude-code/getting-started "

@@ -6,6 +6,12 @@ from . import Patch, PatchContext, PatchOutcome
 
 
 _MARKER = "ccsilo:suppress-model-launch-notice"
+_OPUS48_ELIGIBILITY_RE = re.compile(
+    r'(function\s+[$\w]+\(\)\{)'
+    r'if\([$\w]+\(\)!=="firstParty"\)return!1;'
+    r'if\(\([$\w]+\(\)\.opus48LaunchSeenCount\?\?0\)>=[$\w]+\)return!1;'
+    r'return!0\}'
+)
 _OPUS47_ELIGIBILITY_RE = re.compile(
     r'(function\s+[$\w]+\(\)\{)'
     r'if\([$\w]+\(\)!=="firstParty"\)return!1;'
@@ -20,17 +26,18 @@ def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
     if _MARKER in js:
         return PatchOutcome(js=js, status="skipped")
 
-    match = _OPUS47_ELIGIBILITY_RE.search(js)
-    if not match:
-        return PatchOutcome(
-            js=js,
-            status="missed",
-            notes=("missing Opus 4.7 launch eligibility gate",),
-        )
+    for pattern in (_OPUS48_ELIGIBILITY_RE, _OPUS47_ELIGIBILITY_RE):
+        match = pattern.search(js)
+        if match:
+            replacement = f"{match.group(1)}return!1/*{_MARKER}*/}}"
+            new_js = js[:match.start()] + replacement + js[match.end():]
+            return PatchOutcome(js=new_js, status="applied")
 
-    replacement = f"{match.group(1)}return!1/*{_MARKER}*/}}"
-    new_js = js[:match.start()] + replacement + js[match.end():]
-    return PatchOutcome(js=new_js, status="applied")
+    return PatchOutcome(
+        js=js,
+        status="missed",
+        notes=("missing Opus 4.7/4.8 launch eligibility gate",),
+    )
 
 
 PATCH = Patch(
@@ -38,7 +45,7 @@ PATCH = Patch(
     name="Suppress model launch notice",
     group="ui",
     versions_supported=">=2.1.0,<3",
-    versions_tested=(">=2.1.0,<=2.1.152",),
+    versions_tested=(">=2.1.0,<=2.1.154",),
     apply=_apply,
     on_miss="skip",
     description="Hide the startup notice announcing newly available Claude model launches.",

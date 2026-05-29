@@ -67,7 +67,7 @@ def test_curated_tweak_ports_patch_fixture_patterns():
             'function inner(){return"\\u259B\\u2588\\u2588\\u2588\\u259C"}function wrapper(){return R.createElement(inner,{})}',
             'if(v&&P)p("tengu_external_editor_hint_shown",{})',
             'function fmt({content:C,startLine:S}){if(!C)return"";let L=C.split(/\\r?\\n/);return L.map(x=>x).join("\\n")}function next(){}',
-            'function QK3(){if(dq()!=="firstParty")return!1;let H=I_();if(H.unpinOpus47LaunchEffort)return!1;if((H.opus47LaunchSeenCount??0)>=gK3)return!1;return!0}',
+            'function Xe8(){if(Zq()!=="firstParty")return!1;if((I_().opus48LaunchSeenCount??0)>=k9O)return!1;return!0}',
             "Claude Code has switched from npm to native installer. Run `claude install` or see https://docs.anthropic.com/en/docs/claude-code/getting-started for more options.",
             (
                 'function VV8(){let H=hV8.c(5),_;if(H[0]===Symbol.for("react.memo_cache_sentinel"))'
