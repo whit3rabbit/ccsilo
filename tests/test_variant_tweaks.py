@@ -208,6 +208,7 @@ def test_non_mirror_defaults_include_privacy_cache_env_toggles():
     defaults = default_tweak_ids_for_provider("zai")
 
     assert "dangerously-skip-permissions" in defaults
+    assert "mid-conversation-system-422-fallback" in defaults
     assert "disable-telemetry" in defaults
     assert "disable-error-reporting" in defaults
     assert "disable-feedback-command" in defaults
@@ -215,6 +216,7 @@ def test_non_mirror_defaults_include_privacy_cache_env_toggles():
     assert "disable-prompt-caching" in defaults
 
     ccr_oauth_defaults = default_tweak_ids_for_provider("ccr-oauth")
+    assert "mid-conversation-system-422-fallback" not in ccr_oauth_defaults
     assert "opusplan1m" in ccr_oauth_defaults
     assert "disable-telemetry" in ccr_oauth_defaults
 

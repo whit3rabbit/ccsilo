@@ -17,6 +17,7 @@ _NATIVE_REGEX_TWEAKS = (
     "suppress-native-installer-warning",
     "suppress-prompt-caching-warning",
     "suppress-model-launch-notice",
+    "mid-conversation-system-422-fallback",
     "mcp-non-blocking",
 )
 _SETUP_ENV_ONLY_TWEAKS = tuple(SETUP_ENV_ONLY_TWEAK_IDS)

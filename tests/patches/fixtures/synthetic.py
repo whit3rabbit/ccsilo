@@ -56,6 +56,13 @@ SYNTHETIC = {
         'K.length===1?"this environment variable":"these environment variables"))),H[4]=A;'
         'else A=H[4];return A}'
     ),
+    "mid-conversation-system-422-fallback": (
+        'class rq extends Error{}let Yy={header:"mid-conversation-system-2026-04-07"};'
+        'function pP8(H){if(!Yy)return!1;if(!(H instanceof rq)||H.status!==400)return!1;'
+        'let _=H.message;if(_.includes(Yy.header)&&_.includes("anthropic-beta"))return!0;'
+        'if(_.includes("Unexpected role")&&_.includes("input message role"))return!0;'
+        'return _.includes("not supported")&&/role .{0,2}system/i.test(_)}'
+    ),
     "suppress-rate-limit-options": (
         'R.createElement(X,{a:1}),showAllInTranscript:A,'
         'agentDefinitions:B,onOpenRateLimitOptions:C,other:true'

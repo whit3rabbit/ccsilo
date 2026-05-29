@@ -3,7 +3,7 @@
     "entryBytes": 15525438,
     "entryModule": "src/entrypoints/cli.js"
   },
-  "generatedAt": "2026-05-29T00:04:29.447428Z",
+  "generatedAt": "2026-05-29T00:57:22.966374Z",
   "ok": true,
   "patches": [
     {
@@ -95,6 +95,18 @@
       "group": "ui",
       "id": "input-box-border",
       "name": "Input box border",
+      "notes": [],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": true,
+      "warnings": []
+    },
+    {
+      "detail": "",
+      "group": "system",
+      "id": "mid-conversation-system-422-fallback",
+      "name": "Mid-conversation system 422 fallback",
       "notes": [],
       "ok": true,
       "status": "applied",
@@ -341,11 +353,11 @@
       "<patched-binary>",
       "--version"
     ],
-    "durationMs": 10150,
+    "durationMs": 9685,
     "exitCode": 0,
     "expectedVersion": "2.1.154",
     "ok": true,
-    "outputSha256": "4271b4f35909ae2cf6c8fb68cf827b30143e258359410dc812f9d83db785590e",
+    "outputSha256": "a499acb738a9c5ce5993d27df7c2e0f18ce2109635edee40fa60aea5fd636a60",
     "patches": {
       "applied": [
         "agents-md",
@@ -356,6 +368,7 @@
         "hide-startup-banner",
         "hide-startup-clawd",
         "input-box-border",
+        "mid-conversation-system-422-fallback",
         "mcp-batch-size",
         "model-customizations",
         "opusplan1m",
@@ -382,6 +395,7 @@
         "hide-startup-banner",
         "hide-startup-clawd",
         "input-box-border",
+        "mid-conversation-system-422-fallback",
         "mcp-non-blocking",
         "mcp-batch-size",
         "model-customizations",
@@ -414,11 +428,11 @@
     "versionMatched": true
   },
   "summary": {
-    "applied": 24,
+    "applied": 25,
     "failed": 0,
-    "ok": 26,
+    "ok": 27,
     "skipped": 1,
-    "total": 26,
+    "total": 27,
     "unsupported": 1,
     "untested": 1
   },

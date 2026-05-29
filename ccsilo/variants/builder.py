@@ -45,6 +45,7 @@ IN_PLACE_TWEAK_IDS = {
     "suppress-native-installer-warning",
     "suppress-prompt-caching-warning",
     "suppress-model-launch-notice",
+    "mid-conversation-system-422-fallback",
     "mcp-non-blocking",
     "mcp-batch-size",
     *PROMPT_ONLY_TWEAK_IDS,

@@ -31,6 +31,7 @@ NON_MIRROR_DEFAULT_TWEAK_IDS = [
 VALUE_ENV_TWEAK_IDS = ["context-limit", "file-read-limit", "subagent-model"]
 GATEWAY_MODEL_DISCOVERY_TWEAK_ID = "gateway-model-discovery"
 GATEWAY_MODEL_DISCOVERY_ENV = "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY"
+MID_CONVERSATION_SYSTEM_FALLBACK_TWEAK_ID = "mid-conversation-system-422-fallback"
 BOOLEAN_ENV_TWEAKS = {
     GATEWAY_MODEL_DISCOVERY_TWEAK_ID: {
         "name": "Gateway model discovery",
@@ -149,6 +150,7 @@ CURATED_TWEAK_IDS = [
     "hide-ctrl-g-to-edit",
     "suppress-line-numbers",
     "suppress-model-launch-notice",
+    MID_CONVERSATION_SYSTEM_FALLBACK_TWEAK_ID,
     "suppress-native-installer-warning",
     "suppress-prompt-caching-warning",
     "suppress-rate-limit-options",
@@ -174,6 +176,7 @@ CURATED_TWEAK_IDS = [
 DASHBOARD_EXCLUDED_TWEAK_IDS = {
     "themes",
     "prompt-overlays",
+    MID_CONVERSATION_SYSTEM_FALLBACK_TWEAK_ID,
     "remember-skill",
     "rtk-shell-prefix",
     *ENV_TWEAK_IDS,
@@ -222,6 +225,11 @@ def default_tweak_ids_for_provider(provider_key: Optional[str]) -> List[str]:
     defaults = list(DEFAULT_TWEAK_IDS)
     if provider_key == "ccr-oauth":
         defaults.append("opusplan1m")
+    if provider_key == "zai":
+        defaults.insert(
+            defaults.index("suppress-model-launch-notice") + 1,
+            MID_CONVERSATION_SYSTEM_FALLBACK_TWEAK_ID,
+        )
     if provider_key and provider_key != "mirror":
         defaults.extend(NON_MIRROR_DEFAULT_TWEAK_IDS)
     return _unique_ordered(defaults)
