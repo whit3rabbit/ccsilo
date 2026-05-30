@@ -79,6 +79,8 @@ def test_provider_list_includes_cc_mirror_parity_presets():
         "deepseek",
         "alibaba",
         "poe",
+        "opencode-zen",
+        "opencode-go",
         "openrouter",
         "litellm",
         "vercel",
@@ -251,6 +253,8 @@ def test_model_discovery_providers_export_gateway_env():
         "omlx",
         "openrouter",
         "litellm",
+        "opencode-go",
+        "opencode-zen",
     }
     assert all(
         provider.env["CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY"] == "1"
@@ -465,6 +469,26 @@ def test_ported_provider_defaults_match_cc_mirror_update():
     }
     assert router.env["ANTHROPIC_BASE_URL"] == "http://localhost:20128/v1"
     assert router.env["ANTHROPIC_DEFAULT_OPUS_MODEL"] == "premium-coding"
+
+    opencode_go = build_provider_env("opencode-go")
+    assert opencode_go.credential == {
+        "mode": "env",
+        "source": "OPENCODE_API_KEY",
+        "targets": ["ANTHROPIC_API_KEY", "OPENCODE_API_KEY"],
+    }
+    assert opencode_go.env["ANTHROPIC_BASE_URL"] == "https://opencode.ai/zen/go/v1"
+    assert opencode_go.env["ANTHROPIC_MODEL"] == "opencode-go/deepseek-v4-pro"
+
+    opencode_zen = build_provider_env("opencode-zen")
+    assert opencode_zen.credential == {
+        "mode": "env",
+        "source": "OPENCODE_API_KEY",
+        "targets": ["ANTHROPIC_API_KEY", "OPENCODE_API_KEY"],
+    }
+    assert opencode_zen.env["ANTHROPIC_BASE_URL"] == "https://opencode.ai/zen/v1"
+    assert opencode_zen.env["ANTHROPIC_MODEL"] == "opencode/big-pickle"
+
+
 
 
 def test_ccrouter_and_cerebras_use_optional_router_fallbacks():

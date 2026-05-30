@@ -31,6 +31,7 @@ NON_MIRROR_DEFAULT_TWEAK_IDS = [
 VALUE_ENV_TWEAK_IDS = ["context-limit", "file-read-limit", "subagent-model"]
 GATEWAY_MODEL_DISCOVERY_TWEAK_ID = "gateway-model-discovery"
 GATEWAY_MODEL_DISCOVERY_ENV = "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY"
+OPENCODE_GATEWAY_DISCOVERY_TWEAK_ID = "opencode-gateway-discovery"
 MID_CONVERSATION_SYSTEM_FALLBACK_TWEAK_ID = "mid-conversation-system-422-fallback"
 BOOLEAN_ENV_TWEAKS = {
     GATEWAY_MODEL_DISCOVERY_TWEAK_ID: {
@@ -160,6 +161,7 @@ CURATED_TWEAK_IDS = [
     "agents-md",
     "session-memory",
     "remember-skill",
+    OPENCODE_GATEWAY_DISCOVERY_TWEAK_ID,
     "opusplan1m",
     "mcp-non-blocking",
     "mcp-batch-size",
@@ -177,6 +179,7 @@ DASHBOARD_EXCLUDED_TWEAK_IDS = {
     "themes",
     "prompt-overlays",
     MID_CONVERSATION_SYSTEM_FALLBACK_TWEAK_ID,
+    OPENCODE_GATEWAY_DISCOVERY_TWEAK_ID,
     "remember-skill",
     "rtk-shell-prefix",
     *ENV_TWEAK_IDS,
@@ -225,6 +228,10 @@ def default_tweak_ids_for_provider(provider_key: Optional[str]) -> List[str]:
     defaults = list(DEFAULT_TWEAK_IDS)
     if provider_key == "ccr-oauth":
         defaults.append("opusplan1m")
+    if provider_key in ("opencode-go", "opencode-zen"):
+        defaults.append(OPENCODE_GATEWAY_DISCOVERY_TWEAK_ID)
+        defaults.append("opusplan1m")
+        defaults.append("gateway-model-discovery")
     if provider_key == "zai":
         defaults.insert(
             defaults.index("suppress-model-launch-notice") + 1,

@@ -1715,6 +1715,45 @@ def test_ccr_oauth_provider_defaults_to_architect_proxy_and_tweak():
     assert "gateway-model-discovery" in state.selected_variant_tweaks
 
 
+def test_variants_wizard_opencode_defaults_use_direct_architect_mode_without_proxy():
+    provider = {
+        "key": "opencode-go",
+        "label": "OpenCode Go",
+        "description": "OpenCode Go",
+        "section": "cloud",
+        "authMode": "apiKey",
+        "credentialEnv": "OPENCODE_API_KEY",
+        "baseUrl": "https://opencode.ai/zen/go/v1",
+        "requiresModelMapping": False,
+        "models": {
+            "default": "opencode-go/deepseek-v4-pro",
+            "opus": "opencode-go/deepseek-v4-pro",
+            "sonnet": "opencode-go/deepseek-v4-flash",
+            "haiku": "opencode-go/deepseek-v4-flash",
+        },
+        "modelDiscovery": {"enabled": True},
+        "defaultVariantName": "opencode-go",
+    }
+    state = tui.TuiState(
+        mode="variants",
+        variant_step=5,
+        variant_provider_index=0,
+        variant_providers=[provider],
+    )
+    tui._set_variant_provider_defaults(state, provider)
+
+    labels = [option.label for option in tui._variant_options(state)]
+
+    assert state.variant_model_proxy == ""
+    assert "opencode-gateway-discovery" in state.selected_variant_tweaks
+    assert "opusplan1m" in state.selected_variant_tweaks
+    assert "gateway-model-discovery" in state.selected_variant_tweaks
+    assert "[x] OpenCode gateway discovery  (opencode-gateway-discovery)" in labels
+    assert "[x] Architect Mode  (model picker alias, no Claude OAuth)" in labels
+    assert "[ ] OAuth architect proxy  (requires Claude Code account)" in labels
+    assert "Model proxy port: auto" not in labels
+
+
 def test_variants_wizard_unchecking_gateway_discovery_disables_model_proxy():
     provider = {
         "key": "ccr-oauth",

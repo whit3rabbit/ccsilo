@@ -7,6 +7,7 @@ from ccsilo.variant_tweaks import (
     DEFAULT_TWEAK_IDS,
     GATEWAY_MODEL_DISCOVERY_ENV,
     GATEWAY_MODEL_DISCOVERY_TWEAK_ID,
+    OPENCODE_GATEWAY_DISCOVERY_TWEAK_ID,
     RTK_SHELL_PREFIX_TEXT,
     SETUP_CONFIG_TWEAK_IDS,
     TweakPatchError,
@@ -219,6 +220,21 @@ def test_non_mirror_defaults_include_privacy_cache_env_toggles():
     assert "mid-conversation-system-422-fallback" not in ccr_oauth_defaults
     assert "opusplan1m" in ccr_oauth_defaults
     assert "disable-telemetry" in ccr_oauth_defaults
+
+    opencode_go_defaults = default_tweak_ids_for_provider("opencode-go")
+    assert "mid-conversation-system-422-fallback" not in opencode_go_defaults
+    assert OPENCODE_GATEWAY_DISCOVERY_TWEAK_ID in opencode_go_defaults
+    assert "opusplan1m" in opencode_go_defaults
+    assert "gateway-model-discovery" in opencode_go_defaults
+    assert "disable-telemetry" in opencode_go_defaults
+
+    opencode_zen_defaults = default_tweak_ids_for_provider("opencode-zen")
+    assert "mid-conversation-system-422-fallback" not in opencode_zen_defaults
+    assert OPENCODE_GATEWAY_DISCOVERY_TWEAK_ID in opencode_zen_defaults
+    assert "opusplan1m" in opencode_zen_defaults
+    assert "gateway-model-discovery" in opencode_zen_defaults
+    assert "disable-telemetry" in opencode_zen_defaults
+    assert OPENCODE_GATEWAY_DISCOVERY_TWEAK_ID not in DASHBOARD_TWEAK_IDS
 
 
 def test_mcp_batch_size_setup_tweak_emits_wrapper_env():

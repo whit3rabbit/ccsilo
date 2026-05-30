@@ -34,6 +34,8 @@ PALETTES: Dict[str, Tuple[str, str, str, str]] = {
     "poe": (r"\033[38;5;141m", r"\033[38;5;177m", r"\033[38;5;99m", r"\033[38;5;60m"),
     "vercel": (r"\033[38;5;255m", r"\033[38;5;250m", r"\033[38;5;34m", r"\033[38;5;240m"),
     "zai": (r"\033[38;5;220m", r"\033[38;5;214m", r"\033[38;5;208m", r"\033[38;5;172m"),
+    "opencode-go": (r"\033[38;5;99m", r"\033[38;5;105m", r"\033[38;5;111m", r"\033[38;5;60m"),
+    "opencode-zen": (r"\033[38;5;129m", r"\033[38;5;135m", r"\033[38;5;141m", r"\033[38;5;60m"),
     "default": (r"\033[38;5;255m", r"\033[38;5;250m", r"\033[38;5;45m", r"\033[38;5;245m"),
 }
 
@@ -63,6 +65,8 @@ SPLASH_TEXT: Dict[str, Tuple[str, ...]] = {
     "poe": ("   POE", "  < MODEL HUB >", "  TOKEN ROUTE READY"),
     "vercel": ("   VERCEL", "  [ AI GATEWAY ]", "  EDGE ROUTE ACTIVE"),
     "zai": ("   ZAI CLOUD", "  < GLM CODING PLAN >", "  REASONING ONLINE"),
+    "opencode-go": ("   OPENCODE GO", "  < LOW COST OPEN CODING >", "  MODELS ONLINE"),
+    "opencode-zen": ("   OPENCODE ZEN", "  < CURATED AI GATEWAY >", "  MODELS ONLINE"),
     "default": ("   CCSILO", "  [ PROVIDER VARIANT ]", "  CLAUDE CODE WRAPPED"),
 }
 

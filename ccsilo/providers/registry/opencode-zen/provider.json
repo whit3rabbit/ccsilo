@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "key": "opencode-zen",
+  "label": "OpenCode Zen",
+  "description": "Curated gateway for high-performance AI coding models",
+  "displayOrder": 64,
+  "baseUrl": "https://opencode.ai/zen/v1",
+  "auth": {
+    "mode": "apiKey",
+    "apiKeyLabel": "OpenCode Zen API key",
+    "credentialEnv": "OPENCODE_API_KEY"
+  },
+  "models": {
+    "default": "opencode/big-pickle",
+    "smallFast": "opencode/deepseek-v4-flash-free",
+    "opus": "opencode/big-pickle",
+    "sonnet": "opencode/deepseek-v4-flash-free",
+    "haiku": "opencode/deepseek-v4-flash-free",
+    "subagent": "",
+    "requiresModelMapping": false
+  },
+  "env": {
+    "API_TIMEOUT_MS": "3000000",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY": "1"
+  },
+  "variant": {
+    "splashStyle": "opencode-zen",
+    "noPromptPack": true,
+    "theme": {
+      "id": "dark",
+      "name": "OpenCode Zen",
+      "palette": {
+        "base": "#09090b",
+        "surface": "#18181b",
+        "panel": "#27272a",
+        "border": "#3f3f46",
+        "borderStrong": "#52525b",
+        "text": "#fafafa",
+        "textMuted": "#d4d4d8",
+        "textDim": "#71717a",
+        "accent": "#a855f7",
+        "accentSoft": "#c084fc",
+        "accentDeep": "#9333ea",
+        "blue": "#3b82f6",
+        "green": "#10b981",
+        "red": "#ef4444",
+        "orange": "#f97316",
+        "purple": "#8b5cf6"
+      }
+    },
+    "promptOverlays": {}
+  },
+  "claudeConfig": {
+    "settingsPermissionsDeny": [],
+    "mcpServers": {}
+  },
+  "tui": {
+    "headline": "OpenCode Zen",
+    "modelDiscovery": {
+      "enabled": true
+    },
+    "features": [
+      "Vetted and benchmarked AI models for coding agents",
+      "Access via a single OpenCode Zen API key",
+      "Pay-as-you-go model with zero data retention"
+    ],
+    "setupLinks": {
+      "subscribe": "https://opencode.ai/zen",
+      "apiKey": "https://opencode.ai/zen",
+      "docs": "https://opencode.ai/docs/zen/"
+    },
+    "setupNote": "Subscribe to OpenCode Zen, retrieve your API key, and provide OPENCODE_API_KEY."
+  }
+}

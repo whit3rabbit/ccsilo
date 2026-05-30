@@ -20,6 +20,13 @@ SYNTHETIC = {
         'function models(){let L=[]; '
         'L.push({value:M,label:N,description:"Custom model"});return L}'
     ),
+    "opencode-gateway-discovery": (
+        'async function discover(){if(!process.env.CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY)return;'
+        'let H=process.env.ANTHROPIC_BASE_URL;if(!H)return;'
+        'let z={data:{data:[{id:"deepseek-v4-pro"}]}};'
+        'let Y=z.data.data.filter((j)=>/^(claude|anthropic)/i.test(j.id));'
+        'if(Y.length===0)return}'
+    ),
     "suppress-line-numbers": (
         'function fmt({content:C,startLine:S}){if(!C)return"";'
         'let L=C.split(/\\r?\\n/);return L.map(x=>x).join("\\n")}function next(){}'

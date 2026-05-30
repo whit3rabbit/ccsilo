@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "key": "opencode-go",
+  "label": "OpenCode Go",
+  "description": "Low cost subscription for open coding models",
+  "displayOrder": 65,
+  "baseUrl": "https://opencode.ai/zen/go/v1",
+  "auth": {
+    "mode": "apiKey",
+    "apiKeyLabel": "OpenCode Go API key",
+    "credentialEnv": "OPENCODE_API_KEY"
+  },
+  "models": {
+    "default": "opencode-go/deepseek-v4-pro",
+    "smallFast": "opencode-go/deepseek-v4-flash",
+    "opus": "opencode-go/deepseek-v4-pro",
+    "sonnet": "opencode-go/deepseek-v4-flash",
+    "haiku": "opencode-go/deepseek-v4-flash",
+    "subagent": "",
+    "requiresModelMapping": false
+  },
+  "env": {
+    "API_TIMEOUT_MS": "3000000",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY": "1"
+  },
+  "variant": {
+    "splashStyle": "opencode-go",
+    "noPromptPack": true,
+    "theme": {
+      "id": "dark",
+      "name": "OpenCode Go",
+      "palette": {
+        "base": "#09090b",
+        "surface": "#18181b",
+        "panel": "#27272a",
+        "border": "#3f3f46",
+        "borderStrong": "#52525b",
+        "text": "#fafafa",
+        "textMuted": "#d4d4d8",
+        "textDim": "#71717a",
+        "accent": "#6366f1",
+        "accentSoft": "#818cf8",
+        "accentDeep": "#4f46e5",
+        "blue": "#3b82f6",
+        "green": "#10b981",
+        "red": "#ef4444",
+        "orange": "#f97316",
+        "purple": "#8b5cf6"
+      }
+    },
+    "promptOverlays": {}
+  },
+  "claudeConfig": {
+    "settingsPermissionsDeny": [],
+    "mcpServers": {}
+  },
+  "tui": {
+    "headline": "OpenCode Go",
+    "modelDiscovery": {
+      "enabled": true
+    },
+    "features": [
+      "Low cost subscription ($5/mo first month, then $10/mo)",
+      "Access to GLM, Kimi, MiMo, MiniMax, Qwen, DeepSeek open models",
+      "US, EU, and Singapore stable global hosting"
+    ],
+    "setupLinks": {
+      "subscribe": "https://opencode.ai/zen",
+      "apiKey": "https://opencode.ai/zen",
+      "docs": "https://opencode.ai/docs/go/"
+    },
+    "setupNote": "Subscribe to OpenCode Go on OpenCode Zen, retrieve your API key, and provide OPENCODE_API_KEY."
+  }
+}
