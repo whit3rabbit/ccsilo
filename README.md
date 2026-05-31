@@ -323,6 +323,8 @@ Provider presets configure endpoint environment variables, credentials, optional
 | `lmstudio` | LM Studio | auth token | `LM_API_TOKEN` | Local OpenAI-compatible models through LM Studio. |
 | `omlx` | oMLX | auth token | `OMLX_API_KEY` | Local MLX-powered models through oMLX. |
 | `local-custom` | Custom Local Endpoint | auth token | `LOCAL_LLM_API_KEY` | Custom local Anthropic or OpenAI-compatible endpoint. |
+| `opencode-zen` | OpenCode Zen | API key | `OPENCODE_API_KEY` | OpenCode Zen models through the managed local OpenAI proxy. |
+| `opencode-go` | OpenCode Go | API key | `OPENCODE_API_KEY` | OpenCode Go models through the managed local OpenAI proxy. |
 
 List provider details from the CLI:
 
@@ -332,6 +334,35 @@ ccsilo variant providers --json
 ccsilo variant mcp
 ccsilo variant mcp --provider kimi
 ```
+
+### OpenCode Go And Zen
+
+`opencode-go` and `opencode-zen` are supported through ccsilo's setup-local
+model proxy. Claude Code sends Anthropic Messages requests, while OpenCode's Go
+and Zen APIs expose OpenAI-compatible chat completions, so ccsilo starts the
+proxy in `openai` mode for these providers.
+
+The setup wrapper starts the proxy on `127.0.0.1` with a per-run nonce, points
+`ANTHROPIC_BASE_URL` at that local proxy, passes `OPENCODE_API_KEY` only to the
+proxy process, then removes Claude-facing API key variables before launching
+Claude Code. Gateway model discovery is enabled so Claude Code sees proxy
+advertised model ids such as `anthropic/opencode-go/deepseek-v4-pro` or
+`anthropic/opencode-zen/big-pickle`. The proxy decodes those gateway ids and
+forwards raw OpenCode model ids such as `deepseek-v4-pro`, `deepseek-v4-flash`,
+`big-pickle`, and `deepseek-v4-flash-free` to OpenCode.
+
+```bash
+ccsilo --provider opencode-go install --credential-env OPENCODE_API_KEY --yes
+opencode-go --version
+
+ccsilo --provider opencode-zen install --credential-env OPENCODE_API_KEY --yes
+opencode-zen --version
+```
+
+Do not configure OpenCode by sending Claude Code directly to OpenCode's
+`/v1/messages` bridge or by prefixing backend model ids with `opencode-go/` or
+`opencode/`. The managed proxy owns the Anthropic-to-OpenAI conversion and model
+id translation.
 
 ### CC Router
 
