@@ -257,6 +257,7 @@ def test_model_proxy_routes_backend_and_anthropic_with_expected_auth_and_body_fi
                         "role": "user",
                         "content": [
                             {"type": "thinking", "thinking": "foreign", "signature": "bad"},
+                            {"type": "redacted_thinking", "data": "opaque"},
                             {"type": "text", "text": "work"},
                         ],
                     }
@@ -286,6 +287,7 @@ def test_model_proxy_routes_backend_and_anthropic_with_expected_auth_and_body_fi
                         "role": "assistant",
                         "content": [
                             {"type": "thinking", "thinking": "foreign", "signature": "bad"},
+                            {"type": "redacted_thinking", "data": "opaque"},
                             {"type": "text", "text": "plan"},
                         ],
                     }
@@ -303,6 +305,60 @@ def test_model_proxy_routes_backend_and_anthropic_with_expected_auth_and_body_fi
         thread.join(timeout=2)
         backend.close()
         anthropic.close()
+
+
+def test_model_proxy_preserves_anthropic_thinking_blocks_before_backend_session():
+    def upstream_response(_record):
+        body = json.dumps({"type": "message", "usage": {"input_tokens": 1, "output_tokens": 1}}).encode("utf-8")
+        return 200, {"content-type": "application/json"}, body
+
+    upstream = _RecordingServer(upstream_response)
+    proxy = start_model_proxy(
+        ModelProxyConfig(
+            mode="architect",
+            backend_url=upstream.url,
+            backend_auth="x-api-key",
+            backend_models=("worker-model",),
+            anthropic_models=("claude-opus-4-8",),
+            anthropic_url=upstream.url,
+        ),
+        api_key="backend-key",
+        auth_nonce=NONCE,
+        port=0,
+    )
+    thread = threading.Thread(target=proxy.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        _post_json(
+            f"http://127.0.0.1:{proxy.server_address[1]}/{NONCE}/v1/messages",
+            {
+                "model": "claude-opus-4-8",
+                "messages": [
+                    {
+                        "role": "assistant",
+                        "content": [
+                            {"type": "thinking", "thinking": "", "signature": "sig"},
+                            {"type": "redacted_thinking", "data": "opaque"},
+                            {"type": "thinking", "thinking": "local unsigned"},
+                            {"type": "text", "text": "plan"},
+                        ],
+                    }
+                ],
+            },
+        )
+
+        payload = json.loads(upstream.records[0]["body"].decode("utf-8"))
+        assert payload["messages"][0]["content"] == [
+            {"type": "thinking", "thinking": "", "signature": "sig"},
+            {"type": "redacted_thinking", "data": "opaque"},
+            {"type": "text", "text": "plan"},
+        ]
+    finally:
+        proxy.shutdown()
+        proxy.server_close()
+        thread.join(timeout=2)
+        upstream.close()
 
 
 def test_model_proxy_normalizes_backend_json_usage():

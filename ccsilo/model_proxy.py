@@ -36,6 +36,7 @@ MODEL_PROXY_MODES = {"architect", "openai"}
 BACKEND_FORMAT_ANTHROPIC = "anthropic"
 BACKEND_FORMAT_OPENAI_CHAT = "openai-chat"
 BACKEND_FORMATS = {BACKEND_FORMAT_ANTHROPIC, BACKEND_FORMAT_OPENAI_CHAT}
+THINKING_BLOCK_TYPES = {"thinking", "redacted_thinking"}
 MESSAGES_PATH = "/v1/messages"
 MODELS_PATH = "/v1/models"
 OPENAI_CHAT_COMPLETIONS_PATH = "/chat/completions"
@@ -206,11 +207,15 @@ def strip_all_thinking_blocks(body: Dict) -> None:
     for message in messages:
         if not isinstance(message, dict) or not isinstance(message.get("content"), list):
             continue
-        message["content"] = [
-            block
-            for block in message["content"]
-            if not (isinstance(block, dict) and block.get("type") == "thinking")
-        ]
+        stripped_blocks = []
+        for block in message["content"]:
+            if not isinstance(block, dict) or block.get("type") in THINKING_BLOCK_TYPES:
+                continue
+            if "thinking" in block:
+                block = dict(block)
+                block.pop("thinking", None)
+            stripped_blocks.append(block)
+        message["content"] = stripped_blocks
 
 
 def strip_unsigned_thinking_blocks(body: Dict) -> None:
@@ -482,7 +487,7 @@ def _has_thinking_blocks(messages: List[Any]) -> bool:
         if not isinstance(message, dict) or message.get("role") != "assistant":
             continue
         for block in _anthropic_content_blocks(message.get("content")):
-            if block.get("type") == "thinking":
+            if block.get("type") in THINKING_BLOCK_TYPES:
                 return True
             if block.get("type") == "tool_use" and block.get("thinking"):
                 return True

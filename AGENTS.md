@@ -71,6 +71,53 @@ Anthropic-compatible providers over asking users to select it manually. Do not
 solve this by changing provider prompt overlays or disabling all experimental
 betas unless a concrete version proves that is necessary.
 
+### Opus 4.8 Thinking Blocks
+
+Claude Opus 4.8 uses adaptive thinking, not manual `budget_tokens` extended
+thinking. Its default thinking display is omitted: streaming responses can open
+a `thinking` block, emit only a `signature_delta`, and close the block without
+any `thinking_delta` text. Treat signed empty `thinking` blocks as real
+thinking blocks.
+
+Anthropic can also return `redacted_thinking` blocks. They are opaque encrypted
+thinking content and must be round-tripped unchanged when continuing Claude
+tool-use conversations through an Anthropic-compatible Claude route. If
+`model_proxy.py` intentionally strips thinking before sending history to a
+non-Claude backend or after mixing backend and Claude planner turns, strip both
+`thinking` and `redacted_thinking`; do not forward redacted Anthropic-only
+blocks to unrelated backend providers.
+
+### Z.ai Troubleshooting
+
+When Z.ai quota is exhausted, Claude Code can surface the failure as retrying
+timeouts such as `Retrying in 1s ... API_TIMEOUT_MS=3000000ms` instead of
+showing the upstream reason. The observed upstream shape was `HTTP 200` with an
+SSE `event: error` payload containing `rate_limit_error` code `1310` and a
+weekly/monthly limit reset timestamp.
+
+Use `/v1/messages` for request-path diagnostics; `max_tokens: 1` may consume a
+tiny amount if quota is available:
+
+```bash
+curl -sS -D - \
+  -H "x-api-key: $Z_AI_API_KEY" \
+  -H "anthropic-version: 2023-06-01" \
+  -H "content-type: application/json" \
+  https://api.z.ai/api/anthropic/v1/messages \
+  --data '{"model":"glm-5-turbo","max_tokens":1,"stream":true,"messages":[{"role":"user","content":"hi"}]}'
+```
+
+`/v1/models` only proves auth and model discovery; it does not prove request
+quota is available.
+
+Do not route Z.ai through `model_proxy.py` by default to fix timeout-looking
+quota failures. The current proxy is not a generic Anthropic-compatible gateway
+normalizer: `openai` mode is for OpenAI chat-completions conversion, and
+`architect` mode requires a Claude planner route and does not currently
+normalize Anthropic SSE error events. If a future Claude Code change requires
+proxying Z.ai, implement a narrow Z.ai-specific normalization path with tests
+before changing provider defaults.
+
 ## Commands
 
 Use `.venv/bin/python` from the repository root.
