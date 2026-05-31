@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import shlex
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -428,7 +429,7 @@ def test_create_variant_with_yet_another_statusline_tweak_writes_local_config(tm
     assert "mcp__web_reader__webReader" in settings["permissions"]["deny"]
     assert settings["statusLine"] == {
         "type": "command",
-        "command": f"python3 {command_path}",
+        "command": f"python3 {shlex.quote(str(command_path))}",
     }
     assert command_path.is_file()
     assert os.access(command_path, os.X_OK)
@@ -680,7 +681,7 @@ def test_create_ccrouter_variant_prepares_managed_runtime_and_isolated_config(tm
     assert manifest["env"]["ANTHROPIC_AUTH_TOKEN"] == "global-token"
     assert result.variant.manifest["envUnset"] == ["CLAUDE_CODE_USE_BEDROCK"]
     assert "unset CLAUDE_CODE_USE_BEDROCK" in wrapper
-    assert f"export HOME={ccrouter['homeDir']}" in wrapper
+    assert f"export HOME={shlex.quote(ccrouter['homeDir'])}" in wrapper
     assert "ccr start" in wrapper
     assert "ccr code" not in wrapper
     assert "eval $(" not in wrapper
@@ -1780,7 +1781,7 @@ def test_write_wrapper_can_force_dangerous_skip_permissions(tmp_path):
     wrapper_text = wrapper.read_text(encoding="utf-8")
     proc = subprocess.run([str(wrapper), "--print"], capture_output=True, text=True, check=True)
 
-    assert f"exec {manifest['paths']['binary']} --dangerously-skip-permissions \"$@\"" in wrapper_text
+    assert f"exec {shlex.quote(manifest['paths']['binary'])} --dangerously-skip-permissions \"$@\"" in wrapper_text
     assert "RUN:--dangerously-skip-permissions --print" in proc.stdout
 
 
@@ -2238,8 +2239,8 @@ def test_run_variant_ignores_tampered_manifest_wrapper(tmp_path):
     output = tmp_path / "output.txt"
     variant_dir.mkdir(parents=True)
     canonical_wrapper.parent.mkdir(parents=True)
-    canonical_wrapper.write_text(f"#!/bin/sh\necho canonical > {output}\n", encoding="utf-8")
-    outside_wrapper.write_text(f"#!/bin/sh\necho tampered > {output}\n", encoding="utf-8")
+    canonical_wrapper.write_text(f"#!/bin/sh\necho canonical > {shlex.quote(str(output))}\n", encoding="utf-8")
+    outside_wrapper.write_text(f"#!/bin/sh\necho tampered > {shlex.quote(str(output))}\n", encoding="utf-8")
     canonical_wrapper.chmod(0o755)
     outside_wrapper.chmod(0o755)
     manifest = {

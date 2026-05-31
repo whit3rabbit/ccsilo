@@ -377,7 +377,7 @@ def test_model_proxy_openai_mode_transforms_chat_request_and_response():
     proxy = start_model_proxy(
         ModelProxyConfig(
             mode="openai",
-            backend_url=f"{backend.url}/v1",
+            backend_url=f"{backend.url}/v1/chat/completions",
             backend_auth="bearer",
             backend_format="openai-chat",
             backend_models=("deepseek-v4-flash",),
@@ -438,11 +438,170 @@ def test_model_proxy_openai_mode_transforms_chat_request_and_response():
         backend.close()
 
 
+def test_model_proxy_openai_mode_preserves_upstream_rate_limit_response():
+    def backend_response(_record):
+        body = json.dumps(
+            {
+                "error": {
+                    "type": "rate_limit_error",
+                    "message": "OpenCode quota exhausted",
+                }
+            }
+        ).encode("utf-8")
+        return 429, {"content-type": "application/json", "retry-after": "120"}, body
+
+    backend = _RecordingServer(backend_response)
+    proxy = start_model_proxy(
+        ModelProxyConfig(
+            mode="openai",
+            backend_url=f"{backend.url}/v1/chat/completions",
+            backend_auth="bearer",
+            backend_format="openai-chat",
+            backend_models=("deepseek-v4-flash",),
+            anthropic_models=(),
+        ),
+        api_key="backend-key",
+        auth_nonce=NONCE,
+        port=0,
+    )
+    thread = threading.Thread(target=proxy.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        with pytest.raises(HTTPError) as exc:
+            _post_json(
+                f"http://127.0.0.1:{proxy.server_address[1]}/{NONCE}/v1/messages",
+                {"model": "deepseek-v4-flash", "messages": []},
+            )
+
+        assert exc.value.code == 429
+        assert exc.value.headers.get("Retry-After") == "120"
+        payload = json.loads(exc.value.read().decode("utf-8"))
+        assert payload == {
+            "type": "error",
+            "error": {
+                "type": "rate_limit_error",
+                "message": "OpenCode quota exhausted",
+            },
+        }
+    finally:
+        proxy.shutdown()
+        proxy.server_close()
+        thread.join(timeout=2)
+        backend.close()
+
+
+def test_model_proxy_openai_mode_adds_kimi_tool_call_reasoning_placeholder():
+    def backend_response(_record):
+        body = json.dumps(
+            {
+                "id": "chatcmpl_1",
+                "choices": [{"message": {"role": "assistant", "content": "ok"}, "finish_reason": "stop"}],
+                "usage": {},
+            }
+        ).encode("utf-8")
+        return 200, {"content-type": "application/json"}, body
+
+    backend = _RecordingServer(backend_response)
+    proxy = start_model_proxy(
+        ModelProxyConfig(
+            mode="openai",
+            backend_url=f"{backend.url}/v1",
+            backend_auth="bearer",
+            backend_format="openai-chat",
+            backend_models=("kimi-k2.6",),
+            anthropic_models=(),
+        ),
+        api_key="backend-key",
+        auth_nonce=NONCE,
+        port=0,
+    )
+    thread = threading.Thread(target=proxy.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        _post_json(
+            f"http://127.0.0.1:{proxy.server_address[1]}/{NONCE}/v1/messages",
+            {
+                "model": "kimi-k2.6",
+                "messages": [
+                    {
+                        "role": "assistant",
+                        "content": [
+                            {
+                                "type": "tool_use",
+                                "id": "toolu_1",
+                                "name": "Read",
+                                "input": {"path": "file.py"},
+                            }
+                        ],
+                    }
+                ],
+            },
+        )
+
+        payload = json.loads(backend.records[0]["body"].decode("utf-8"))
+        assert payload["messages"][0]["reasoning_content"] == " "
+    finally:
+        proxy.shutdown()
+        proxy.server_close()
+        thread.join(timeout=2)
+        backend.close()
+
+
+def test_model_proxy_openai_mode_passes_minimax_models_through_anthropic_messages():
+    def backend_response(_record):
+        body = json.dumps({"type": "message", "content": [], "usage": {"input_tokens": 1, "output_tokens": 2}}).encode("utf-8")
+        return 200, {"content-type": "application/json"}, body
+
+    backend = _RecordingServer(backend_response)
+    proxy = start_model_proxy(
+        ModelProxyConfig(
+            mode="openai",
+            backend_url=f"{backend.url}/v1/chat/completions",
+            backend_auth="bearer",
+            backend_format="openai-chat",
+            backend_models=("deepseek-v4-flash",),
+            anthropic_models=(),
+            backend_provider_key="opencode-go",
+            backend_provider_label="OpenCode Go",
+        ),
+        api_key="backend-key",
+        auth_nonce=NONCE,
+        port=0,
+    )
+    thread = threading.Thread(target=proxy.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        raw = _post_json(
+            f"http://127.0.0.1:{proxy.server_address[1]}/{NONCE}/v1/messages",
+            {
+                "model": "anthropic/opencode-go/minimax-m2.5",
+                "messages": [{"role": "user", "content": [{"type": "text", "text": "work"}]}],
+            },
+        )
+
+        assert json.loads(raw.decode("utf-8"))["usage"] == {"input_tokens": 1, "output_tokens": 2}
+        assert backend.records[0]["path"] == "/v1/messages"
+        assert backend.records[0]["headers"]["authorization"] == "Bearer backend-key"
+        payload = json.loads(backend.records[0]["body"].decode("utf-8"))
+        assert payload == {
+            "model": "minimax-m2.5",
+            "messages": [{"role": "user", "content": [{"type": "text", "text": "work"}]}],
+        }
+    finally:
+        proxy.shutdown()
+        proxy.server_close()
+        thread.join(timeout=2)
+        backend.close()
+
+
 def test_model_proxy_openai_mode_transforms_streaming_chat_response():
     def backend_response(_record):
         body = (
             b'data: {"choices":[{"delta":{"reasoning_content":"think"},"finish_reason":null}],"usage":null}\n\n'
-            b'data: {"choices":[{"delta":{"content":"hi"},"finish_reason":"stop"}],"usage":{"completion_tokens":2}}\n\n'
+            b'data: {"choices":[{"delta":{"content":"hi"},"finish_reason":"stop"}],"usage":{"prompt_tokens":100,"completion_tokens":2,"prompt_cache_hit_tokens":60,"prompt_cache_miss_tokens":30}}\n\n'
             b"data: [DONE]\n\n"
         )
         return 200, {"content-type": "text/event-stream"}, body
@@ -474,9 +633,53 @@ def test_model_proxy_openai_mode_transforms_streaming_chat_response():
         assert '"type":"thinking_delta","thinking":"think"' in body
         assert '"type":"text_delta","text":"hi"' in body
         assert '"stop_reason":"end_turn"' in body
+        assert '"input_tokens":10' in body
         assert '"output_tokens":2' in body
+        assert '"cache_creation_input_tokens":30' in body
+        assert '"cache_read_input_tokens":60' in body
         backend_payload = json.loads(backend.records[0]["body"].decode("utf-8"))
         assert backend_payload["stream_options"] == {"include_usage": True}
+    finally:
+        proxy.shutdown()
+        proxy.server_close()
+        thread.join(timeout=2)
+        backend.close()
+
+
+def test_model_proxy_openai_mode_finishes_eof_tool_call_stream_as_tool_use():
+    def backend_response(_record):
+        body = (
+            b'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"toolu_1","function":{"name":"Read","arguments":""}}]}}]}\n\n'
+            b'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\\"path\\":\\"file.py\\"}"}}]}}]}\n\n'
+        )
+        return 200, {"content-type": "text/event-stream"}, body
+
+    backend = _RecordingServer(backend_response)
+    proxy = start_model_proxy(
+        ModelProxyConfig(
+            mode="openai",
+            backend_url=f"{backend.url}/v1",
+            backend_auth="bearer",
+            backend_format="openai-chat",
+            backend_models=("kimi-k2.6",),
+            anthropic_models=(),
+        ),
+        api_key="backend-key",
+        auth_nonce=NONCE,
+        port=0,
+    )
+    thread = threading.Thread(target=proxy.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        raw = _post_json(
+            f"http://127.0.0.1:{proxy.server_address[1]}/{NONCE}/v1/messages",
+            {"model": "kimi-k2.6", "messages": [], "stream": True},
+        )
+        body = raw.decode("utf-8")
+        assert '"type":"tool_use","id":"toolu_1","name":"Read","input":{}' in body
+        assert '"type":"content_block_stop","index":0' in body
+        assert '"stop_reason":"tool_use"' in body
     finally:
         proxy.shutdown()
         proxy.server_close()

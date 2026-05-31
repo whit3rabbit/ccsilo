@@ -301,6 +301,18 @@ def openai_chat_json_to_anthropic(data: bytes, original_model: str) -> bytes:
     return json.dumps(output, separators=(",", ":")).encode("utf-8")
 
 
+def upstream_error_json_to_anthropic(data: bytes, status: int, reason: str = "") -> bytes:
+    message = _upstream_error_message(data) or reason or f"upstream returned HTTP {status}"
+    payload = {
+        "type": "error",
+        "error": {
+            "type": _anthropic_error_type(status),
+            "message": message,
+        },
+    }
+    return json.dumps(payload, separators=(",", ":")).encode("utf-8")
+
+
 def _openai_messages_from_anthropic(body: Dict[str, Any], backend_model: str) -> List[Dict[str, Any]]:
     messages: List[Dict[str, Any]] = []
     system_text = _anthropic_system_text(body.get("system"))
@@ -377,6 +389,8 @@ def _openai_assistant_message(blocks: List[Dict[str, Any]], backend_model: str, 
     if reasoning_content:
         message["reasoning_content"] = reasoning_content
     elif has_thinking and _is_deepseek_model(backend_model):
+        message["reasoning_content"] = " "
+    elif tool_calls and _needs_placeholder_reasoning(backend_model):
         message["reasoning_content"] = " "
     return message
 
@@ -550,11 +564,64 @@ def _is_deepseek_model(model: str) -> bool:
     return str(model or "").startswith("deepseek-")
 
 
+def _needs_placeholder_reasoning(model: str) -> bool:
+    return str(model or "").startswith("kimi-")
+
+
+def _is_anthropic_passthrough_backend_model(model: str) -> bool:
+    return str(model or "").startswith("minimax-")
+
+
 def _int_value(value: Any) -> int:
     try:
         return int(value)
     except (TypeError, ValueError):
         return 0
+
+
+def _openai_usage_to_anthropic_usage(usage: Dict[str, Any]) -> Dict[str, int]:
+    cache_read = _int_value(usage.get("prompt_cache_hit_tokens"))
+    cache_write = _int_value(usage.get("prompt_cache_miss_tokens"))
+    return {
+        "input_tokens": max(0, _int_value(usage.get("prompt_tokens")) - cache_read - cache_write),
+        "output_tokens": _int_value(usage.get("completion_tokens")),
+        "cache_creation_input_tokens": cache_write,
+        "cache_read_input_tokens": cache_read,
+    }
+
+
+def _upstream_error_message(data: bytes) -> str:
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        return ""
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        return text.strip()
+    if not isinstance(payload, dict):
+        return text.strip()
+    error = payload.get("error")
+    if isinstance(error, dict):
+        message = error.get("message")
+        if isinstance(message, str) and message:
+            return message
+    message = payload.get("message")
+    return message if isinstance(message, str) else ""
+
+
+def _anthropic_error_type(status: int) -> str:
+    if status == 400:
+        return "invalid_request_error"
+    if status == 401:
+        return "authentication_error"
+    if status == 403:
+        return "permission_error"
+    if status == 404:
+        return "not_found_error"
+    if status == 429:
+        return "rate_limit_error"
+    return "api_error"
 
 
 def backend_model_for_request(config: ModelProxyConfig, model: str) -> str:
@@ -565,6 +632,12 @@ def backend_model_for_request(config: ModelProxyConfig, model: str) -> str:
         return stripped
     provider_model = _decode_gateway_model(config, model)
     return _strip_context_suffix(provider_model) if provider_model else ""
+
+
+def _backend_format_for_model(config: ModelProxyConfig, backend_model: str) -> str:
+    if config.backend_format == BACKEND_FORMAT_OPENAI_CHAT and _is_anthropic_passthrough_backend_model(backend_model):
+        return BACKEND_FORMAT_ANTHROPIC
+    return config.backend_format
 
 
 def _strip_context_suffix(model: str) -> str:
@@ -775,8 +848,8 @@ class _ModelProxyHandler(BaseHTTPRequestHandler):
         try:
             client_path = self._authorized_client_path()
             body = self._read_body()
-            target_url, use_backend, body, original_model = self._prepare_target(body)
-            self._forward(target_url, use_backend, body, client_path, original_model)
+            target_url, use_backend, body, original_model, backend_format = self._prepare_target(body)
+            self._forward(target_url, use_backend, body, client_path, original_model, backend_format)
         except _ProxyHttpError as exc:
             self._send_json(exc.status, {"error": {"message": exc.message}})
         except Exception as exc:
@@ -851,7 +924,7 @@ class _ModelProxyHandler(BaseHTTPRequestHandler):
             raise _ProxyHttpError(413, "model proxy request body too large")
         return self.rfile.read(length) if length else b""
 
-    def _prepare_target(self, body: bytes) -> Tuple[str, bool, bytes, str]:
+    def _prepare_target(self, body: bytes) -> Tuple[str, bool, bytes, str, str]:
         try:
             parsed_body = json.loads(body.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError):
@@ -870,14 +943,17 @@ class _ModelProxyHandler(BaseHTTPRequestHandler):
 
         if use_backend:
             parsed_body["model"] = backend_model
-            if self.server.config.backend_format == BACKEND_FORMAT_OPENAI_CHAT:
+            backend_format = _backend_format_for_model(self.server.config, backend_model)
+            if backend_format == BACKEND_FORMAT_OPENAI_CHAT:
                 body = anthropic_to_openai_chat_body(parsed_body, backend_model)
+            elif _is_anthropic_passthrough_backend_model(backend_model):
+                body = json.dumps(parsed_body, separators=(",", ":")).encode("utf-8")
             else:
                 strip_all_thinking_blocks(parsed_body)
                 body = json.dumps(parsed_body, separators=(",", ":")).encode("utf-8")
             with self.server.state_lock:
                 self.server.had_backend_session = True
-            return self.server.config.backend_url, True, body, original_model
+            return self.server.config.backend_url, True, body, original_model, backend_format
 
         with self.server.state_lock:
             had_backend_session = self.server.had_backend_session
@@ -886,15 +962,24 @@ class _ModelProxyHandler(BaseHTTPRequestHandler):
         else:
             strip_unsigned_thinking_blocks(parsed_body)
         body = json.dumps(parsed_body, separators=(",", ":")).encode("utf-8")
-        return self.server.config.anthropic_url, False, body, original_model
+        return self.server.config.anthropic_url, False, body, original_model, BACKEND_FORMAT_ANTHROPIC
 
-    def _forward(self, target_url: str, use_backend: bool, body: bytes, client_path: str, original_model: str) -> None:
+    def _forward(
+        self,
+        target_url: str,
+        use_backend: bool,
+        body: bytes,
+        client_path: str,
+        original_model: str,
+        backend_format: str,
+    ) -> None:
         target = urlsplit(target_url)
-        upstream_path = (
-            _upstream_path(target.path, OPENAI_CHAT_COMPLETIONS_PATH)
-            if use_backend and self.server.config.backend_format == BACKEND_FORMAT_OPENAI_CHAT
-            else _upstream_path(target.path, client_path)
-        )
+        if use_backend and backend_format == BACKEND_FORMAT_OPENAI_CHAT:
+            upstream_path = _upstream_path(target.path, OPENAI_CHAT_COMPLETIONS_PATH)
+        elif use_backend and self.server.config.backend_format == BACKEND_FORMAT_OPENAI_CHAT:
+            upstream_path = _upstream_path(_strip_openai_chat_path(target.path), client_path)
+        else:
+            upstream_path = _upstream_path(target.path, client_path)
         headers = _upstream_headers(self.headers.items(), target.netloc)
         if use_backend:
             headers.pop("authorization", None)
@@ -912,7 +997,7 @@ class _ModelProxyHandler(BaseHTTPRequestHandler):
             response = conn.getresponse()
             if "text/event-stream" in response.getheader("content-type", "") and conn.sock is not None:
                 conn.sock.settimeout(min(self.server.config.timeout_ms / 1000, MAX_IDLE_SECONDS))
-            self._relay_response(response, use_backend, body, original_model)
+            self._relay_response(response, use_backend, body, original_model, backend_format)
         finally:
             conn.close()
 
@@ -922,9 +1007,13 @@ class _ModelProxyHandler(BaseHTTPRequestHandler):
         use_backend: bool,
         request_body: bytes,
         original_model: str,
+        backend_format: str,
     ) -> None:
         content_type = response.getheader("content-type", "")
-        backend_format = self.server.config.backend_format if use_backend else BACKEND_FORMAT_ANTHROPIC
+        backend_format = backend_format if use_backend else BACKEND_FORMAT_ANTHROPIC
+        if response.status >= 400:
+            self._relay_upstream_error(response)
+            return
         if backend_format == BACKEND_FORMAT_OPENAI_CHAT and "text/event-stream" in content_type:
             headers = _response_headers(response.getheaders(), omit_content_length=True)
             _set_header(headers, "Content-Type", "text/event-stream")
@@ -953,6 +1042,16 @@ class _ModelProxyHandler(BaseHTTPRequestHandler):
         elif use_backend and "application/json" in content_type:
             raw = normalize_json_body(raw)
         headers = _response_headers(response.getheaders(), content_length=len(raw))
+        self._send_headers(response.status, response.reason, headers)
+        self.wfile.write(raw)
+
+    def _relay_upstream_error(self, response: http.client.HTTPResponse) -> None:
+        raw = response.read(MAX_RESPONSE_BYTES + 1)
+        if len(raw) > MAX_RESPONSE_BYTES:
+            raise _ProxyHttpError(502, "model proxy upstream response body too large")
+        raw = upstream_error_json_to_anthropic(raw, response.status, response.reason)
+        headers = _response_headers(response.getheaders(), content_length=len(raw))
+        _set_header(headers, "Content-Type", "application/json")
         self._send_headers(response.status, response.reason, headers)
         self.wfile.write(raw)
 
@@ -1032,6 +1131,14 @@ def _upstream_path(base_path: str, client_path: str) -> str:
     return full
 
 
+def _strip_openai_chat_path(path: str) -> str:
+    base = (path or "").rstrip("/")
+    suffix = OPENAI_CHAT_COMPLETIONS_PATH
+    if base.endswith(suffix):
+        return base[: -len(suffix)] or "/"
+    return path
+
+
 def _upstream_headers(items, host: str) -> Dict[str, str]:
     headers = {}
     for key, value in items:
@@ -1091,8 +1198,9 @@ class OpenAIChatSseTransformer:
         self.active_index: Optional[int] = None
         self.next_index = 0
         self.tool_blocks: Dict[int, int] = {}
-        self.usage: Dict[str, int] = {"output_tokens": 0}
+        self.usage: Dict[str, int] = _openai_usage_to_anthropic_usage({})
         self.finish_reason = "end_turn"
+        self.seen_finish_reason = False
 
     def feed(self, chunk: bytes) -> Iterable[bytes]:
         yield from self._feed_text(self.decoder.decode(chunk), final=False)
@@ -1170,7 +1278,7 @@ class OpenAIChatSseTransformer:
             )
         usage = payload.get("usage")
         if isinstance(usage, dict):
-            self.usage["output_tokens"] = _int_value(usage.get("completion_tokens"))
+            self.usage = _openai_usage_to_anthropic_usage(usage)
         choices = payload.get("choices")
         if not isinstance(choices, list) or not choices:
             return
@@ -1182,6 +1290,7 @@ class OpenAIChatSseTransformer:
             delta = choice.get("message") if isinstance(choice.get("message"), dict) else {}
         if choice.get("finish_reason"):
             self.finish_reason = _anthropic_stop_reason(choice.get("finish_reason"))
+            self.seen_finish_reason = True
         reasoning = delta.get("reasoning_content")
         if isinstance(reasoning, str) and reasoning:
             yield from self._text_like_delta("thinking", reasoning)
@@ -1281,11 +1390,14 @@ class OpenAIChatSseTransformer:
                 "content_block_stop",
                 {"type": "content_block_stop", "index": block_index},
             )
+        finish_reason = self.finish_reason
+        if not self.seen_finish_reason and self.tool_blocks:
+            finish_reason = "tool_use"
         yield _anthropic_sse(
             "message_delta",
             {
                 "type": "message_delta",
-                "delta": {"stop_reason": self.finish_reason, "stop_sequence": None},
+                "delta": {"stop_reason": finish_reason, "stop_sequence": None},
                 "usage": self.usage,
             },
         )

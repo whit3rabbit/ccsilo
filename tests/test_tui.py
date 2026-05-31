@@ -1,6 +1,7 @@
 import concurrent.futures
 import json
 import os
+import shlex
 import threading
 import time
 from pathlib import Path
@@ -2480,7 +2481,7 @@ def test_setup_manager_run_shortcut_requires_row_then_queues(tmp_path, monkeypat
 def test_run_pending_setup_executes_wrapper(tmp_path):
     output = tmp_path / "ran.txt"
     wrapper = tmp_path / "deepseek-main"
-    wrapper.write_text(f"#!/bin/sh\necho ran > {output}\n", encoding="utf-8")
+    wrapper.write_text(f"#!/bin/sh\necho ran > {shlex.quote(str(output))}\n", encoding="utf-8")
     wrapper.chmod(0o755)
     state = tui.TuiState(
         pending_run_setup_id="deepseek-main",
