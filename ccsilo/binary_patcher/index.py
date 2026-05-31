@@ -58,6 +58,7 @@ NATIVE_REGEX_TWEAK_IDS = {
     "suppress-native-installer-warning",
     "suppress-prompt-caching-warning",
     "suppress-model-launch-notice",
+    "anthropic-sse-error-surfacing",
     "mid-conversation-system-422-fallback",
     "mcp-non-blocking",
     "mcp-batch-size",

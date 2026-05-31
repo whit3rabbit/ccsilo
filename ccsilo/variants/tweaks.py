@@ -33,6 +33,7 @@ GATEWAY_MODEL_DISCOVERY_TWEAK_ID = "gateway-model-discovery"
 GATEWAY_MODEL_DISCOVERY_ENV = "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY"
 OPENCODE_GATEWAY_DISCOVERY_TWEAK_ID = "opencode-gateway-discovery"
 MID_CONVERSATION_SYSTEM_FALLBACK_TWEAK_ID = "mid-conversation-system-422-fallback"
+ANTHROPIC_SSE_ERROR_SURFACING_TWEAK_ID = "anthropic-sse-error-surfacing"
 BOOLEAN_ENV_TWEAKS = {
     GATEWAY_MODEL_DISCOVERY_TWEAK_ID: {
         "name": "Gateway model discovery",
@@ -151,6 +152,7 @@ CURATED_TWEAK_IDS = [
     "hide-ctrl-g-to-edit",
     "suppress-line-numbers",
     "suppress-model-launch-notice",
+    ANTHROPIC_SSE_ERROR_SURFACING_TWEAK_ID,
     MID_CONVERSATION_SYSTEM_FALLBACK_TWEAK_ID,
     "suppress-native-installer-warning",
     "suppress-prompt-caching-warning",
@@ -178,6 +180,7 @@ CURATED_TWEAK_IDS = [
 DASHBOARD_EXCLUDED_TWEAK_IDS = {
     "themes",
     "prompt-overlays",
+    ANTHROPIC_SSE_ERROR_SURFACING_TWEAK_ID,
     MID_CONVERSATION_SYSTEM_FALLBACK_TWEAK_ID,
     OPENCODE_GATEWAY_DISCOVERY_TWEAK_ID,
     "remember-skill",
@@ -237,6 +240,10 @@ def default_tweak_ids_for_provider(provider_key: Optional[str]) -> List[str]:
             MID_CONVERSATION_SYSTEM_FALLBACK_TWEAK_ID,
         )
     if provider_key and provider_key != "mirror":
+        defaults.insert(
+            defaults.index("suppress-model-launch-notice") + 1,
+            ANTHROPIC_SSE_ERROR_SURFACING_TWEAK_ID,
+        )
         defaults.extend(NON_MIRROR_DEFAULT_TWEAK_IDS)
     return _unique_ordered(defaults)
 

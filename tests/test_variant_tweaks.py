@@ -209,6 +209,7 @@ def test_non_mirror_defaults_include_privacy_cache_env_toggles():
     defaults = default_tweak_ids_for_provider("zai")
 
     assert "dangerously-skip-permissions" in defaults
+    assert "anthropic-sse-error-surfacing" in defaults
     assert "mid-conversation-system-422-fallback" in defaults
     assert "disable-telemetry" in defaults
     assert "disable-error-reporting" in defaults
@@ -218,11 +219,13 @@ def test_non_mirror_defaults_include_privacy_cache_env_toggles():
 
     ccr_oauth_defaults = default_tweak_ids_for_provider("ccr-oauth")
     assert "mid-conversation-system-422-fallback" not in ccr_oauth_defaults
+    assert "anthropic-sse-error-surfacing" in ccr_oauth_defaults
     assert "opusplan1m" in ccr_oauth_defaults
     assert "disable-telemetry" in ccr_oauth_defaults
 
     opencode_go_defaults = default_tweak_ids_for_provider("opencode-go")
     assert "mid-conversation-system-422-fallback" not in opencode_go_defaults
+    assert "anthropic-sse-error-surfacing" in opencode_go_defaults
     assert OPENCODE_GATEWAY_DISCOVERY_TWEAK_ID in opencode_go_defaults
     assert "opusplan1m" not in opencode_go_defaults
     assert "gateway-model-discovery" in opencode_go_defaults
@@ -230,10 +233,20 @@ def test_non_mirror_defaults_include_privacy_cache_env_toggles():
 
     opencode_zen_defaults = default_tweak_ids_for_provider("opencode-zen")
     assert "mid-conversation-system-422-fallback" not in opencode_zen_defaults
+    assert "anthropic-sse-error-surfacing" in opencode_zen_defaults
     assert OPENCODE_GATEWAY_DISCOVERY_TWEAK_ID in opencode_zen_defaults
     assert "opusplan1m" not in opencode_zen_defaults
     assert "gateway-model-discovery" in opencode_zen_defaults
     assert "disable-telemetry" in opencode_zen_defaults
+
+    minimax_defaults = default_tweak_ids_for_provider("minimax")
+    assert "anthropic-sse-error-surfacing" in minimax_defaults
+    assert "mid-conversation-system-422-fallback" not in minimax_defaults
+
+    minimax_cn_defaults = default_tweak_ids_for_provider("minimax-cn")
+    assert "anthropic-sse-error-surfacing" in minimax_cn_defaults
+    assert "mid-conversation-system-422-fallback" not in minimax_cn_defaults
+
     assert OPENCODE_GATEWAY_DISCOVERY_TWEAK_ID not in DASHBOARD_TWEAK_IDS
 
 

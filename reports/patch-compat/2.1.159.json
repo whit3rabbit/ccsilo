@@ -3,7 +3,7 @@
     "entryBytes": 15516681,
     "entryModule": "src/entrypoints/cli.js"
   },
-  "generatedAt": "2026-05-31T20:36:25.873669Z",
+  "generatedAt": "2026-05-31T23:13:08.703330Z",
   "ok": true,
   "patches": [
     {
@@ -31,6 +31,18 @@
       "warnings": [
         "patch 'allow-custom-agent-models' not tested against version 2.1.159; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.154']"
       ]
+    },
+    {
+      "detail": "",
+      "group": "system",
+      "id": "anthropic-sse-error-surfacing",
+      "name": "Anthropic SSE error surfacing",
+      "notes": [],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": true,
+      "warnings": []
     },
     {
       "detail": "",
@@ -413,15 +425,16 @@
       "<patched-binary>",
       "--version"
     ],
-    "durationMs": 9973,
+    "durationMs": 9232,
     "exitCode": 0,
     "expectedVersion": "2.1.159",
     "ok": true,
-    "outputSha256": "290b97d3ca2971d1d8c4ac06aea1d0b720109973a7ef5703bafe966e1422a5ae",
+    "outputSha256": "01e9df93a5a3237bc93a0e7f72f8131d51d7637fdf4b3edd8a947dbd753e26a1",
     "patches": {
       "applied": [
         "agents-md",
         "allow-custom-agent-models",
+        "anthropic-sse-error-surfacing",
         "auto-accept-plan-mode",
         "filter-scroll-escape-sequences",
         "hide-ctrl-g-to-edit",
@@ -450,6 +463,7 @@
       "attempted": [
         "agents-md",
         "allow-custom-agent-models",
+        "anthropic-sse-error-surfacing",
         "auto-accept-plan-mode",
         "filter-scroll-escape-sequences",
         "hide-ctrl-g-to-edit",
@@ -515,11 +529,11 @@
     "versionMatched": true
   },
   "summary": {
-    "applied": 26,
+    "applied": 27,
     "failed": 0,
-    "ok": 28,
+    "ok": 29,
     "skipped": 1,
-    "total": 28,
+    "total": 29,
     "unsupported": 1,
     "untested": 25
   },

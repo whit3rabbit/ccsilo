@@ -6,6 +6,7 @@ from . import Patch
 from . import (
     agents_md,
     allow_custom_agent_models,
+    anthropic_sse_error_surfacing,
     auto_accept_plan_mode,
     filter_scroll_escape_sequences,
     hide_ctrl_g,
@@ -36,6 +37,7 @@ from . import (
 REGISTRY: Dict[str, Patch] = {
     agents_md.PATCH.id: agents_md.PATCH,
     allow_custom_agent_models.PATCH.id: allow_custom_agent_models.PATCH,
+    anthropic_sse_error_surfacing.PATCH.id: anthropic_sse_error_surfacing.PATCH,
     auto_accept_plan_mode.PATCH.id: auto_accept_plan_mode.PATCH,
     filter_scroll_escape_sequences.PATCH.id: filter_scroll_escape_sequences.PATCH,
     hide_ctrl_g.PATCH.id: hide_ctrl_g.PATCH,

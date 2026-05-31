@@ -87,13 +87,45 @@ non-Claude backend or after mixing backend and Claude planner turns, strip both
 `thinking` and `redacted_thinking`; do not forward redacted Anthropic-only
 blocks to unrelated backend providers.
 
+### Anthropic-Compatible SSE Errors
+
+Some third-party Anthropic-compatible streaming endpoints can return `HTTP 200`
+with `Content-Type: text/event-stream`, then send a terminal `event: error`
+payload instead of an HTTP error status. Treat this as protocol-compatible but
+provider-hostile to Claude Code's retry UI when the stream is not cleanly
+terminated.
+
+The `anthropic-sse-error-surfacing` patch is built-in provider compatibility.
+It detects Anthropic-style SSE error payloads
+(`{"type":"error","error":{...}}`), emits them as soon as the JSON payload is
+readable, maps known Anthropic error types to status-like API errors, and marks
+that terminal stream error as non-retryable before Claude Code's 429 retry
+watchdog runs. It also treats explicit quota-exhausted, balance-exhausted,
+account-locked, plan-expired, or plan-ineligible Anthropic-compatible 429
+bodies as non-retryable while leaving ordinary transient 429s retryable. Keep
+it provider-generic for
+Anthropic-compatible endpoints such as Z.ai and MiniMax; do not make it a
+Z.ai-branded quota patch.
+
 ### Z.ai Troubleshooting
 
 When Z.ai quota is exhausted, Claude Code can surface the failure as retrying
 timeouts such as `Retrying in 1s ... API_TIMEOUT_MS=3000000ms` instead of
 showing the upstream reason. The observed upstream shape was `HTTP 200` with an
 SSE `event: error` payload containing `rate_limit_error` code `1310` and a
-weekly/monthly limit reset timestamp.
+weekly/monthly limit reset timestamp. Non-streaming requests can instead return
+the same Anthropic error body with an HTTP 429 status.
+
+Z.ai's documented transient 429s include high concurrency, high request
+frequency, rate limit, and high traffic. Keep those retryable. Treat account
+balance exhaustion, account lock/anomaly, daily call limits, package expiry,
+weekly/monthly exhaustion, plan ineligibility, and Fair Use restrictions as
+non-retryable in Claude Code's retry predicate.
+
+MiniMax documents `base_resp.status_code` values on Anthropic-compatible
+responses. Preserve retries for `1002` rate limit, but do not spin on account
+state or quota-like failures such as `1008` insufficient balance and `2056`
+usage limit exceeded.
 
 Use `/v1/messages` for request-path diagnostics; `max_tokens: 1` may consume a
 tiny amount if quota is available:

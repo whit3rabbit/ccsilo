@@ -90,7 +90,7 @@ not upload to PyPI.
 Before publishing to PyPI:
 
 1. Confirm the TestPyPI package installed and ran.
-2. Confirm `pyproject.toml` has the intended version.
+2. Confirm `pyproject.toml` and `ccsilo/_version.py` have the intended version.
 3. Confirm the tag is derived from the same version and points at the intended
    commit.
 

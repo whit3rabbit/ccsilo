@@ -39,7 +39,25 @@ jobs:
         id: project-version
         shell: bash
         run: |
-          version="$(python -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"])')"
+          version="$(
+            python - <<'PY'
+          import pathlib
+          import re
+          import tomllib
+
+          project_version = tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"]
+          version_text = pathlib.Path("ccsilo/_version.py").read_text()
+          match = re.search(r'__version__\s*=\s*"([^"]+)"', version_text)
+          if match is None:
+              raise SystemExit("ccsilo/_version.py does not define __version__")
+          runtime_version = match.group(1)
+          if project_version != runtime_version:
+              raise SystemExit(
+                  f"pyproject.toml version {project_version} does not match ccsilo/_version.py {runtime_version}"
+              )
+          print(project_version)
+          PY
+          )"
           tag="v${version}"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "tag=${tag}" >> "$GITHUB_OUTPUT"

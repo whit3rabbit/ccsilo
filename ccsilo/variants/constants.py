@@ -17,6 +17,7 @@ _NATIVE_REGEX_TWEAKS = (
     "suppress-native-installer-warning",
     "suppress-prompt-caching-warning",
     "suppress-model-launch-notice",
+    "anthropic-sse-error-surfacing",
     "mid-conversation-system-422-fallback",
     "mcp-non-blocking",
 )
