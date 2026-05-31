@@ -45,15 +45,16 @@ def write_variant_config(manifest: Dict) -> None:
     env = dict(manifest.get("env", {}))
     write_json(Path(paths["configDir"]) / "settings.json", {"env": env})
     model_proxy = manifest.get("modelProxy")
-    if isinstance(model_proxy, dict) and model_proxy.get("mode") == "architect":
+    if isinstance(model_proxy, dict) and model_proxy.get("mode") in {"architect", "openai"}:
         runtime_config = {
-            "mode": "architect",
+            "mode": model_proxy["mode"],
             "backendUrl": model_proxy["backendUrl"],
             "backendAuth": model_proxy["backendAuth"],
             "backendModels": list(model_proxy["backendModels"]),
             "anthropicModels": list(model_proxy["anthropicModels"]),
             "anthropicUrl": model_proxy.get("anthropicUrl") or "https://api.anthropic.com",
             "timeoutMs": int(model_proxy.get("timeoutMs") or 600_000),
+            "backendFormat": model_proxy.get("backendFormat") or "anthropic",
         }
         for key in ("backendProviderKey", "backendProviderLabel", "backendModelsUrl"):
             value = model_proxy.get(key)
@@ -66,7 +67,7 @@ def write_variant_config(manifest: Dict) -> None:
     apply_provider_claude_config(
         manifest["provider"]["key"],
         paths["configDir"],
-        auth_bootstrap=not (isinstance(model_proxy, dict) and model_proxy.get("mode") == "architect"),
+        auth_bootstrap=not (isinstance(model_proxy, dict) and model_proxy.get("mode") in {"architect", "openai"}),
         optional_mcp_ids=(manifest.get("mcp") or {}).get("selected", []),
         read_json=read_json,
         write_json=write_json,
@@ -354,7 +355,7 @@ def _managed_ccrouter_config(manifest: Dict) -> Optional[Dict]:
 
 def _model_proxy_config(manifest: Dict) -> Optional[Dict]:
     config = manifest.get("modelProxy")
-    if not isinstance(config, dict) or config.get("mode") != "architect":
+    if not isinstance(config, dict) or config.get("mode") not in {"architect", "openai"}:
         return None
     return config
 
@@ -505,6 +506,11 @@ def _model_proxy_runtime_lines(manifest: Dict, config: Dict) -> list:
     if port == "0":
         port = "auto"
     python = shlex.quote(str(config.get("pythonExecutable") or "python3"))
+    auth_lines = (
+        ["unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN"]
+        if config.get("mode") == "architect"
+        else ['export ANTHROPIC_AUTH_TOKEN="${ANTHROPIC_AUTH_TOKEN:-unused}"', "unset ANTHROPIC_API_KEY"]
+    )
     return [
         'MODEL_PROXY_PID=""',
         "cleanup_model_proxy() {",
@@ -544,7 +550,7 @@ def _model_proxy_runtime_lines(manifest: Dict, config: Dict) -> list:
         'if [ ! -s "$MODEL_PROXY_PORT_FILE" ]; then echo "Model proxy did not start. See $MODEL_PROXY_LOG" >&2; exit 127; fi',
         'MODEL_PROXY_ACTUAL_PORT="$(cat "$MODEL_PROXY_PORT_FILE")"',
         'export ANTHROPIC_BASE_URL="http://127.0.0.1:$MODEL_PROXY_ACTUAL_PORT/$MODEL_PROXY_AUTH_NONCE"',
-        "unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN",
+        *auth_lines,
         'case "${NO_PROXY:-}" in *127.0.0.1*) ;; "") export NO_PROXY=127.0.0.1,localhost ;; *) export NO_PROXY="127.0.0.1,localhost,$NO_PROXY" ;; esac',
     ]
 

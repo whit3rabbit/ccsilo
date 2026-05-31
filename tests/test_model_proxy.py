@@ -126,8 +126,31 @@ def test_model_proxy_load_config_parses_timeout_ms(tmp_path):
     assert config.backend_models_url == "https://backend.example/models"
 
 
+def test_model_proxy_load_config_parses_openai_mode_without_anthropic_models(tmp_path):
+    config_path = tmp_path / "model-proxy.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "mode": "openai",
+                "backendUrl": "https://backend.example/v1",
+                "backendAuth": "bearer",
+                "backendFormat": "openai-chat",
+                "backendModels": ["deepseek-v4-flash"],
+                "anthropicModels": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path)
+
+    assert config.mode == "openai"
+    assert config.backend_format == "openai-chat"
+    assert config.anthropic_models == ()
+
+
 def test_model_proxy_rejects_non_architect_mode():
-    with pytest.raises(ValueError, match="Architect Mode"):
+    with pytest.raises(ValueError, match="architect or openai"):
         start_model_proxy(
             ModelProxyConfig(
                 mode="worker",
@@ -135,6 +158,22 @@ def test_model_proxy_rejects_non_architect_mode():
                 backend_auth="x-api-key",
                 backend_models=("worker-model",),
                 anthropic_models=("claude-opus-4-6",),
+            ),
+            api_key="backend-key",
+            auth_nonce=NONCE,
+        )
+
+
+def test_model_proxy_rejects_openai_mode_without_openai_backend_format():
+    with pytest.raises(ValueError, match="openai mode requires backendFormat openai-chat"):
+        start_model_proxy(
+            ModelProxyConfig(
+                mode="openai",
+                backend_url="https://backend.example/v1",
+                backend_auth="bearer",
+                backend_format="anthropic",
+                backend_models=("deepseek-v4-flash",),
+                anthropic_models=(),
             ),
             api_key="backend-key",
             auth_nonce=NONCE,
@@ -305,6 +344,146 @@ def test_model_proxy_normalizes_backend_json_usage():
         anthropic.close()
 
 
+def test_model_proxy_openai_mode_transforms_chat_request_and_response():
+    def backend_response(_record):
+        body = json.dumps(
+            {
+                "id": "chatcmpl_1",
+                "object": "chat.completion",
+                "model": "deepseek-v4-flash",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": "done",
+                            "reasoning_content": "thinking",
+                        },
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": 12,
+                    "completion_tokens": 3,
+                    "total_tokens": 15,
+                    "prompt_cache_hit_tokens": 2,
+                    "prompt_cache_miss_tokens": 4,
+                },
+            }
+        ).encode("utf-8")
+        return 200, {"content-type": "application/json"}, body
+
+    backend = _RecordingServer(backend_response)
+    proxy = start_model_proxy(
+        ModelProxyConfig(
+            mode="openai",
+            backend_url=f"{backend.url}/v1",
+            backend_auth="bearer",
+            backend_format="openai-chat",
+            backend_models=("deepseek-v4-flash",),
+            anthropic_models=(),
+        ),
+        api_key="backend-key",
+        auth_nonce=NONCE,
+        port=0,
+    )
+    thread = threading.Thread(target=proxy.serve_forever, daemon=True)
+    thread.start()
+    proxy_url = f"http://127.0.0.1:{proxy.server_address[1]}/{NONCE}"
+
+    try:
+        raw = _post_json(
+            f"{proxy_url}/v1/messages",
+            {
+                "model": "deepseek-v4-flash[1m]",
+                "system": [{"type": "text", "text": "sys"}],
+                "max_tokens": 16,
+                "messages": [
+                    {"role": "user", "content": [{"type": "text", "text": "work"}]},
+                ],
+                "tools": [{"name": "Read", "description": "read", "input_schema": {"type": "object"}}],
+                "tool_choice": {"type": "tool", "name": "Read"},
+            },
+            {"authorization": "Bearer oauth-token", "x-api-key": "anthropic-key"},
+        )
+        payload = json.loads(raw.decode("utf-8"))
+
+        assert backend.records[0]["path"] == "/v1/chat/completions"
+        assert backend.records[0]["headers"]["authorization"] == "Bearer backend-key"
+        assert "x-api-key" not in backend.records[0]["headers"]
+        backend_payload = json.loads(backend.records[0]["body"].decode("utf-8"))
+        assert backend_payload["model"] == "deepseek-v4-flash"
+        assert backend_payload["messages"] == [
+            {"role": "system", "content": "sys"},
+            {"role": "user", "content": "work"},
+        ]
+        assert backend_payload["tools"][0]["function"]["name"] == "Read"
+        assert backend_payload["tool_choice"] == {"type": "function", "function": {"name": "Read"}}
+        assert payload["type"] == "message"
+        assert payload["model"] == "deepseek-v4-flash[1m]"
+        assert payload["content"] == [
+            {"type": "thinking", "thinking": "thinking"},
+            {"type": "text", "text": "done"},
+        ]
+        assert payload["usage"] == {
+            "input_tokens": 6,
+            "output_tokens": 3,
+            "cache_creation_input_tokens": 4,
+            "cache_read_input_tokens": 2,
+        }
+    finally:
+        proxy.shutdown()
+        proxy.server_close()
+        thread.join(timeout=2)
+        backend.close()
+
+
+def test_model_proxy_openai_mode_transforms_streaming_chat_response():
+    def backend_response(_record):
+        body = (
+            b'data: {"choices":[{"delta":{"reasoning_content":"think"},"finish_reason":null}],"usage":null}\n\n'
+            b'data: {"choices":[{"delta":{"content":"hi"},"finish_reason":"stop"}],"usage":{"completion_tokens":2}}\n\n'
+            b"data: [DONE]\n\n"
+        )
+        return 200, {"content-type": "text/event-stream"}, body
+
+    backend = _RecordingServer(backend_response)
+    proxy = start_model_proxy(
+        ModelProxyConfig(
+            mode="openai",
+            backend_url=f"{backend.url}/v1",
+            backend_auth="bearer",
+            backend_format="openai-chat",
+            backend_models=("deepseek-v4-flash",),
+            anthropic_models=(),
+        ),
+        api_key="backend-key",
+        auth_nonce=NONCE,
+        port=0,
+    )
+    thread = threading.Thread(target=proxy.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        raw = _post_json(
+            f"http://127.0.0.1:{proxy.server_address[1]}/{NONCE}/v1/messages",
+            {"model": "deepseek-v4-flash", "messages": [], "stream": True},
+        )
+        body = raw.decode("utf-8")
+        assert "event: message_start" in body
+        assert '"type":"thinking_delta","thinking":"think"' in body
+        assert '"type":"text_delta","text":"hi"' in body
+        assert '"stop_reason":"end_turn"' in body
+        assert '"output_tokens":2' in body
+        backend_payload = json.loads(backend.records[0]["body"].decode("utf-8"))
+        assert backend_payload["stream_options"] == {"include_usage": True}
+    finally:
+        proxy.shutdown()
+        proxy.server_close()
+        thread.join(timeout=2)
+        backend.close()
+
+
 def test_model_proxy_lists_configured_and_discovered_models_with_backend_auth():
     def model_list_response(_record):
         body = json.dumps(
@@ -369,6 +548,13 @@ def test_model_proxy_lists_configured_and_discovered_models_with_backend_auth():
         assert options_status == 204
         assert options_body == b""
         assert options_headers["allow"] == "GET, HEAD, OPTIONS"
+
+        retrieve_status, retrieve_raw, _retrieve_headers = _request_response(
+            f"{proxy_url}/v1/models/worker-model?beta=true"
+        )
+        retrieve_payload = json.loads(retrieve_raw.decode("utf-8"))
+        assert retrieve_status == 200
+        assert retrieve_payload["id"] == "worker-model"
     finally:
         proxy.shutdown()
         proxy.server_close()

@@ -11,6 +11,44 @@ Use this repository for research and controlled local patching only. Do not add 
 
 ## Versioned Compatibility Notes
 
+### OpenCode Go / Zen
+
+OpenCode Go and OpenCode Zen should use the managed local `openai` model
+proxy by default. Claude Code speaks Anthropic Messages, while OpenCode's
+DeepSeek and related model routes are OpenAI-compatible chat completions
+underneath. Do not solve OpenCode breakage by sending Claude Code directly to
+OpenCode's `/v1/messages` bridge or by adding `opencode-go/` or `opencode/`
+prefixes to backend API model ids.
+
+OpenCode backend model ids in provider JSON are raw OpenCode API ids such as
+`deepseek-v4-pro`, `deepseek-v4-flash`, `big-pickle`, and
+`deepseek-v4-flash-free`. The local proxy advertises Claude Code-facing
+gateway ids as `anthropic/<provider-key>/<provider-model>` and decodes them
+before forwarding. The wrapper passes `OPENCODE_API_KEY` only to the proxy
+process, the proxy forwards it upstream as bearer auth, and the wrapper unsets
+Claude-facing API key env vars before launching Claude Code.
+
+The local proxy implementation is `ccsilo/model_proxy.py`; provider-specific
+model discovery and gateway-id helpers live under `ccsilo/providers/proxy/`.
+Variant wrappers start the proxy before launching Claude Code, point
+`ANTHROPIC_BASE_URL` at `http://127.0.0.1:<port>/<nonce>`, and stop the proxy
+with the wrapper's exit trap. The proxy is stdlib-only, loopback-only,
+nonce-gated, size/timeout bounded, and scoped to the wrapper lifetime.
+
+Proxy compatibility is deliberately narrow. `mode=architect` supports Claude
+OAuth planner routing plus a backend provider for non-Claude worker models.
+`mode=openai` supports backend-only Anthropic Messages to OpenAI-compatible
+chat-completions conversion, including `/v1/models`, `/v1/models/<id>`,
+non-streaming responses, SSE streaming responses, tool definitions/tool calls,
+basic thinking/reasoning content, and cache-token usage mapping. It is not a
+general-purpose OpenAI gateway and should not grow dependencies or provider SDKs
+without explicit approval.
+
+Keep `opencode-gateway-discovery` as built-in provider compatibility. It must
+expose raw OpenCode and local proxy model-list entries without prefixing them,
+and OpenCode variants should not select `opusplan1m` by default because
+OpenCode does not advertise `[1m]` suffixed model ids.
+
 ### 0.4.8
 
 Claude Code 2.1.154 / Opus 4.8 can emit mid-conversation system messages as
@@ -171,7 +209,7 @@ providers/config.py          -> Claude config merges for settings permissions an
 providers/mcp_catalog.py     -> Optional MCP catalog and plugin recommendations
 providers/model_discovery.py -> OpenAI-compatible model-list fetching
 providers/proxy/             -> Model proxy provider adapters for discovery, gateway ids, and provider quirks
-model_proxy.py               -> Stdlib-only Architect proxy for Claude OAuth planner calls plus one backend provider
+model_proxy.py               -> Stdlib-only local proxy for Architect OAuth routing and OpenAI-compatible backend conversion
 
 variants/                    -> Setup/variant lifecycle, build, install, ccrouter, model updates, wrapper writing
 variants/model.py            -> Variant dataclasses and manifest validation authority
@@ -250,8 +288,9 @@ Important distinctions:
 * Provider auth modes are `apiKey`, `authToken`, and `none`.
 * Provider templates may define model mappings, prompt overlays, themes, denied tools, MCP servers, setup links, TUI metadata, and model discovery.
 * Providers with `tui.modelDiscovery.enabled` must export `CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1` unless a provider intentionally overrides it.
-* Provider-aware model proxy behavior belongs under `providers/proxy/`, not inside registry JSON.
+* Registry JSON may select model proxy mode, backend format, and auth with `modelProxy`, but provider-aware parsing and gateway-id behavior belongs under `providers/proxy/`.
 * Keep `model_proxy.py` stdlib-only. Do not add LiteLLM, FastAPI, httpx, OpenAI SDK, or Pydantic dependencies to the local proxy without explicit approval.
+* The local model proxy supports `architect` mode for Claude OAuth planner routing and `openai` mode for backend-only Anthropic Messages to OpenAI chat-completions conversion. Keep it loopback-only, nonce-gated, bounded, and wrapper-lifetime scoped.
 * The `litellm` provider is an external gateway provider. It assumes the user runs LiteLLM separately and maps Claude Code model tiers to LiteLLM model ids. Do not embed the LiteLLM SDK in ccsilo by default.
 * Variants are addressable by name or id; `variant_id_from_name` derives lower-kebab-case ids.
 * `validate_variant_manifest` is the manifest authority. Do not bypass it.
@@ -259,7 +298,7 @@ Important distinctions:
 * Node runtime wrappers require a Node version with explicit resource management support and allow `NODE=/path/to/node` override.
 * If a Node-runtime setup fails `node-bun-compat`, run `.venv/bin/python -m ccsilo variant apply <name-or-id> --json` instead of hand-editing generated unpacked files.
 * `DEFAULT_TWEAK_IDS` are selected on create. `ENV_TWEAK_IDS` affect wrapper environment rather than patching JS.
-* The OAuth Architect model proxy requires the `gateway-model-discovery` env tweak. Setup flows should keep enabling the proxy and selecting that tweak tied together.
+* The OAuth Architect model proxy requires the `gateway-model-discovery` env tweak. OpenAI-compatible backend proxy setups also need gateway discovery so Claude Code sees proxy-advertised model ids.
 * Model proxy runtime config may include `backendProviderKey`, `backendProviderLabel`, and `backendModelsUrl`. Discovered backend models are advertised as `anthropic/<provider-key>/<provider-model>` and decoded before forwarding.
 * In-place rebuild optimization applies only to supported theme/prompt/env tweak changes; otherwise rebuild from source.
 

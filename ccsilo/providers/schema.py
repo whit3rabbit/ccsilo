@@ -53,6 +53,7 @@ class ProviderTemplate:
     settings_permissions_deny: List[str] = field(default_factory=list)
     mcp_servers: Dict[str, object] = field(default_factory=dict)
     tui: Dict[str, object] = field(default_factory=dict)
+    model_proxy: Dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -81,6 +82,7 @@ TOP_LEVEL_KEYS = {
     "variant",
     "claudeConfig",
     "tui",
+    "modelProxy",
 }
 
 AUTH_KEYS = {
@@ -98,6 +100,7 @@ VARIANT_KEYS = {"defaultVariantName", "splashStyle", "theme", "noPromptPack", "p
 CLAUDE_CONFIG_KEYS = {"settingsPermissionsDeny", "mcpServers"}
 TUI_KEYS = {"headline", "features", "setupLinks", "setupNote", "section", "modelDiscovery"}
 MODEL_DISCOVERY_KEYS = {"enabled"}
+MODEL_PROXY_KEYS = {"mode", "backendFormat", "backendAuth"}
 MCP_SERVER_KEYS = {"type", "command", "args", "env", "url", "headers", "headersHelper", "oauth"}
 MCP_SERVER_TYPES = {"http", "stdio", "sse"}
 
@@ -162,6 +165,19 @@ def provider_from_json(payload: Dict[str, object]) -> ProviderTemplate:
         if _bool(discovery, "enabled"):
             env.setdefault("CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY", "1")
 
+    model_proxy = _object(payload, "modelProxy")
+    _require_keys(model_proxy, MODEL_PROXY_KEYS, f"{key}.modelProxy")
+    if model_proxy:
+        mode = _string(model_proxy, "mode", required=True)
+        if mode not in {"architect", "openai"}:
+            raise ProviderSchemaError(f"{key}.modelProxy.mode must be architect or openai")
+        backend_format = _string(model_proxy, "backendFormat")
+        if backend_format and backend_format not in {"anthropic", "openai-chat"}:
+            raise ProviderSchemaError(f"{key}.modelProxy.backendFormat must be anthropic or openai-chat")
+        backend_auth = _string(model_proxy, "backendAuth")
+        if backend_auth and backend_auth not in {"x-api-key", "bearer"}:
+            raise ProviderSchemaError(f"{key}.modelProxy.backendAuth must be x-api-key or bearer")
+
     credential_env = _optional_string(auth, "credentialEnv")
     if credential_env:
         _env_name(credential_env, f"{key}.auth.credentialEnv")
@@ -190,6 +206,7 @@ def provider_from_json(payload: Dict[str, object]) -> ProviderTemplate:
         settings_permissions_deny=_string_list(claude_config, "settingsPermissionsDeny"),
         mcp_servers=copy.deepcopy(_object(claude_config, "mcpServers")),
         tui=copy.deepcopy(tui),
+        model_proxy=copy.deepcopy(model_proxy),
     )
 
 

@@ -230,7 +230,6 @@ def default_tweak_ids_for_provider(provider_key: Optional[str]) -> List[str]:
         defaults.append("opusplan1m")
     if provider_key in ("opencode-go", "opencode-zen"):
         defaults.append(OPENCODE_GATEWAY_DISCOVERY_TWEAK_ID)
-        defaults.append("opusplan1m")
         defaults.append("gateway-model-discovery")
     if provider_key == "zai":
         defaults.insert(

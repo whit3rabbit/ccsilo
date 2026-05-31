@@ -42,11 +42,11 @@ def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
     replacement = (
         f"let {model_var}=(({PATCHED_MARKER})=>{{"
         f'let ccsiloOpenCodeBase={PATCHED_MARKER}.replace(/\\/+$/,""),'
-        'ccsiloOpenCodePrefix=ccsiloOpenCodeBase==="https://opencode.ai/zen/go/v1"'
-        '?"opencode-go":ccsiloOpenCodeBase==="https://opencode.ai/zen/v1"?"opencode":"";'
-        f"return ccsiloOpenCodePrefix?{parsed_var}.data.data.map(({item_var})=>"
-        f'({{...{item_var},id:{item_var}.id.startsWith(ccsiloOpenCodePrefix+"/")?'
-        f'{item_var}.id:ccsiloOpenCodePrefix+"/"+{item_var}.id,'
+        'ccsiloOpenCodeGateway=ccsiloOpenCodeBase==="https://opencode.ai/zen/go/v1"'
+        '||ccsiloOpenCodeBase==="https://opencode.ai/zen/v1",'
+        'ccsiloLocalModelProxy=/^http:\\/\\/(127\\.0\\.0\\.1|localhost):\\d+\\/[^/]+$/.test(ccsiloOpenCodeBase);'
+        f"return ccsiloOpenCodeGateway||ccsiloLocalModelProxy?{parsed_var}.data.data.map(({item_var})=>"
+        f'({{...{item_var},id:{item_var}.id,'
         f"display_name:{item_var}.display_name||{item_var}.id}})):"
         f"{parsed_var}.data.data.filter(({item_var})=>/^(claude|anthropic)/i.test({item_var}.id));"
         f"}})({base_var});"
@@ -61,5 +61,5 @@ PATCH = Patch(
     versions_supported=">=2.1.0,<3",
     versions_tested=("==2.1.122 || ==2.1.158",),
     apply=_apply,
-    description="Expose OpenCode Go and Zen /v1/models entries in Claude Code gateway model discovery.",
+    description="Expose raw OpenCode Go, Zen, and ccsilo local proxy /v1/models entries in Claude Code gateway model discovery.",
 )

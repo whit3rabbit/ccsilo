@@ -11,11 +11,11 @@
     "credentialEnv": "OPENCODE_API_KEY"
   },
   "models": {
-    "default": "opencode-go/deepseek-v4-pro",
-    "smallFast": "opencode-go/deepseek-v4-flash",
-    "opus": "opencode-go/deepseek-v4-pro",
-    "sonnet": "opencode-go/deepseek-v4-flash",
-    "haiku": "opencode-go/deepseek-v4-flash",
+    "default": "deepseek-v4-pro",
+    "smallFast": "deepseek-v4-flash",
+    "opus": "deepseek-v4-pro",
+    "sonnet": "deepseek-v4-flash",
+    "haiku": "deepseek-v4-flash",
     "subagent": "",
     "requiresModelMapping": false
   },
@@ -23,6 +23,11 @@
     "API_TIMEOUT_MS": "3000000",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
     "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY": "1"
+  },
+  "modelProxy": {
+    "mode": "openai",
+    "backendFormat": "openai-chat",
+    "backendAuth": "bearer"
   },
   "variant": {
     "splashStyle": "opencode-go",

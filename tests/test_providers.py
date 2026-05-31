@@ -238,6 +238,29 @@ def test_provider_schema_model_discovery_sets_gateway_env_unless_explicit():
     assert provider.env["CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY"] == "0"
 
 
+def test_provider_schema_accepts_openai_model_proxy_defaults():
+    payload = _minimal_provider_payload({})
+    payload["auth"] = {
+        "mode": "apiKey",
+        "apiKeyLabel": "Test key",
+        "credentialEnv": "TEST_API_KEY",
+    }
+    payload["baseUrl"] = "https://backend.example/v1"
+    payload["modelProxy"] = {
+        "mode": "openai",
+        "backendFormat": "openai-chat",
+        "backendAuth": "bearer",
+    }
+
+    provider = provider_from_json(payload)
+
+    assert provider.model_proxy == {
+        "mode": "openai",
+        "backendFormat": "openai-chat",
+        "backendAuth": "bearer",
+    }
+
+
 def test_model_discovery_providers_export_gateway_env():
     providers = [
         provider
@@ -471,22 +494,32 @@ def test_ported_provider_defaults_match_cc_mirror_update():
     assert router.env["ANTHROPIC_DEFAULT_OPUS_MODEL"] == "premium-coding"
 
     opencode_go = build_provider_env("opencode-go")
+    assert get_provider("opencode-go").model_proxy == {
+        "mode": "openai",
+        "backendFormat": "openai-chat",
+        "backendAuth": "bearer",
+    }
     assert opencode_go.credential == {
         "mode": "env",
         "source": "OPENCODE_API_KEY",
         "targets": ["ANTHROPIC_API_KEY", "OPENCODE_API_KEY"],
     }
     assert opencode_go.env["ANTHROPIC_BASE_URL"] == "https://opencode.ai/zen/go/v1"
-    assert opencode_go.env["ANTHROPIC_MODEL"] == "opencode-go/deepseek-v4-pro"
+    assert opencode_go.env["ANTHROPIC_MODEL"] == "deepseek-v4-pro"
 
     opencode_zen = build_provider_env("opencode-zen")
+    assert get_provider("opencode-zen").model_proxy == {
+        "mode": "openai",
+        "backendFormat": "openai-chat",
+        "backendAuth": "bearer",
+    }
     assert opencode_zen.credential == {
         "mode": "env",
         "source": "OPENCODE_API_KEY",
         "targets": ["ANTHROPIC_API_KEY", "OPENCODE_API_KEY"],
     }
     assert opencode_zen.env["ANTHROPIC_BASE_URL"] == "https://opencode.ai/zen/v1"
-    assert opencode_zen.env["ANTHROPIC_MODEL"] == "opencode/big-pickle"
+    assert opencode_zen.env["ANTHROPIC_MODEL"] == "big-pickle"
 
 
 

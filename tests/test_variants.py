@@ -1148,6 +1148,7 @@ def test_create_model_proxy_architect_variant_uses_oauth_safe_env(tmp_path):
         "backendAuth": "x-api-key",
         "backendModels": ["deepseek-v4-flash"],
         "backendUrl": "https://api.deepseek.com/anthropic",
+        "backendFormat": "anthropic",
         "backendProviderKey": "deepseek",
         "backendProviderLabel": "DeepSeek",
         "anthropicModels": ["claude-opus-4-6"],
@@ -1165,6 +1166,75 @@ def test_create_model_proxy_architect_variant_uses_oauth_safe_env(tmp_path):
     assert doctor_checks["model-proxy-config"]["ok"] is True
     assert doctor_checks["model-proxy-python"]["ok"] is True
     assert doctor_checks["model-proxy-nonce-wrapper"]["ok"] is True
+
+
+@pytest.mark.parametrize(
+    ("provider_key", "name", "base_url", "default_model", "fast_model"),
+    [
+        (
+            "opencode-go",
+            "OpenCode Go",
+            "https://opencode.ai/zen/go/v1",
+            "deepseek-v4-pro",
+            "deepseek-v4-flash",
+        ),
+        (
+            "opencode-zen",
+            "OpenCode Zen",
+            "https://opencode.ai/zen/v1",
+            "big-pickle",
+            "deepseek-v4-flash-free",
+        ),
+    ],
+)
+def test_create_opencode_defaults_to_openai_model_proxy(
+    tmp_path,
+    provider_key,
+    name,
+    base_url,
+    default_model,
+    fast_model,
+):
+    root = tmp_path / ".ccsilo"
+    artifact = write_source_artifact(tmp_path)
+
+    result = create_variant(
+        name=name,
+        provider_key=provider_key,
+        credential_env="OPENCODE_API_KEY",
+        tweaks=["themes"],
+        root=root,
+        source_artifact=artifact,
+        force=True,
+    )
+
+    manifest = result.variant.manifest
+    model_proxy = manifest["modelProxy"]
+    wrapper = result.wrapper_path.read_text(encoding="utf-8")
+    proxy_config = json.loads(Path(model_proxy["runtimeConfigPath"]).read_text(encoding="utf-8"))
+
+    assert model_proxy["mode"] == "openai"
+    assert model_proxy["backendUrl"] == base_url
+    assert model_proxy["backendAuth"] == "bearer"
+    assert model_proxy["backendFormat"] == "openai-chat"
+    assert model_proxy["credentialEnv"] == "OPENCODE_API_KEY"
+    assert model_proxy["backendProviderKey"] == provider_key
+    assert model_proxy["backendProviderLabel"] == name
+    assert model_proxy["backendModelsUrl"] == f"{base_url}/models"
+    assert model_proxy["backendModels"] == [default_model, fast_model]
+    assert model_proxy["anthropicModels"] == []
+    assert manifest["credential"] == {"mode": "env", "source": "OPENCODE_API_KEY", "targets": []}
+    assert "ANTHROPIC_BASE_URL" not in manifest["env"]
+    assert "ANTHROPIC_API_KEY" not in manifest["env"]
+    assert manifest["env"]["ANTHROPIC_MODEL"] == f"anthropic/{provider_key}/{default_model}"
+    assert manifest["env"]["ANTHROPIC_SMALL_FAST_MODEL"] == f"anthropic/{provider_key}/{fast_model}"
+    assert manifest["env"][GATEWAY_MODEL_DISCOVERY_ENV] == "1"
+    assert proxy_config["mode"] == "openai"
+    assert proxy_config["backendFormat"] == "openai-chat"
+    assert proxy_config["backendAuth"] == "bearer"
+    assert proxy_config["anthropicModels"] == []
+    assert 'export ANTHROPIC_AUTH_TOKEN="${ANTHROPIC_AUTH_TOKEN:-unused}"' in wrapper
+    assert "unset ANTHROPIC_API_KEY" in wrapper
 
 
 def test_model_proxy_doctor_fails_when_wrapper_lacks_nonce(tmp_path):

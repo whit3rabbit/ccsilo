@@ -14,8 +14,10 @@ def test_synthetic_applies(cli_js_synthetic):
     assert "ccsiloOpenCodeGatewayModels" in outcome.js
     assert "https://opencode.ai/zen/go/v1" in outcome.js
     assert "https://opencode.ai/zen/v1" in outcome.js
-    assert '"opencode-go"' in outcome.js
-    assert '"opencode"' in outcome.js
+    assert "ccsiloLocalModelProxy" in outcome.js
+    assert "id:j.id" in outcome.js
+    assert '"opencode-go/"' not in outcome.js
+    assert '"opencode/"' not in outcome.js
     assert "display_name:j.display_name||j.id" in outcome.js
     assert "filter((j)=>/^(claude|anthropic)/i.test(j.id))" in outcome.js
 

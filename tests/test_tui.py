@@ -1715,7 +1715,7 @@ def test_ccr_oauth_provider_defaults_to_architect_proxy_and_tweak():
     assert "gateway-model-discovery" in state.selected_variant_tweaks
 
 
-def test_variants_wizard_opencode_defaults_use_direct_architect_mode_without_proxy():
+def test_variants_wizard_opencode_defaults_use_gateway_discovery_without_architect_mode():
     provider = {
         "key": "opencode-go",
         "label": "OpenCode Go",
@@ -1726,10 +1726,10 @@ def test_variants_wizard_opencode_defaults_use_direct_architect_mode_without_pro
         "baseUrl": "https://opencode.ai/zen/go/v1",
         "requiresModelMapping": False,
         "models": {
-            "default": "opencode-go/deepseek-v4-pro",
-            "opus": "opencode-go/deepseek-v4-pro",
-            "sonnet": "opencode-go/deepseek-v4-flash",
-            "haiku": "opencode-go/deepseek-v4-flash",
+            "default": "deepseek-v4-pro",
+            "opus": "deepseek-v4-pro",
+            "sonnet": "deepseek-v4-flash",
+            "haiku": "deepseek-v4-flash",
         },
         "modelDiscovery": {"enabled": True},
         "defaultVariantName": "opencode-go",
@@ -1746,10 +1746,10 @@ def test_variants_wizard_opencode_defaults_use_direct_architect_mode_without_pro
 
     assert state.variant_model_proxy == ""
     assert "opencode-gateway-discovery" in state.selected_variant_tweaks
-    assert "opusplan1m" in state.selected_variant_tweaks
+    assert "opusplan1m" not in state.selected_variant_tweaks
     assert "gateway-model-discovery" in state.selected_variant_tweaks
     assert "[x] OpenCode gateway discovery  (opencode-gateway-discovery)" in labels
-    assert "[x] Architect Mode  (model picker alias, no Claude OAuth)" in labels
+    assert "[ ] Architect Mode  (model picker alias, no Claude OAuth)" in labels
     assert "[ ] OAuth architect proxy  (requires Claude Code account)" in labels
     assert "Model proxy port: auto" not in labels
 

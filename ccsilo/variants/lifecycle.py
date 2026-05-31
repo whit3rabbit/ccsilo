@@ -9,6 +9,7 @@ from typing import Dict, Iterable, List, Optional
 from ..binary_patcher.bun_compat import has_bun_node_compat
 from .._utils import require_env_name, safe_read_json as _safe_read_json, utc_now as _utc_now
 from ..providers import build_provider_env, get_provider, normalize_mcp_ids, provider_default_variant_name, provider_models_url
+from ..providers.proxy import gateway_model_id
 from ..workspace import NativeArtifact, SEMVER_RE, import_local_native_binary, read_json, workspace_root
 from .builder import patch_refs_for_profile as _patch_refs_for_profile
 from .constants import VARIANT_METADATA
@@ -227,10 +228,13 @@ def _model_proxy_for_create(
     api_key: Optional[str],
     model_overrides: Dict[str, str],
 ):
+    provider_proxy = dict(getattr(provider, "model_proxy", {}) or {})
+    if model_proxy in (None, ""):
+        model_proxy = str(provider_proxy.get("mode") or "").strip()
     if model_proxy in (None, ""):
         return None, dict(provider_env.env), dict(provider_env.credential), dict(provider_env.secret_env)
-    if model_proxy != "architect":
-        raise ValueError("model proxy must be architect; this proxy is only for Architect Mode setups")
+    if model_proxy not in {"architect", "openai"}:
+        raise ValueError("model proxy must be architect or openai")
     if provider.auth_mode == "none":
         raise ValueError(f"{provider.label} cannot use a model proxy because it has no backend credentials")
 
@@ -239,18 +243,28 @@ def _model_proxy_for_create(
         raise ValueError(f"{provider.label} model proxy requires ANTHROPIC_BASE_URL or --base-url")
     source_env = _model_proxy_credential_source(provider, provider_env)
     credential, secret_env = _model_proxy_credential(provider_env, source_env, api_key=api_key)
-    safe_env = _model_proxy_safe_env(provider_env.env, model_overrides)
+    safe_env = _model_proxy_safe_env(provider_env.env, model_overrides, mode=model_proxy)
+    backend_format = str(provider_proxy.get("backendFormat") or "").strip()
+    if not backend_format:
+        backend_format = "openai-chat" if model_proxy == "openai" else "anthropic"
+    backend_auth = str(provider_proxy.get("backendAuth") or "").strip()
+    if not backend_auth:
+        backend_auth = "bearer" if provider.auth_mode == "authToken" else "x-api-key"
+    route_models = _model_proxy_route_models(safe_env, require_anthropic=model_proxy == "architect")
+    if model_proxy == "openai" and provider.key:
+        _gateway_prefix_backend_env_models(safe_env, provider.key, route_models["backendModels"])
     payload = {
-        "mode": "architect",
+        "mode": model_proxy,
         "port": _model_proxy_port(model_proxy_port),
         "backendUrl": backend_url,
-        "backendAuth": "bearer" if provider.auth_mode == "authToken" else "x-api-key",
+        "backendAuth": backend_auth,
+        "backendFormat": backend_format,
         "credentialEnv": source_env,
         "anthropicUrl": "https://api.anthropic.com",
         "timeoutMs": _model_proxy_timeout_ms(safe_env.get("API_TIMEOUT_MS")),
         "backendProviderKey": provider.key,
         "backendProviderLabel": provider.label,
-        **_model_proxy_route_models(safe_env),
+        **route_models,
     }
     if _provider_model_discovery_enabled(provider):
         payload["backendModelsUrl"] = provider_models_url(backend_url)
@@ -296,22 +310,23 @@ def _model_proxy_credential(provider_env, source_env: str, *, api_key: Optional[
     raise ValueError("model proxy requires backend credentials or a credential env var")
 
 
-def _model_proxy_safe_env(env: Dict[str, str], model_overrides: Dict[str, str]) -> Dict[str, str]:
+def _model_proxy_safe_env(env: Dict[str, str], model_overrides: Dict[str, str], *, mode: str) -> Dict[str, str]:
     safe_env = {
         key: value
         for key, value in dict(env).items()
         if key not in _MODEL_PROXY_AUTH_ENV
     }
-    opus_override = str(model_overrides.get("opus") or "").strip()
-    if not opus_override:
-        raise ValueError("--model-opus must be set to a claude-* planner model when --model-proxy architect is used")
-    if not opus_override.startswith("claude-"):
-        raise ValueError("--model-opus must be a claude-* model when --model-proxy architect is used")
-    default_override = str(model_overrides.get("default") or "").strip()
-    if not default_override:
-        worker_default = safe_env.get("ANTHROPIC_DEFAULT_SONNET_MODEL") or safe_env.get("ANTHROPIC_DEFAULT_HAIKU_MODEL")
-        if worker_default:
-            safe_env["ANTHROPIC_MODEL"] = worker_default
+    if mode == "architect":
+        opus_override = str(model_overrides.get("opus") or "").strip()
+        if not opus_override:
+            raise ValueError("--model-opus must be set to a claude-* planner model when --model-proxy architect is used")
+        if not opus_override.startswith("claude-"):
+            raise ValueError("--model-opus must be a claude-* model when --model-proxy architect is used")
+        default_override = str(model_overrides.get("default") or "").strip()
+        if not default_override:
+            worker_default = safe_env.get("ANTHROPIC_DEFAULT_SONNET_MODEL") or safe_env.get("ANTHROPIC_DEFAULT_HAIKU_MODEL")
+            if worker_default:
+                safe_env["ANTHROPIC_MODEL"] = worker_default
     safe_env[GATEWAY_MODEL_DISCOVERY_ENV] = "1"
     return safe_env
 
@@ -331,7 +346,7 @@ def _tweak_sort_index(tweak_id: str) -> int:
         return len(CURATED_TWEAK_IDS)
 
 
-def _model_proxy_route_models(env: Dict[str, str]) -> Dict[str, List[str]]:
+def _model_proxy_route_models(env: Dict[str, str], *, require_anthropic: bool) -> Dict[str, List[str]]:
     backend_models: List[str] = []
     anthropic_models: List[str] = []
     for key in (
@@ -349,9 +364,23 @@ def _model_proxy_route_models(env: Dict[str, str]) -> Dict[str, List[str]]:
             target.append(model)
     if not backend_models:
         raise ValueError("--model-proxy architect requires at least one non-claude worker model")
-    if not anthropic_models:
+    if require_anthropic and not anthropic_models:
         raise ValueError("--model-proxy architect requires at least one claude-* planner model")
     return {"backendModels": backend_models, "anthropicModels": anthropic_models}
+
+
+def _gateway_prefix_backend_env_models(env: Dict[str, str], provider_key: str, backend_models: List[str]) -> None:
+    backend_set = set(backend_models)
+    for key in (
+        "ANTHROPIC_MODEL",
+        "ANTHROPIC_SMALL_FAST_MODEL",
+        "ANTHROPIC_DEFAULT_OPUS_MODEL",
+        "ANTHROPIC_DEFAULT_SONNET_MODEL",
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL",
+    ):
+        model = str(env.get(key) or "").strip()
+        if model and model in backend_set:
+            env[key] = gateway_model_id(provider_key, model)
 
 
 def _model_proxy_port(value: Optional[object]):

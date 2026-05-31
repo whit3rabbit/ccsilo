@@ -168,8 +168,8 @@ def _build_variant_subcommands(subparsers):
     )
     create.add_argument(
         "--model-proxy",
-        choices=["architect"],
-        help="Start the managed architect-only local model proxy; requires a Claude Code account",
+        choices=["architect", "openai"],
+        help="Start the managed local model proxy",
     )
     create.add_argument("--model-proxy-port", default="auto", help="Managed model proxy port or auto")
     create.add_argument("--json", action="store_true", help="Print machine-readable JSON")

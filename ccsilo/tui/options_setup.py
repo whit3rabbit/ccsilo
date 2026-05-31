@@ -242,13 +242,20 @@ def setup_detail_lines(state):
         ])
     model_proxy = manifest.get("modelProxy")
     if isinstance(model_proxy, dict):
-        lines.extend([
-            "Model proxy: OAuth architect proxy (CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1)",
-            "Model proxy requirement: Requires Claude Code account/login",
-            "Model proxy account: claude-* requests use Claude Code OAuth/session",
-            "Model proxy routing: non-Claude model aliases use the provider backend",
-            f"Model proxy backend: {model_proxy.get('backendUrl') or '(not set)'}",
-        ])
+        if model_proxy.get("mode") == "openai":
+            lines.extend([
+                "Model proxy: OpenAI-compatible backend proxy (CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1)",
+                "Model proxy routing: Anthropic Messages requests are converted to OpenAI chat completions",
+                f"Model proxy backend: {model_proxy.get('backendUrl') or '(not set)'}",
+            ])
+        else:
+            lines.extend([
+                "Model proxy: OAuth architect proxy (CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1)",
+                "Model proxy requirement: Requires Claude Code account/login",
+                "Model proxy account: claude-* requests use Claude Code OAuth/session",
+                "Model proxy routing: non-Claude model aliases use the provider backend",
+                f"Model proxy backend: {model_proxy.get('backendUrl') or '(not set)'}",
+            ])
     return lines
 
 

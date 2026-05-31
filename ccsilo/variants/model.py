@@ -156,8 +156,9 @@ def validate_variant_manifest(manifest: Dict) -> None:
     if model_proxy is not None:
         if not isinstance(model_proxy, dict):
             raise ValueError("variant modelProxy must be an object")
-        if model_proxy.get("mode") != "architect":
-            raise ValueError("variant modelProxy.mode must be architect")
+        mode = model_proxy.get("mode")
+        if mode not in {"architect", "openai"}:
+            raise ValueError("variant modelProxy.mode must be architect or openai")
         port = model_proxy.get("port", "auto")
         if port != "auto" and (not isinstance(port, int) or port < 1 or port > 65535):
             raise ValueError("variant modelProxy.port must be auto or an integer between 1 and 65535")
@@ -165,6 +166,11 @@ def validate_variant_manifest(manifest: Dict) -> None:
             raise ValueError("variant modelProxy.backendUrl must be a non-empty string")
         if model_proxy.get("backendAuth") not in {"x-api-key", "bearer"}:
             raise ValueError("variant modelProxy.backendAuth must be x-api-key or bearer")
+        backend_format = model_proxy.get("backendFormat", "anthropic")
+        if backend_format not in {"anthropic", "openai-chat"}:
+            raise ValueError("variant modelProxy.backendFormat must be anthropic or openai-chat")
+        if mode == "openai" and backend_format != "openai-chat":
+            raise ValueError("variant modelProxy openai mode requires backendFormat openai-chat")
         timeout_ms = model_proxy.get("timeoutMs")
         if timeout_ms is not None and (not isinstance(timeout_ms, int) or timeout_ms < 1):
             raise ValueError("variant modelProxy.timeoutMs must be a positive integer")
@@ -175,13 +181,15 @@ def validate_variant_manifest(manifest: Dict) -> None:
         require_env_name(model_proxy["credentialEnv"], label="variant modelProxy.credentialEnv")
         for field in ("backendModels", "anthropicModels"):
             values = model_proxy.get(field)
-            if not isinstance(values, list) or not values:
+            if not isinstance(values, list) or (field == "backendModels" and not values):
                 raise ValueError(f"variant modelProxy.{field} must be a non-empty list")
             for value in values:
                 if not isinstance(value, str) or not value.strip():
                     raise ValueError(f"variant modelProxy.{field} must contain non-empty strings")
         if set(model_proxy["backendModels"]) & set(model_proxy["anthropicModels"]):
             raise ValueError("variant modelProxy backendModels and anthropicModels must not overlap")
+        if mode == "architect" and not model_proxy["anthropicModels"]:
+            raise ValueError("variant modelProxy.anthropicModels must be a non-empty list")
         for value in model_proxy["anthropicModels"]:
             if not value.startswith("claude-"):
                 raise ValueError("variant modelProxy.anthropicModels must contain claude-* models")
@@ -193,6 +201,7 @@ def validate_variant_manifest(manifest: Dict) -> None:
             "backendProviderKey",
             "backendProviderLabel",
             "backendModelsUrl",
+            "backendFormat",
         ):
             value = model_proxy.get(field)
             if value is not None and not isinstance(value, str):

@@ -11,11 +11,11 @@
     "credentialEnv": "OPENCODE_API_KEY"
   },
   "models": {
-    "default": "opencode/big-pickle",
-    "smallFast": "opencode/deepseek-v4-flash-free",
-    "opus": "opencode/big-pickle",
-    "sonnet": "opencode/deepseek-v4-flash-free",
-    "haiku": "opencode/deepseek-v4-flash-free",
+    "default": "big-pickle",
+    "smallFast": "deepseek-v4-flash-free",
+    "opus": "big-pickle",
+    "sonnet": "deepseek-v4-flash-free",
+    "haiku": "deepseek-v4-flash-free",
     "subagent": "",
     "requiresModelMapping": false
   },
@@ -23,6 +23,11 @@
     "API_TIMEOUT_MS": "3000000",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
     "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY": "1"
+  },
+  "modelProxy": {
+    "mode": "openai",
+    "backendFormat": "openai-chat",
+    "backendAuth": "bearer"
   },
   "variant": {
     "splashStyle": "opencode-zen",
