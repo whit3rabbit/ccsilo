@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from urllib.error import HTTPError
 
 import pytest
 
@@ -212,7 +213,11 @@ class TestDownloadBinary:
 
 
 class TestListAvailableBinaryVersions:
+    def teardown_method(self):
+        list_available_binary_versions.cache_clear()
+
     def test_list_available_binary_versions_paginates_and_sorts(self):
+        list_available_binary_versions.cache_clear()
         pages = [
             {
                 "prefixes": [
@@ -239,6 +244,24 @@ class TestListAvailableBinaryVersions:
 
         urls = [call.args[0] for call in mock_fetch.call_args_list]
         assert "pageToken=page-2" in urls[1]
+
+    def test_list_available_binary_versions_falls_back_to_npm_when_gcs_list_denied(self):
+        list_available_binary_versions.cache_clear()
+
+        def fetch_denied(_url):
+            try:
+                raise HTTPError(_url, 403, "Forbidden", {}, None)
+            except HTTPError as exc:
+                raise RuntimeError(f"Failed to fetch {_url}: {exc}") from exc
+
+        with patch("ccsilo.downloader.fetch_json", side_effect=fetch_denied), \
+             patch(
+                 "ccsilo.downloader.list_available_npm_versions",
+                 return_value=["2.1.10", "2.1.2"],
+             ) as mock_npm:
+            assert list_available_binary_versions() == ["2.1.10", "2.1.2"]
+
+        mock_npm.assert_called_once_with()
 
 
 class TestResolveRequestedVersion:

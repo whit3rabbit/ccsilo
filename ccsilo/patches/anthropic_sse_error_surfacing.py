@@ -116,7 +116,7 @@ PATCH = Patch(
     name="Anthropic SSE error surfacing",
     group="system",
     versions_supported=">=2.0.0,<3",
-    versions_tested=(*DEFAULT_VERSION_RANGES, "==2.1.159"),
+    versions_tested=DEFAULT_VERSION_RANGES,
     apply=_apply,
     on_miss="skip",
     description=(

@@ -34,6 +34,15 @@ def test_notice_object_anchor_disables_warning():
     assert "Prompt caching disabled via" in outcome.js
 
 
+def test_warning_tier_notice_object_anchor_disables_warning():
+    js = _NOTICE_OBJECT_JS.replace('tier:"critical"', 'tier:"warning"')
+    outcome = PATCH.apply(js, PatchContext(claude_version="2.1.160"))
+
+    assert outcome.status == "applied"
+    assert 'isActive:()=>false/*ccsilo:suppress-prompt-caching-warning*/' in outcome.js
+    assert "Prompt caching disabled via" in outcome.js
+
+
 def test_idempotent(cli_js_synthetic):
     js = cli_js_synthetic("suppress-prompt-caching-warning")
     once = PATCH.apply(js, PatchContext(claude_version=None))

@@ -9,7 +9,7 @@ from ._pinned_default import DEFAULT_VERSION_RANGES
 _MARKER = "ccsilo:mid-conversation-system-422-fallback"
 _FALLBACK_RE = re.compile(
     r'(function\s+[$\w]+\(([$\w]+)\)\{'
-    r'if\(![$\w]+\)return!1;'
+    r'(?:if\(![$\w]+\)return!1;)?'
     r'if\(!\(\2 instanceof [$\w]+\)\|\|\2\.status!==400\)return!1;'
     r'let ([$\w]+)=\2\.message;'
     r'if\(\3\.includes\([$\w]+\.header\)&&\3\.includes\("anthropic-beta"\)\)return!0;'

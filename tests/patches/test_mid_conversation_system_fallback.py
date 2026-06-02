@@ -50,6 +50,21 @@ def test_synthetic_zai_422_rejection_falls_back(cli_js_synthetic, tmp_path):
     assert result.returncode == 0, result.stderr or result.stdout
 
 
+def test_synthetic_applies_without_feature_guard():
+    js = (
+        'class oq extends Error{}let Tr={header:"mid-conversation-system-2026-04-07"};'
+        'function FW8(H){if(!(H instanceof oq)||H.status!==400)return!1;'
+        'let _=H.message;if(_.includes(Tr.header)&&_.includes("anthropic-beta"))return!0;'
+        'if(_.includes("Unexpected role")&&_.includes("input message role"))return!0;'
+        'return _.includes("not supported")&&/role .{0,2}system/i.test(_)}'
+    )
+    outcome = PATCH.apply(js, PatchContext(claude_version="2.1.160"))
+
+    assert outcome.status == "applied"
+    assert "H.status!==400&&H.status!==422" in outcome.js
+    assert "ccsilo:mid-conversation-system-422-fallback" in outcome.js
+
+
 def test_idempotent(cli_js_synthetic):
     js = cli_js_synthetic("mid-conversation-system-422-fallback")
     once = PATCH.apply(js, PatchContext(claude_version=None))

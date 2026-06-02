@@ -99,6 +99,13 @@ def _parse_binary_versions(payload):
     return versions
 
 
+def _http_error_code(exc):
+    cause = exc.__cause__
+    if isinstance(cause, HTTPError):
+        return cause.code
+    return None
+
+
 def _select_version_interactively(versions, latest_version, npm):
     from .download_picker import select_version
 
@@ -147,12 +154,17 @@ def list_available_binary_versions():
     versions = []
     page_token = None
 
-    while True:
-        payload = fetch_json(_binary_list_url(page_token))
-        versions.extend(_parse_binary_versions(payload))
-        page_token = payload.get("nextPageToken")
-        if not page_token:
-            break
+    try:
+        while True:
+            payload = fetch_json(_binary_list_url(page_token))
+            versions.extend(_parse_binary_versions(payload))
+            page_token = payload.get("nextPageToken")
+            if not page_token:
+                break
+    except RuntimeError as exc:
+        if _http_error_code(exc) not in (401, 403):
+            raise
+        return _sort_versions(list_available_npm_versions())
 
     return _sort_versions(versions)
 
