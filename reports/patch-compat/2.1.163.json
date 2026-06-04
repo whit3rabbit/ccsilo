@@ -1,9 +1,9 @@
 {
   "binary": {
-    "entryBytes": 15951522,
+    "entryBytes": 16181553,
     "entryModule": "src/entrypoints/cli.js"
   },
-  "generatedAt": "2026-06-04T22:43:48.099723Z",
+  "generatedAt": "2026-06-04T22:43:06.833029Z",
   "ok": true,
   "patches": [
     {
@@ -213,7 +213,7 @@
       "warnings": []
     },
     {
-      "detail": "remember-skill: version 2.1.161 not in supported range '>=2.1.0,<2.1.42'",
+      "detail": "remember-skill: version 2.1.163 not in supported range '>=2.1.0,<2.1.42'",
       "group": "prompts",
       "id": "remember-skill",
       "name": "Remember skill",
@@ -293,9 +293,11 @@
       "group": "ui",
       "id": "suppress-native-installer-warning",
       "name": "Suppress native installer warning",
-      "notes": [],
+      "notes": [
+        "native installer warning already absent"
+      ],
       "ok": true,
-      "status": "applied",
+      "status": "skipped",
       "supported": true,
       "tested": true,
       "warnings": []
@@ -377,11 +379,11 @@
       "<patched-binary>",
       "--version"
     ],
-    "durationMs": 10391,
+    "durationMs": 11104,
     "exitCode": 0,
-    "expectedVersion": "2.1.161",
+    "expectedVersion": "2.1.163",
     "ok": true,
-    "outputSha256": "570b8a1b9bf8c2c080bf8a8a307632106bca086445767d5027cb9bb00e8c2acc",
+    "outputSha256": "77fea4e03152c0be5d6cf532ad4333e5e2ea88d7d37691a0de12f472e2b5bb6e",
     "patches": {
       "applied": [
         "agents-md",
@@ -405,7 +407,6 @@
         "statusline-update-throttle",
         "suppress-model-launch-notice",
         "suppress-line-numbers",
-        "suppress-native-installer-warning",
         "suppress-prompt-caching-warning",
         "suppress-rate-limit-options",
         "themes",
@@ -444,7 +445,8 @@
       ],
       "missed": [],
       "skipped": [
-        "mcp-non-blocking"
+        "mcp-non-blocking",
+        "suppress-native-installer-warning"
       ],
       "warnings": []
     },
@@ -452,17 +454,17 @@
     "stage": "run",
     "status": "passed",
     "stderr": "",
-    "stdout": "2.1.161 (Claude Code)\n",
+    "stdout": "2.1.163 (Claude Code)\n",
     "versionMatched": true
   },
   "summary": {
-    "applied": 27,
+    "applied": 26,
     "failed": 0,
     "ok": 29,
-    "skipped": 1,
+    "skipped": 2,
     "total": 29,
     "unsupported": 1,
     "untested": 1
   },
-  "version": "2.1.161"
+  "version": "2.1.163"
 }

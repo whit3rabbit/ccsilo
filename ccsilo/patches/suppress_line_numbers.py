@@ -81,7 +81,7 @@ PATCH = Patch(
     name="Suppress line numbers in file reads",
     group="ui",
     versions_supported=">=2.0.0,<3",
-    versions_tested=(">=2.0.20,<2.1", ">=2.1.0,<=2.1.160"),
+    versions_tested=(">=2.0.20,<2.1", ">=2.1.0,<=2.1.163"),
     apply=_apply,
     description="Strip per-line line-number prefixes from file-read output.",
 )

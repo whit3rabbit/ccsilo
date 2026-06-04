@@ -43,6 +43,21 @@ def test_warning_tier_notice_object_anchor_disables_warning():
     assert "Prompt caching disabled via" in outcome.js
 
 
+def test_short_notice_object_anchor_disables_warning():
+    js = (
+        'XN3={id:"prompt-caching-disabled",tier:"warning",type:"warning",'
+        'isActive:()=>FaK().length>0,render:()=>{let H=FaK();return '
+        'kK.createElement(uS,{status:"warning"},"Prompt caching off (",H.join(", "),'
+        '"), requests will be slower and cost more",kK.createElement(N,{dimColor:!0},'
+        '" \\xB7 unset it to re-enable"))}}'
+    )
+    outcome = PATCH.apply(js, PatchContext(claude_version="2.1.163"))
+
+    assert outcome.status == "applied"
+    assert 'isActive:()=>false/*ccsilo:suppress-prompt-caching-warning*/' in outcome.js
+    assert "Prompt caching off (" in outcome.js
+
+
 def test_idempotent(cli_js_synthetic):
     js = cli_js_synthetic("suppress-prompt-caching-warning")
     once = PATCH.apply(js, PatchContext(claude_version=None))

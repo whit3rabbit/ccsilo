@@ -16,7 +16,7 @@ _WARNING_COMPONENT_RE = re.compile(
 _WARNING_NOTICE_RE = re.compile(
     r'(id:"prompt-caching-disabled",tier:"(?:critical|warning)",type:"warning",isActive:\(\)=>)'
     r'[$\w]+\(\)\.length>0'
-    r'(?=,render:\(\)=>\{[\s\S]{0,1800}?"Prompt caching disabled via ")'
+    r'(?=,render:\(\)=>\{[\s\S]{0,1800}?"Prompt caching (?:disabled via |off \())'
 )
 
 
@@ -48,7 +48,7 @@ PATCH = Patch(
     name="Suppress prompt caching warning",
     group="ui",
     versions_supported=">=2.1.0,<3",
-    versions_tested=(">=2.1.0,<=2.1.160",),
+    versions_tested=(">=2.1.0,<=2.1.163",),
     apply=_apply,
     on_miss="skip",
     description="Hide the startup warning shown when prompt caching is disabled by environment variables.",

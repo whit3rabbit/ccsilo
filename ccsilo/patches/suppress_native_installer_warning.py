@@ -17,7 +17,7 @@ def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
     if not match:
         return PatchOutcome(
             js=js,
-            status="missed",
+            status="skipped",
             notes=("native installer warning already absent",),
         )
     new_js = js[:match.start()] + js[match.end():]

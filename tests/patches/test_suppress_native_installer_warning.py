@@ -12,6 +12,15 @@ def test_synthetic_applies(cli_js_synthetic):
     assert "Claude Code has switched from npm to native installer" not in outcome.js
 
 
+def test_absent_warning_skips():
+    js = "function startup(){return null}"
+    outcome = PATCH.apply(js, PatchContext(claude_version=None))
+
+    assert outcome.status == "skipped"
+    assert outcome.js == js
+    assert outcome.notes == ("native installer warning already absent",)
+
+
 def test_metadata():
     assert PATCH.id == "suppress-native-installer-warning"
     assert PATCH.group == "ui"
@@ -20,7 +29,7 @@ def test_metadata():
 @pytest.mark.parametrize("version", resolve_tested_versions(PATCH))
 def test_real_l1(cli_js_real, version):
     outcome = PATCH.apply(cli_js_real(version), PatchContext(claude_version=version))
-    assert outcome.status == "applied"
+    assert outcome.status in {"applied", "skipped"}
 
 
 @pytest.mark.parametrize("version", resolve_tested_versions(PATCH))

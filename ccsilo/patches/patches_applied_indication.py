@@ -17,7 +17,7 @@ PATCH = Patch(
     name="Patches-applied indication",
     group="ui",
     versions_supported=">=2.0.0,<3",
-    versions_tested=(">=2.0.20,<2.1", ">=2.1.0,<=2.1.160"),
+    versions_tested=(">=2.0.20,<2.1", ">=2.1.0,<=2.1.163"),
     apply=_apply,
     description="Append the provider label after '(Claude Code)' in the version banner.",
 )
