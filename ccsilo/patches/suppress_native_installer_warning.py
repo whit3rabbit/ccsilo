@@ -10,18 +10,46 @@ _WARNING = (
     "or see https://docs.anthropic.com/en/docs/claude-code/getting-started "
     "for more options."
 )
+_MARKER = "ccsilo:suppress-native-installer-warning"
+_NPM_DEPRECATION_NOTICE_RE = re.compile(
+    r'(id:"npm-deprecation",tier:"(?:critical|warning)",type:"warning",isActive:\([$\w]+\)=>)'
+    r'[$\w]+\.npmInstallDeprecated'
+    r'(?=,render:\(\)=>[\s\S]{0,1200}?"Installed via npm \(deprecated\)")'
+    r'(?=,render:\(\)=>[\s\S]{0,1200}?claude install)'
+)
 
 
 def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
-    match = re.search(re.escape(_WARNING), js)
-    if not match:
+    new_js = js
+    changed = False
+
+    match = re.search(re.escape(_WARNING), new_js)
+    if match:
+        new_js = new_js[:match.start()] + new_js[match.end():]
+        changed = True
+
+    if _MARKER not in new_js:
+        match = _NPM_DEPRECATION_NOTICE_RE.search(new_js)
+        if match:
+            replacement = f"{match.group(1)}false/*{_MARKER}*/"
+            new_js = new_js[:match.start()] + replacement + new_js[match.end():]
+            changed = True
+
+    if changed:
+        return PatchOutcome(js=new_js, status="applied")
+    if _MARKER in new_js:
+        return PatchOutcome(js=new_js, status="skipped")
+    if "npm-deprecation" in js or "Installed via npm (deprecated)" in js:
         return PatchOutcome(
             js=js,
-            status="skipped",
-            notes=("native installer warning already absent",),
+            status="missed",
+            notes=("missing npm deprecation warning notice",),
         )
-    new_js = js[:match.start()] + js[match.end():]
-    return PatchOutcome(js=new_js, status="applied")
+    return PatchOutcome(
+        js=js,
+        status="skipped",
+        notes=("native installer warning already absent",),
+    )
 
 
 PATCH = Patch(

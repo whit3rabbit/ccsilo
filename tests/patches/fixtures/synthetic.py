@@ -45,6 +45,13 @@ SYNTHETIC = {
         "or see https://docs.anthropic.com/en/docs/claude-code/getting-started "
         "for more options."
     ),
+    "suppress-native-installer-warning-v2": (
+        'jN3={id:"npm-deprecation",tier:"warning",type:"warning",'
+        'isActive:(H)=>H.npmInstallDeprecated,render:()=>kK.createElement(uS,'
+        '{status:"warning"},"Installed via npm (deprecated)",'
+        'kK.createElement(N,{dimColor:!0}," ","\\xB7 run claude install to switch '
+        'to the native version"))}'
+    ),
     "suppress-prompt-caching-warning": (
         'function VV8(){let H=hV8.c(5),_;'
         'if(H[0]===Symbol.for("react.memo_cache_sentinel"))'
