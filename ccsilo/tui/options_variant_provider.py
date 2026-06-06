@@ -14,10 +14,20 @@ PROVIDER_FILTER_LABELS = {
 }
 PROVIDER_GROUPS = [
     ("pinned", "Recommended defaults"),
-    ("cloud-direct", "Direct cloud APIs"),
-    ("cloud-gateway", "Gateways and routers"),
+    ("cloud-direct", "Direct model APIs"),
+    ("cloud-gateway", "Gateways, routers, and custom endpoints"),
     ("local", "Local endpoints"),
 ]
+PINNED_PROVIDER_ORDER = {"mirror": 0, "ccrouter": 1, "ccr-oauth": 2}
+DIRECT_MODEL_API_PROVIDER_KEYS = {
+    "alibaba",
+    "anthropic",
+    "deepseek",
+    "kimi",
+    "minimax",
+    "minimax-cn",
+    "zai",
+}
 GATEWAY_PROVIDER_KEYS = {
     "9router",
     "cerebras",
@@ -25,7 +35,10 @@ GATEWAY_PROVIDER_KEYS = {
     "gatewayz",
     "litellm",
     "nanogpt",
+    "opencode-go",
+    "opencode-zen",
     "openrouter",
+    "poe",
     "vercel",
 }
 
@@ -64,9 +77,7 @@ def _providers_for_section(state, section):
         for index, provider in enumerate(state.variant_providers)
         if _provider_section(provider) == section
     ]
-    if section == "pinned":
-        order = {"mirror": 0, "ccrouter": 1, "ccr-oauth": 2}
-        providers.sort(key=lambda item: (order.get(item[1].get("key"), 99), item[1].get("label", "")))
+    providers.sort(key=lambda item: _provider_sort_key("pinned" if section == "pinned" else "", item))
     return providers
 
 def _variant_provider_groups(state):
@@ -82,9 +93,7 @@ def _variant_provider_groups(state):
             for index, provider in candidates
             if _provider_group_key(provider) == group_key
         ]
-        if group_key == "pinned":
-            order = {"mirror": 0, "ccrouter": 1, "ccr-oauth": 2}
-            providers.sort(key=lambda item: (order.get(item[1].get("key"), 99), item[1].get("label", "")))
+        providers.sort(key=lambda item: _provider_sort_key(group_key, item))
         if providers:
             groups.append((group_key, label, providers))
     return groups
@@ -96,9 +105,19 @@ def _provider_group_key(provider):
     if section == "local":
         return "local"
     key = str(provider.get("key") or "")
+    if key in DIRECT_MODEL_API_PROVIDER_KEYS:
+        return "cloud-direct"
     if provider.get("requiresModelMapping") or key in GATEWAY_PROVIDER_KEYS:
         return "cloud-gateway"
     return "cloud-direct"
+
+def _provider_sort_key(group_key, item):
+    _index, provider = item
+    key = str(provider.get("key") or "").lower()
+    label = str(provider.get("label") or "").lower()
+    if group_key == "pinned":
+        return (PINNED_PROVIDER_ORDER.get(key, 99), key, label)
+    return (key, label)
 
 def _provider_matches_controls(state, provider):
     return _provider_matches_filter(state, provider) and _provider_matches_search(state, provider)

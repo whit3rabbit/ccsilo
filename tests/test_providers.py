@@ -101,6 +101,13 @@ def test_provider_list_includes_cc_mirror_parity_presets():
     ]
 
 
+def test_variant_provider_default_section_pins_ccrouter_presets():
+    from ccsilo.variants.model import _default_provider_section
+
+    assert _default_provider_section("ccrouter") == "pinned"
+    assert _default_provider_section("ccr-oauth") == "pinned"
+
+
 def test_provider_registry_uses_nested_provider_manifests():
     assert (REGISTRY_DIR / "litellm" / "provider.json").is_file()
     assert not (REGISTRY_DIR / "litellm.json").exists()

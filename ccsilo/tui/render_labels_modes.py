@@ -6,12 +6,13 @@ from ..variant_tweaks import GATEWAY_MODEL_DISCOVERY_ENV
 from ..variants import CCR_PROVIDER_KEYS
 from ..variants.install import default_install_dir
 from ..variants.model import default_bin_dir, variant_id_from_name
-from ..workspace import short_sha
+from ..workspace import short_sha, workspace_root
 from ._const import VARIANT_MODEL_FIELDS, VARIANT_STEPS
 from .options import (
     dashboard_options,
     dashboard_title,
     format_native_artifact,
+    model_picker_summary,
     models_edit_options,
     models_pending_diff,
     selected_setup_variant,
@@ -35,6 +36,7 @@ from .options import (
     variant_title,
     variant_tweak_selector_labels,
 )
+from .model_picker import visible_model_ids
 
 __all__ = [
     "current_labels",
@@ -251,6 +253,12 @@ def _create_preview_model_lines(state, provider):
         value = variant_model_display_value(state, provider, key)
         source = "override" if state.variant_model_overrides.get(key, "").strip() else "default"
         lines.append(f"  {label}: {value or '(not set)'} ({source})")
+    name = state.variant_name.strip() or str(provider.get("defaultVariantName") or provider.get("key") or "")
+    try:
+        setup_id = variant_id_from_name(name)
+    except Exception:
+        setup_id = "<setup-id>"
+    lines.append(f"Manual model edit: {workspace_root() / 'variants' / setup_id / 'variant.json'} -> modelOverrides")
     return lines
 
 def upgrade_preview_labels(state):
@@ -373,6 +381,7 @@ def help_labels():
         "",
         "Setup creation",
         "Space: toggle MCP servers or tweaks",
+        "/: search loaded models when a model-list row is selected",
         "I: toggle command install on preview",
         "V: view tweak details",
         "",
@@ -382,6 +391,11 @@ def help_labels():
         "A: apply pending changes",
         "D: discard pending changes",
         "V: view tweak details",
+        "",
+        "Models editor",
+        "/: search loaded models when a model-list row is selected",
+        "A: apply pending model changes",
+        "D: discard pending model changes",
     ]
 
 def busy_labels(state):
@@ -425,7 +439,19 @@ def tweak_preview_labels(state):
 def models_control_summary(state):
     diff = models_pending_diff(state)
     changed = ", ".join(diff["changed"]) if diff["changed"] else "none"
-    return f"Loaded models: {len(state.models_choices or [])} | Changed aliases: {changed}"
+    visible, match_count = visible_model_ids(
+        state.models_choices or [],
+        getattr(state, "models_search_text", ""),
+    )
+    summary = model_picker_summary(
+        len(state.models_choices or []),
+        match_count,
+        len(visible),
+        getattr(state, "models_search_text", ""),
+        getattr(state, "models_search_active", False),
+        getattr(state, "models_target", ""),
+    )
+    return f"{summary} | Changed aliases: {changed}"
 
 def _tweaks_edit_labels(state):
     """Build the left-pane label list for tweaks-edit mode.

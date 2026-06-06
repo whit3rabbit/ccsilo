@@ -1,6 +1,12 @@
 """Model editor option helpers for setup variants."""
 
 from ._const import MenuOption, VARIANT_MODEL_FIELDS
+from .model_picker import (
+    model_field_label,
+    model_search_label,
+    normalize_model_target,
+    visible_model_ids,
+)
 from .options_variant_state import _provider_model_discovery_enabled
 
 __all__ = [
@@ -10,6 +16,7 @@ __all__ = [
     "selected_models_edit_option",
     "models_display_value",
     "models_pending_diff",
+    "model_picker_summary",
     "_models_choice_selected",
 ]
 
@@ -32,18 +39,41 @@ def models_edit_options(state):
         return [MenuOption("models-back", "Back to setup")]
     provider = provider_for_setup(state, variant)
     options = []
-    if _provider_model_discovery_enabled(provider):
-        options.append(MenuOption("models-refresh", "Refresh model list"))
-        if state.models_choices:
-            for model_id in state.models_choices:
-                marker = "*" if _models_choice_selected(state, model_id) else " "
-                options.append(MenuOption("models-choice", f"{marker} {model_id}", model_id))
-        else:
-            options.append(MenuOption("section", "No models loaded"))
+    target = normalize_model_target(getattr(state, "models_target", ""))
     for key, label in VARIANT_MODEL_FIELDS:
         value = models_display_value(state, provider, key)
         source = "override" if state.models_pending.get(key, "").strip() else "default"
-        options.append(MenuOption("models-field", f"{label}: {value or '(not set)'} ({source})", key))
+        marker = ">" if key == target else " "
+        options.append(MenuOption("models-field", f"{marker} {label} -> {value or '(not set)'} ({source})", key))
+    if _provider_model_discovery_enabled(provider):
+        options.append(MenuOption("models-refresh", "Refresh model list"))
+        options.append(MenuOption("models-skip", "Skip model list / type aliases manually"))
+        if state.models_choices:
+            search_text = getattr(state, "models_search_text", "")
+            visible, match_count = visible_model_ids(state.models_choices, search_text)
+            options.append(MenuOption("section", model_picker_summary(
+                len(state.models_choices),
+                match_count,
+                len(visible),
+                search_text,
+                getattr(state, "models_search_active", False),
+                target,
+            )))
+            for model_id in visible:
+                marker = "*" if _models_choice_selected(state, model_id) else " "
+                options.append(MenuOption("models-choice", f"{marker} {model_id}", model_id))
+            if not visible:
+                options.append(MenuOption("section", "No models match current search. Backspace or clear search to widen."))
+            elif match_count > len(visible):
+                options.append(MenuOption(
+                    "section",
+                    f"Showing {len(visible)}/{match_count} matching models; keep typing to narrow.",
+                ))
+        else:
+            options.append(MenuOption(
+                "section",
+                "No models loaded. Refresh, skip the list, or type aliases manually.",
+            ))
     options.append(MenuOption("models-apply", "Apply model changes"))
     options.append(MenuOption("models-discard", "Discard model changes"))
     return options
@@ -85,6 +115,20 @@ def models_pending_diff(state):
         "pending": pending,
     }
 
+def model_picker_summary(total, match_count, visible_count, search_text, active, target):
+    search = model_search_label(search_text, active)
+    target_label = model_field_label(normalize_model_target(target))
+    if total:
+        return (
+            f"Target: {target_label} | Search: {search} | "
+            f"Showing {visible_count}/{match_count} matches from {total} loaded"
+        )
+    return (
+        f"Target: {target_label} | Search: {search} | "
+        f"Showing 0/0 matches from 0 loaded"
+    )
+
 def _models_choice_selected(state, model_id):
     pending = state.models_pending or {}
-    return bool(pending) and all(pending.get(key) == model_id for key, _label in VARIANT_MODEL_FIELDS)
+    key = normalize_model_target(getattr(state, "models_target", ""))
+    return pending.get(key) == model_id

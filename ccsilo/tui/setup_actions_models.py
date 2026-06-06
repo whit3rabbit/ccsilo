@@ -1,8 +1,12 @@
 """Model discovery and model editor actions for the TUI."""
 
 import os
-
-from ._const import VARIANT_MODEL_FIELDS
+from .model_picker import (
+    model_field_label,
+    next_model_target,
+    normalize_model_target,
+    sorted_unique_model_ids,
+)
 from .setup_actions_common import (  # noqa: F401
     _active_setup_status,
     _append_backend_stages,
@@ -63,6 +67,8 @@ __all__ = [
     "_models_editor_endpoint",
     "_models_editor_api_key",
     "_apply_models_choice",
+    "_skip_variant_model_list",
+    "_skip_models_editor_model_list",
     "_apply_models",
     "_discard_models",
     "_variant_model_discovery_api_key",
@@ -82,12 +88,12 @@ def _refresh_variant_models(state):
         state.variant_model_choices = []
         state.message = f"Model refresh failed: {exc}"
         return
-    state.variant_model_choices = list(models)
+    state.variant_model_choices = sorted_unique_model_ids(models)
     if not state.variant_model_choices:
         state.message = "Model refresh returned no models. Type aliases manually."
         return
-    state.selected_index = 1
-    state.message = f"Loaded {len(state.variant_model_choices)} models. Select one to apply aliases."
+    _select_first_option_kind(state, _tui()._variant_options, "variant-model-choice")
+    state.message = f"Loaded {len(state.variant_model_choices)} models. Target: {model_field_label(state.variant_model_target)}."
 
 def _refresh_models_editor_models(state):
     variant = _models_editor_variant(state)
@@ -108,12 +114,12 @@ def _refresh_models_editor_models(state):
         state.models_choices = []
         state.message = f"Model refresh failed: {exc}"
         return
-    state.models_choices = list(models)
+    state.models_choices = sorted_unique_model_ids(models)
     if not state.models_choices:
         state.message = "Model refresh returned no models. Type aliases manually."
         return
-    state.selected_index = 1
-    state.message = f"Loaded {len(state.models_choices)} models. Select one to apply aliases."
+    _select_first_option_kind(state, _tui()._models_edit_options, "models-choice")
+    state.message = f"Loaded {len(state.models_choices)} models. Target: {model_field_label(state.models_target)}."
 
 def _models_editor_variant(state):
     if not state.models_variant_id:
@@ -151,9 +157,31 @@ def _apply_models_choice(state, model_id: str):
     value = model_id.strip()
     if not value:
         return
-    for key, _label in VARIANT_MODEL_FIELDS:
-        state.models_pending[key] = value
-    state.message = f"Model aliases set to {value}"
+    key = normalize_model_target(getattr(state, "models_target", ""))
+    state.models_pending[key] = value
+    next_key = next_model_target(key)
+    state.models_target = next_key
+    state.message = f"{model_field_label(key)} model set to {value}. Next target: {model_field_label(next_key)}."
+
+def _skip_variant_model_list(state):
+    state.variant_model_choices = []
+    state.variant_model_search_text = ""
+    state.variant_model_search_active = False
+    target = normalize_model_target(getattr(state, "variant_model_target", ""))
+    state.variant_model_target = target
+    _select_option_value(state, _tui()._variant_options, "variant-model", target)
+    state.message = f"Skipped model list. Type aliases manually, or edit {_variant_model_config_path_hint(state)} modelOverrides after create."
+
+def _skip_models_editor_model_list(state):
+    state.models_choices = []
+    state.models_search_text = ""
+    state.models_search_active = False
+    target = normalize_model_target(getattr(state, "models_target", ""))
+    state.models_target = target
+    _select_option_value(state, _tui()._models_edit_options, "models-field", target)
+    variant = _models_editor_variant(state)
+    config_path = variant.path / "variant.json" if variant is not None else "<setup-dir>/variant.json"
+    state.message = f"Skipped model list. Type aliases manually, or edit {config_path} modelOverrides."
 
 def _apply_models(state):
     if not state.models_variant_id:
@@ -205,6 +233,8 @@ def _apply_models(state):
 def _discard_models(state):
     state.models_pending = dict(state.models_baseline or {})
     state.models_choices = []
+    state.models_search_text = ""
+    state.models_search_active = False
     state.message = "Discarded model changes."
 
 def _variant_model_discovery_api_key(state):
@@ -214,3 +244,27 @@ def _variant_model_discovery_api_key(state):
     if credential_env and credential_env in os.environ:
         return os.environ[credential_env]
     return None
+
+
+def _select_first_option_kind(state, options_func, kind: str) -> None:
+    for index, option in enumerate(options_func(state)):
+        if option.kind == kind:
+            state.selected_index = index
+            return
+
+
+def _select_option_value(state, options_func, kind: str, value: str) -> None:
+    for index, option in enumerate(options_func(state)):
+        if option.kind == kind and option.value == value:
+            state.selected_index = index
+            return
+
+
+def _variant_model_config_path_hint(state):
+    provider = _tui()._selected_variant_provider(state)
+    name = state.variant_name.strip() or str((provider or {}).get("defaultVariantName") or (provider or {}).get("key") or "")
+    try:
+        setup_id = variant_id_from_name(name)
+    except Exception:
+        setup_id = "<setup-id>"
+    return workspace_root() / "variants" / setup_id / "variant.json"

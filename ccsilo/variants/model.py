@@ -260,7 +260,9 @@ def list_variant_providers() -> List[Dict[str, object]]:
 
 
 def _default_provider_section(provider_key: str) -> str:
-    if provider_key in {"mirror", "ccrouter"}:
+    from .ccrouter import CCR_PROVIDER_KEYS
+
+    if provider_key in {"mirror", *CCR_PROVIDER_KEYS}:
         return "pinned"
     if provider_key in {"ollama", "lmstudio", "omlx", "local-custom"}:
         return "local"

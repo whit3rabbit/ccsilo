@@ -23,6 +23,7 @@ from ..workspace import (
     scan_patch_profiles,
 )
 from ._const import DEFAULT_THEME_ID, SOURCE_LATEST
+from .model_picker import normalize_model_target
 from .themes import normalize_theme_id
 
 
@@ -73,6 +74,9 @@ class TuiState:
     variant_model_proxy_port: str = "auto"
     variant_model_overrides: Dict[str, str] = field(default_factory=dict)
     variant_model_choices: List[str] = field(default_factory=list)
+    variant_model_search_text: str = ""
+    variant_model_search_active: bool = False
+    variant_model_target: str = "opus"
     variant_install_command: bool = False
     variant_install_choice_initialized: bool = False
     selected_variant_mcp_ids: List[str] = field(default_factory=list)
@@ -106,6 +110,9 @@ class TuiState:
     models_baseline: Dict[str, str] = field(default_factory=dict)
     models_pending: Dict[str, str] = field(default_factory=dict)
     models_choices: List[str] = field(default_factory=list)
+    models_search_text: str = ""
+    models_search_active: bool = False
+    models_target: str = "opus"
     inspect_delete_confirm_path: str = ""
 
     def __post_init__(self):
@@ -151,6 +158,8 @@ class TuiState:
             self.setup_sort_key = "name"
         if self.variant_provider_filter not in {"all", "recommended", "cloud", "local", "model-map", "mcp"}:
             self.variant_provider_filter = "all"
+        self.variant_model_target = normalize_model_target(self.variant_model_target)
+        self.models_target = normalize_model_target(self.models_target)
         if self.selected_setup_id not in setup_ids:
             self.selected_setup_id = self.variants[0].variant_id if self.variants else None
         if self.tweaks_variant_id not in setup_ids and self.mode not in {"tweaks-edit", "tweak-editor"}:
@@ -164,6 +173,9 @@ class TuiState:
             self.models_baseline = {}
             self.models_pending = {}
             self.models_choices = []
+            self.models_search_text = ""
+            self.models_search_active = False
+            self.models_target = "opus"
         self.selected_patch_indexes = [
             index for index in self.selected_patch_indexes
             if 0 <= index < len(self.patch_packages)

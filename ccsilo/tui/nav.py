@@ -54,6 +54,10 @@ def go_back(state) -> None:
             state.variant_provider_search_active = False
             state.message = "Provider search kept."
             return
+        if state.variant_step == 4 and getattr(state, "variant_model_search_active", False):
+            state.variant_model_search_active = False
+            state.message = "Model search kept."
+            return
         if state.variant_step > 0:
             state.variant_step -= 1
             state.selected_index = 0
@@ -71,6 +75,10 @@ def go_back(state) -> None:
         if state.variant_step == 0 and getattr(state, "variant_provider_search_active", False):
             state.variant_provider_search_active = False
             state.message = "Provider search kept."
+            return
+        if state.variant_step == 4 and getattr(state, "variant_model_search_active", False):
+            state.variant_model_search_active = False
+            state.message = "Model search kept."
             return
         if state.variant_step > 0:
             state.variant_step -= 1
@@ -96,10 +104,17 @@ def go_back(state) -> None:
             state.tweak_search_active = False
             set_mode(state, "setup-detail" if state.selected_setup_id else "setup-manager")
     elif state.mode == "models-edit":
+        if getattr(state, "models_search_active", False):
+            state.models_search_active = False
+            state.message = "Model search kept."
+            return
         state.models_variant_id = None
         state.models_baseline = {}
         state.models_pending = {}
         state.models_choices = []
+        state.models_search_text = ""
+        state.models_search_active = False
+        state.models_target = "opus"
         set_mode(state, "setup-detail" if state.selected_setup_id else "setup-manager")
 
 

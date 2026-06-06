@@ -20,6 +20,7 @@ VARIANT_MODEL_FIELDS = [
     ("small_fast", "Small-fast"),
     ("subagent", "Subagent"),
 ]
+MODEL_CHOICE_DISPLAY_LIMIT = 25
 SOURCE_LATEST = "latest"
 SOURCE_VERSION = "version"
 SOURCE_ARTIFACT = "artifact"

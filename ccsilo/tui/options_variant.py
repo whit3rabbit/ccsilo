@@ -13,6 +13,7 @@ from ._const import (
     VARIANT_STEPS,
     next_action_label,
 )
+from .model_picker import normalize_model_target, visible_model_ids
 from .options_variant_provider_detail import variant_model_proxy_supported, variant_provider_detail_lines  # noqa: F401
 from .options_variant_provider import (  # noqa: F401
     _default_provider_section,
@@ -30,6 +31,7 @@ from .options_variant_models import (  # noqa: F401
     models_display_value,
     models_edit_options,
     models_edit_variant,
+    model_picker_summary,
     models_pending_diff,
     provider_for_setup,
     selected_models_edit_option,
@@ -129,19 +131,42 @@ def variant_options(state):
                 MenuOption("variant-models-continue", next_action_label("Continue to tweaks")),
             ]
         options = []
-        if _provider_model_discovery_enabled(provider):
-            options.append(MenuOption("variant-model-refresh", "Refresh model list"))
-            if state.variant_model_choices:
-                for model_id in state.variant_model_choices:
-                    selected = _model_choice_selected(state, model_id)
-                    marker = "*" if selected else " "
-                    options.append(MenuOption("variant-model-choice", f"{marker} {model_id}", model_id))
-            else:
-                options.append(MenuOption("section", "No models loaded"))
+        target = normalize_model_target(getattr(state, "variant_model_target", ""))
         for key, label in VARIANT_MODEL_FIELDS:
             value = variant_model_display_value(state, provider, key)
             source = "override" if state.variant_model_overrides.get(key, "").strip() else "default"
-            options.append(MenuOption("variant-model", f"{label}: {value or '(not set)'} ({source})", key))
+            marker = ">" if key == target else " "
+            options.append(MenuOption("variant-model", f"{marker} {label} -> {value or '(not set)'} ({source})", key))
+        if _provider_model_discovery_enabled(provider):
+            options.append(MenuOption("variant-model-refresh", "Refresh model list"))
+            options.append(MenuOption("variant-model-skip", "Skip model list / type aliases manually"))
+            if state.variant_model_choices:
+                search_text = getattr(state, "variant_model_search_text", "")
+                visible, match_count = visible_model_ids(state.variant_model_choices, search_text)
+                options.append(MenuOption("section", model_picker_summary(
+                    len(state.variant_model_choices),
+                    match_count,
+                    len(visible),
+                    search_text,
+                    getattr(state, "variant_model_search_active", False),
+                    target,
+                )))
+                for model_id in visible:
+                    selected = _model_choice_selected(state, model_id)
+                    marker = "*" if selected else " "
+                    options.append(MenuOption("variant-model-choice", f"{marker} {model_id}", model_id))
+                if not visible:
+                    options.append(MenuOption("section", "No models match current search. Backspace or clear search to widen."))
+                elif match_count > len(visible):
+                    options.append(MenuOption(
+                        "section",
+                        f"Showing {len(visible)}/{match_count} matching models; keep typing to narrow.",
+                    ))
+            else:
+                options.append(MenuOption(
+                    "section",
+                    "No models loaded. Refresh, skip the list, or type aliases manually.",
+                ))
         options.append(MenuOption("variant-models-continue", next_action_label("Continue to tweaks")))
         return options
     if state.variant_step == 5:
@@ -245,7 +270,8 @@ def _masked_secret(value):
 
 def _model_choice_selected(state, model_id):
     overrides = state.variant_model_overrides or {}
-    return bool(overrides) and all(overrides.get(key) == model_id for key, _label in VARIANT_MODEL_FIELDS)
+    key = normalize_model_target(getattr(state, "variant_model_target", ""))
+    return overrides.get(key) == model_id
 
 
 def selected_variant_option(state):

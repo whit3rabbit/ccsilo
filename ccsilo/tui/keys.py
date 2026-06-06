@@ -62,6 +62,7 @@ def variant_append_text(state, char: str) -> None:
         state.variant_model_choices = []
     elif option.kind == "variant-model":
         key = str(option.value)
+        state.variant_model_target = key
         state.variant_model_overrides[key] = state.variant_model_overrides.get(key, "") + char
     elif option.kind == "variant-ccrouter-package":
         state.variant_ccrouter_package += char
@@ -76,6 +77,7 @@ def models_append_text(state, char: str) -> None:
     if option is None or option.kind != "models-field":
         return
     key = str(option.value)
+    state.models_target = key
     state.models_pending[key] = state.models_pending.get(key, "") + char
 
 
@@ -95,6 +97,7 @@ def variant_backspace(state) -> bool:
         state.variant_model_choices = []
     elif option.kind == "variant-model":
         key = str(option.value)
+        state.variant_model_target = key
         state.variant_model_overrides[key] = state.variant_model_overrides.get(key, "")[:-1]
     elif option.kind == "variant-ccrouter-package":
         state.variant_ccrouter_package = state.variant_ccrouter_package[:-1]
@@ -110,5 +113,6 @@ def models_backspace(state) -> bool:
         return False
     option = selected_models_edit_option(state)
     key = str(option.value)
+    state.models_target = key
     state.models_pending[key] = state.models_pending.get(key, "")[:-1]
     return True

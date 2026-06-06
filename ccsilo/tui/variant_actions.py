@@ -11,6 +11,7 @@ from ..variant_tweaks import (
     default_tweak_ids_for_provider,
 )
 from ._const import VARIANT_MODEL_FIELDS, VARIANT_STEPS
+from .model_picker import model_field_label, next_model_target, normalize_model_target
 from .options import (
     selected_variant_provider,
     variant_model_display_value,
@@ -43,6 +44,9 @@ def reset_variant(state):
     state.variant_model_proxy_port = "auto"
     state.variant_model_overrides = {}
     state.variant_model_choices = []
+    state.variant_model_search_text = ""
+    state.variant_model_search_active = False
+    state.variant_model_target = "opus"
     state.variant_install_command = False
     state.variant_install_choice_initialized = False
     state.selected_variant_mcp_ids = []
@@ -66,6 +70,9 @@ def set_variant_provider_defaults(state, provider):
     state.variant_model_proxy_port = "auto"
     state.variant_model_overrides = {}
     state.variant_model_choices = []
+    state.variant_model_search_text = ""
+    state.variant_model_search_active = False
+    state.variant_model_target = "opus"
     state.variant_install_command = False
     state.variant_install_choice_initialized = False
     state.selected_variant_mcp_ids = []
@@ -221,9 +228,11 @@ def apply_variant_model_choice(state, model_id: str):
     value = model_id.strip()
     if not value:
         return
-    for key, _label in VARIANT_MODEL_FIELDS:
-        state.variant_model_overrides[key] = value
-    state.message = f"Model aliases set to {value}"
+    key = normalize_model_target(getattr(state, "variant_model_target", ""))
+    state.variant_model_overrides[key] = value
+    next_key = next_model_target(key)
+    state.variant_model_target = next_key
+    state.message = f"{model_field_label(key)} model set to {value}. Next target: {model_field_label(next_key)}."
 
 
 def validate_variant_endpoint(state, provider) -> bool:

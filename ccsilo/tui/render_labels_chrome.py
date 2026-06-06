@@ -300,7 +300,9 @@ def context_hint(state):
     if state.mode in {"tweaks-edit", "tweak-editor"} and getattr(state, "tweak_search_active", False):
         return "Type to search tweaks. Enter or Esc keeps the current filter."
     if state.mode == "models-edit":
-        return "Models: refresh local list, select one, edit aliases manually, then apply."
+        if getattr(state, "models_search_active", False):
+            return "Type to search loaded models. Enter or Esc keeps the current filter."
+        return "Models: select an alias target, refresh/search models, or type aliases manually."
     if state.mode == "dashboard" and state.dashboard_step == 2:
         return "Profile names: select Name, then type or Backspace."
     if state.mode in {"variants", "first-run-setup"}:
@@ -315,7 +317,9 @@ def context_hint(state):
         if state.variant_step == 3:
             return "MCP servers: provider servers are automatic. Space toggles optional servers."
         if state.variant_step == 4:
-            return "Models: refresh local model list, select one, or edit aliases manually."
+            if getattr(state, "variant_model_search_active", False):
+                return "Type to search loaded models. Enter or Esc keeps the current filter."
+            return "Models: select an alias target, refresh/search models, or type aliases manually."
         if state.variant_step == 5:
             return "Tweaks: Space toggles selected rows. Review details on the right."
     return "Ready"

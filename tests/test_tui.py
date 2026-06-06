@@ -117,6 +117,13 @@ def _render_screen(state, width=80, height=24):
     return headless_render_frame(width, height, term.commands)
 
 
+def _option_index(options, kind, value=None):
+    for index, option in enumerate(options):
+        if option.kind == kind and (value is None or option.value == value):
+            return index
+    raise AssertionError(f"option not found: {kind} {value}")
+
+
 def test_screen_text_contains_dashboard_first_tab():
     state = tui.TuiState(
         counts="Native: 0  NPM: 0  Extractions: 0  Patch packages: 0  Profiles: 0",
@@ -864,15 +871,19 @@ def test_variants_tab_lists_providers_and_progress():
     assert "mirror  Mirror Claude" in screen
 
 
-def test_variants_provider_selection_groups_pinned_cloud_and_local():
+def test_variants_provider_selection_groups_by_type_and_sorts_providers():
     state = tui.TuiState(
         mode="variants",
         variant_providers=[
             {"key": "zai", "label": "Zai Cloud", "description": "Cloud", "section": "cloud"},
+            {"key": "openrouter", "label": "OpenRouter", "description": "Gateway", "section": "cloud"},
             {"key": "ollama", "label": "Ollama", "description": "Local", "section": "local"},
-            {"key": "ccr-oauth", "label": "CCR OAuth Proxy", "description": "OAuth CCR", "section": "pinned"},
+            {"key": "ccr-oauth", "label": "CCR OAuth Proxy", "description": "OAuth CCR"},
             {"key": "ccrouter", "label": "CC Router", "description": "Router", "section": "pinned"},
             {"key": "mirror", "label": "Mirror Claude Code", "description": "Pure", "section": "pinned"},
+            {"key": "anthropic", "label": "Anthropic Console", "description": "First-party", "section": "cloud"},
+            {"key": "alibaba", "label": "Alibaba Cloud", "description": "DashScope", "section": "cloud"},
+            {"key": "opencode-go", "label": "OpenCode Go", "description": "Gateway", "section": "cloud"},
             {"key": "lmstudio", "label": "LM Studio", "description": "Local", "section": "local"},
         ],
     )
@@ -880,17 +891,22 @@ def test_variants_provider_selection_groups_pinned_cloud_and_local():
     options = tui._variant_options(state)
     labels = tui.options.variant_provider_selector_labels(state)
 
-    assert [option.kind for option in options] == ["variant-provider"] * 6
+    assert [option.kind for option in options] == ["variant-provider"] * 10
     assert options[0].label.startswith("mirror  Mirror Claude Code")
     assert options[1].label.startswith("ccrouter  CC Router")
     assert options[2].label.startswith("ccr-oauth  CCR OAuth Proxy")
-    assert options[3].label.startswith("zai  Zai Cloud")
-    assert labels[0] == "Search: none | Filter: All | Showing: 6/6"
+    assert options[3].label.startswith("alibaba  Alibaba Cloud")
+    assert options[4].label.startswith("anthropic  Anthropic Console")
+    assert options[5].label.startswith("zai  Zai Cloud")
+    assert options[6].label.startswith("opencode-go  OpenCode Go")
+    assert options[7].label.startswith("openrouter  OpenRouter")
+    assert options[8].label.startswith("lmstudio  LM Studio")
+    assert options[9].label.startswith("ollama  Ollama")
+    assert labels[0] == "Search: none | Filter: All | Showing: 10/10"
     assert labels[1] == "Recommended defaults (3)"
-    assert labels[5] == "Direct cloud APIs (1)"
-    assert labels[7] == "Local endpoints (2)"
-    assert labels[8].startswith("ollama  Ollama")
-    assert labels[9].startswith("lmstudio  LM Studio")
+    assert labels[5] == "Direct model APIs (3)"
+    assert labels[9] == "Gateways, routers, and custom endpoints (2)"
+    assert labels[12] == "Local endpoints (2)"
 
 
 def test_provider_selector_sections_are_not_selectable():
@@ -1501,23 +1517,24 @@ def test_variants_model_refresh_applies_selected_model(monkeypatch):
 
     def fake_fetch(endpoint, api_key=None):
         calls.append((endpoint, api_key))
-        return ["local/model-a", "local/model-b"]
+        return ["local/model-b", "local/model-a", "local/model-a"]
 
     monkeypatch.setattr(tui, "fetch_provider_models", fake_fetch)
     state = tui.TuiState(mode="variants", variant_step=4, variant_providers=[provider])
     tui._set_variant_provider_defaults(state, provider)
 
-    state.selected_index = 0
+    state.selected_index = _option_index(tui._variant_options(state), "variant-model-refresh")
     tui._activate_variants(state)
 
     assert calls == [("http://localhost:1234", None)]
     assert state.variant_model_choices == ["local/model-a", "local/model-b"]
-    assert state.selected_index == 1
+    assert state.selected_index == _option_index(tui._variant_options(state), "variant-model-choice")
 
     tui._activate_variants(state)
 
-    assert all(state.variant_model_overrides[key] == "local/model-a" for key, _label in tui.VARIANT_MODEL_FIELDS)
-    assert state.message == "Model aliases set to local/model-a"
+    assert state.variant_model_overrides == {"opus": "local/model-a"}
+    assert state.variant_model_target == "sonnet"
+    assert state.message == "Opus model set to local/model-a. Next target: Sonnet."
 
 
 def test_variants_model_refresh_failure_is_nonfatal(monkeypatch):
@@ -1539,11 +1556,106 @@ def test_variants_model_refresh_failure_is_nonfatal(monkeypatch):
     state = tui.TuiState(mode="variants", variant_step=4, variant_providers=[provider])
     tui._set_variant_provider_defaults(state, provider)
 
+    state.selected_index = _option_index(tui._variant_options(state), "variant-model-refresh")
     tui._activate_variants(state)
 
     assert state.variant_step == 4
     assert state.variant_model_choices == []
     assert state.message == "Model refresh failed: down"
+
+
+def test_variants_model_picker_search_filters_and_caps():
+    provider = {
+        "key": "openrouter",
+        "label": "OpenRouter",
+        "description": "Gateway",
+        "section": "cloud",
+        "baseUrl": "https://openrouter.ai/api",
+        "authMode": "authToken",
+        "credentialEnv": "OPENROUTER_API_KEY",
+        "requiresModelMapping": True,
+        "modelDiscovery": {"enabled": True},
+        "models": {},
+        "defaultVariantName": "openrouter",
+    }
+    state = tui.TuiState(
+        mode="variants",
+        variant_step=4,
+        variant_providers=[provider],
+        variant_model_choices=[*(f"vendor/model-{index:02d}" for index in range(30)), "anthropic/claude-opus"],
+    )
+
+    options = tui._variant_options(state)
+    assert len([option for option in options if option.kind == "variant-model-choice"]) == 25
+    assert any("Showing 25/31 matching models; keep typing to narrow." == option.label for option in options)
+
+    state.selected_index = _option_index(options, "variant-model-refresh")
+    assert tui._handle_char_key(state, "/") is True
+    assert state.variant_model_search_active is True
+    for char in "claude":
+        assert tui._handle_char_key(state, char) is True
+
+    options = tui._variant_options(state)
+    assert [option.value for option in options if option.kind == "variant-model-choice"] == ["anthropic/claude-opus"]
+    assert "Search: claude (typing)" in tui._screen_text(state, height=40)
+
+    assert tui._handle_backspace_key(state) is True
+    assert state.variant_model_search_text == "claud"
+    assert tui._activate(state) is True
+    assert state.variant_model_search_active is False
+    assert state.message == "Model search kept: claud"
+
+    state.variant_model_search_text = "missing"
+    assert "No models match current search." in tui._screen_text(state, height=40)
+
+
+def test_variants_model_skip_keeps_required_mapping_guard_and_manual_typing():
+    provider = {
+        "key": "openrouter",
+        "label": "OpenRouter",
+        "description": "Gateway",
+        "authMode": "authToken",
+        "credentialEnv": "OPENROUTER_API_KEY",
+        "requiresModelMapping": True,
+        "modelDiscovery": {"enabled": True},
+        "models": {},
+        "defaultVariantName": "openrouter",
+    }
+    state = tui.TuiState(
+        mode="variants",
+        variant_step=4,
+        variant_name="OpenRouter Dev",
+        variant_providers=[provider],
+        variant_model_choices=["anthropic/claude-opus", "anthropic/claude-sonnet"],
+    )
+
+    state.selected_index = _option_index(tui._variant_options(state), "variant-model-skip")
+    tui._activate_variants(state)
+
+    assert state.variant_model_choices == []
+    assert state.variant_model_search_text == ""
+    assert tui._selected_variant_option(state).kind == "variant-model"
+    assert tui._selected_variant_option(state).value == "opus"
+    assert "variant.json modelOverrides" in state.message
+
+    state.selected_index = _option_index(tui._variant_options(state), "variant-models-continue")
+    tui._activate_variants(state)
+    assert state.variant_step == 4
+    assert state.message == "Set model aliases for: Opus, Sonnet, Haiku"
+
+    for key, value in [
+        ("opus", "anthropic/claude-opus"),
+        ("sonnet", "anthropic/claude-sonnet"),
+        ("haiku", "anthropic/claude-haiku"),
+    ]:
+        state.selected_index = _option_index(tui._variant_options(state), "variant-model", key)
+        state.variant_model_overrides[key] = ""
+        for char in value:
+            assert tui._handle_char_key(state, char) is True
+
+    state.selected_index = _option_index(tui._variant_options(state), "variant-models-continue")
+    tui._activate_variants(state)
+    assert state.variant_step == 5
 
 
 def test_variants_wizard_all_tweaks_lists_latest_curated_ports():
@@ -2172,7 +2284,7 @@ def test_setup_detail_opens_model_editor_and_applies_changes(monkeypatch, tmp_pa
     assert state.models_pending["opus"] == "old-model"
     assert "Edit models: lm-local" in tui._screen_text(state)
 
-    state.selected_index = 2
+    state.selected_index = _option_index(tui._models_edit_options(state), "models-field", "opus")
     state.models_pending["opus"] = ""
     for char in "new-model":
         tui._handle_char_key(state, char)
@@ -2202,7 +2314,7 @@ def test_models_editor_refresh_applies_selected_model(monkeypatch):
 
     def fake_fetch(endpoint, api_key=None):
         calls.append((endpoint, api_key))
-        return ["local/model-a", "local/model-b"]
+        return ["local/model-b", "local/model-a", "local/model-a"]
 
     monkeypatch.setattr(tui, "fetch_provider_models", fake_fetch)
     state = tui.TuiState(
@@ -2213,16 +2325,102 @@ def test_models_editor_refresh_applies_selected_model(monkeypatch):
         variant_providers=[provider],
     )
 
+    state.selected_index = _option_index(tui._models_edit_options(state), "models-refresh")
     tui._activate_models_edit(state)
 
     assert calls == [("http://localhost:1234", None)]
     assert state.models_choices == ["local/model-a", "local/model-b"]
-    assert state.selected_index == 1
+    assert state.selected_index == _option_index(tui._models_edit_options(state), "models-choice")
 
     tui._activate_models_edit(state)
 
-    assert all(state.models_pending[key] == "local/model-a" for key, _label in tui.VARIANT_MODEL_FIELDS)
-    assert state.message == "Model aliases set to local/model-a"
+    assert state.models_pending == {"opus": "local/model-a"}
+    assert state.models_target == "sonnet"
+    assert state.message == "Opus model set to local/model-a. Next target: Sonnet."
+
+
+def test_models_editor_search_filters_and_caps():
+    variant = _variant("or-local", "OpenRouter Local")
+    variant.manifest["provider"] = {"key": "openrouter", "label": "OpenRouter"}
+    variant.manifest["modelOverrides"] = {}
+    variant.manifest["env"] = {"ANTHROPIC_BASE_URL": "https://openrouter.ai/api"}
+    provider = {
+        "key": "openrouter",
+        "label": "OpenRouter",
+        "baseUrl": "https://openrouter.ai/api",
+        "models": {},
+        "modelDiscovery": {"enabled": True},
+        "requiresModelMapping": True,
+    }
+    state = tui.TuiState(
+        mode="models-edit",
+        variants=[variant],
+        selected_setup_id="or-local",
+        models_variant_id="or-local",
+        variant_providers=[provider],
+        models_choices=[*(f"vendor/model-{index:02d}" for index in range(30)), "anthropic/claude-opus"],
+    )
+
+    options = tui._models_edit_options(state)
+    assert len([option for option in options if option.kind == "models-choice"]) == 25
+    assert any("Showing 25/31 matching models; keep typing to narrow." == option.label for option in options)
+
+    state.selected_index = _option_index(options, "models-refresh")
+    assert tui._handle_char_key(state, "/") is True
+    assert state.models_search_active is True
+    for char in "claude":
+        assert tui._handle_char_key(state, char) is True
+
+    options = tui._models_edit_options(state)
+    assert [option.value for option in options if option.kind == "models-choice"] == ["anthropic/claude-opus"]
+    assert "Search: claude (typing)" in tui._screen_text(state, height=40)
+
+    assert tui._handle_backspace_key(state) is True
+    assert state.models_search_text == "claud"
+    assert tui._activate(state) is True
+    assert state.models_search_active is False
+    assert state.message == "Model search kept: claud"
+
+    state.models_search_text = "missing"
+    assert "No models match current search." in tui._screen_text(state, height=40)
+
+
+def test_models_editor_skip_focuses_manual_field_and_preserves_slash_typing():
+    variant = _variant("or-local", "OpenRouter Local")
+    variant.manifest["provider"] = {"key": "openrouter", "label": "OpenRouter"}
+    variant.manifest["modelOverrides"] = {}
+    variant.manifest["env"] = {"ANTHROPIC_BASE_URL": "https://openrouter.ai/api"}
+    provider = {
+        "key": "openrouter",
+        "label": "OpenRouter",
+        "baseUrl": "https://openrouter.ai/api",
+        "models": {},
+        "modelDiscovery": {"enabled": True},
+        "requiresModelMapping": True,
+    }
+    state = tui.TuiState(
+        mode="models-edit",
+        variants=[variant],
+        selected_setup_id="or-local",
+        models_variant_id="or-local",
+        variant_providers=[provider],
+        models_choices=["anthropic/claude-opus"],
+    )
+
+    state.selected_index = _option_index(tui._models_edit_options(state), "models-skip")
+    tui._activate_models_edit(state)
+
+    assert state.models_choices == []
+    assert state.models_search_text == ""
+    assert tui._selected_models_edit_option(state).kind == "models-field"
+    assert tui._selected_models_edit_option(state).value == "opus"
+    assert "variant.json modelOverrides" in state.message
+
+    for char in "anthropic/claude-opus":
+        assert tui._handle_char_key(state, char) is True
+
+    assert state.models_pending["opus"] == "anthropic/claude-opus"
+    assert state.models_search_active is False
 
 
 # -- Tweaks tab tests ----------------------------------------------------------

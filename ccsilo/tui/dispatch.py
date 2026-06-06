@@ -1,6 +1,7 @@
 """Key handling and activation dispatch for the TUI."""
 
 from ._const import SOURCE_ARTIFACT, SOURCE_LATEST, SOURCE_VERSION
+from .model_picker import model_field_label
 from .options import setup_upgrade_status
 
 import sys as _sys
@@ -25,6 +26,19 @@ def _variant_provider_selector_mode(state):
 
 def _variant_provider_search_active(state):
     return _variant_provider_selector_mode(state) and getattr(state, "variant_provider_search_active", False)
+
+
+def _variant_model_selector_mode(state):
+    return state.mode in {"variants", "first-run-setup"} and state.variant_step == 4
+
+
+def _variant_model_search_active(state):
+    return _variant_model_selector_mode(state) and getattr(state, "variant_model_search_active", False)
+
+
+def _models_editor_search_active(state):
+    return state.mode == "models-edit" and getattr(state, "models_search_active", False)
+
 
 def _event_requests_quit(event, char_key_code):
     if event.get("kind") != "key":
@@ -70,6 +84,16 @@ def _handle_backspace_key(state):
         state.variant_provider_search_text = state.variant_provider_search_text[:-1]
         state.selected_index = state._clamp(state.selected_index, state.item_count())
         state.message = f"Provider search: {state.variant_provider_search_text or 'none'}"
+        return True
+    if _variant_model_search_active(state):
+        state.variant_model_search_text = state.variant_model_search_text[:-1]
+        state.selected_index = state._clamp(state.selected_index, state.item_count())
+        state.message = f"Model search: {state.variant_model_search_text or 'none'}"
+        return True
+    if _models_editor_search_active(state):
+        state.models_search_text = state.models_search_text[:-1]
+        state.selected_index = state._clamp(state.selected_index, state.item_count())
+        state.message = f"Model search: {state.models_search_text or 'none'}"
         return True
     if state.mode in {"tweaks-edit", "tweak-editor"} and state.tweak_search_active:
         state.tweak_search = state.tweak_search[:-1]
@@ -118,6 +142,20 @@ def _handle_char_key(state, char):
             state.variant_provider_search_text += char
             state.selected_index = state._clamp(state.selected_index, state.item_count())
             state.message = f"Provider search: {state.variant_provider_search_text}"
+        return True
+
+    if _variant_model_search_active(state):
+        if char.isprintable() and char not in "\r\n\t":
+            state.variant_model_search_text += char
+            state.selected_index = state._clamp(state.selected_index, state.item_count())
+            state.message = f"Model search: {state.variant_model_search_text}"
+        return True
+
+    if _models_editor_search_active(state):
+        if char.isprintable() and char not in "\r\n\t":
+            state.models_search_text += char
+            state.selected_index = state._clamp(state.selected_index, state.item_count())
+            state.message = f"Model search: {state.models_search_text}"
         return True
 
     if state.mode in {"variants", "first-run-setup"} and _tui()._variant_accepts_text(state):
@@ -195,6 +233,18 @@ def _handle_char_key(state, char):
         state.variant_provider_search_active = True
         state.message = "Search providers."
         return True
+    if char == "/" and _variant_model_selector_mode(state):
+        option = _tui()._selected_variant_option(state)
+        if option is None or option.kind != "variant-model":
+            state.variant_model_search_active = True
+            state.message = "Search models."
+            return True
+    if char == "/" and state.mode == "models-edit":
+        option = _tui()._selected_models_edit_option(state)
+        if option is None or option.kind != "models-field":
+            state.models_search_active = True
+            state.message = "Search models."
+            return True
     if lowered == "f" and _variant_provider_selector_mode(state):
         _cycle_variant_provider_filter(state)
         return True
@@ -319,6 +369,14 @@ def _activate(state):
         state.variant_provider_search_active = False
         state.message = f"Provider search kept: {state.variant_provider_search_text or 'none'}"
         return True
+    if _variant_model_search_active(state):
+        state.variant_model_search_active = False
+        state.message = f"Model search kept: {state.variant_model_search_text or 'none'}"
+        return True
+    if _models_editor_search_active(state):
+        state.models_search_active = False
+        state.message = f"Model search kept: {state.models_search_text or 'none'}"
+        return True
     if state.mode in {"tweaks-edit", "tweak-editor"} and state.tweak_search_active:
         state.tweak_search_active = False
         state.message = f"Tweak search kept: {state.tweak_search or 'none'}"
@@ -392,7 +450,10 @@ def _activate_models_edit(state):
     elif option.kind == "models-choice":
         _tui()._apply_models_choice(state, str(option.value))
     elif option.kind == "models-field":
-        state.message = f"Type the {option.value} model alias, or Backspace to clear it."
+        state.models_target = str(option.value)
+        state.message = f"Target alias: {model_field_label(state.models_target)}. Type manually, or select a discovered model."
+    elif option.kind == "models-skip":
+        _tui()._skip_models_editor_model_list(state)
     elif option.kind == "models-apply":
         _tui()._apply_models(state)
     elif option.kind in {"models-discard", "models-back"}:
@@ -530,6 +591,9 @@ def _open_model_editor(state):
     state.models_baseline = dict(baseline)
     state.models_pending = dict(baseline)
     state.models_choices = []
+    state.models_search_text = ""
+    state.models_search_active = False
+    state.models_target = "opus"
     _tui()._set_mode(state, "models-edit")
 
 def _open_variant_create_preview(state):
@@ -713,11 +777,14 @@ def _activate_variants(state):
         else:
             _tui()._advance_variant(state)
     elif option.kind == "variant-model":
-        state.message = f"Type the {option.value} model alias, or clear it to use the provider default."
+        state.variant_model_target = str(option.value)
+        state.message = f"Target alias: {model_field_label(state.variant_model_target)}. Type manually, or select a discovered model."
     elif option.kind == "variant-model-refresh":
         _tui()._refresh_variant_models(state)
     elif option.kind == "variant-model-choice":
         _tui()._apply_variant_model_choice(state, str(option.value))
+    elif option.kind == "variant-model-skip":
+        _tui()._skip_variant_model_list(state)
     elif option.kind == "variant-models-continue":
         if _tui()._require_variant_model_mapping(state):
             _tui()._advance_variant(state)
