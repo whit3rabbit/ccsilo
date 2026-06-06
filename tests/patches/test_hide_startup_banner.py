@@ -23,6 +23,37 @@ def test_realistic_function_anchor_skips_terminal_helper_false_positive():
     assert 'function qDH(){return null;}' in outcome.js
 
 
+def test_new_startup_banner_shape_with_pre_terminal_branch_applies():
+    js = (
+        'function kZH(){let H=uzq.c(36),[_]=d7();'
+        'if(WA()){let G;if(H[0]===Symbol.for("react.memo_cache_sentinel"))'
+        'G=Pq.default.createElement(N,null,'
+        'Pq.default.createElement(N,{color:"claude"},"Welcome to Claude Code"," "),'
+        'Pq.default.createElement(N,{dimColor:!0},"v",'
+        '{PACKAGE_URL:"@anthropic-ai/claude-code",VERSION:"2.1.167"}.VERSION)),'
+        'H[0]=G;else G=H[0];return G}'
+        'if(Z_.terminal==="Apple_Terminal")return Pq.default.createElement(Ki3,'
+        '{theme:_,welcomeMessage:"Welcome to Claude Code"});'
+        'return Pq.default.createElement(N,null,"banner")}'
+    )
+    outcome = PATCH.apply(js, PatchContext(claude_version="2.1.167"))
+    assert outcome.status == "applied"
+    assert outcome.js == "function kZH(){return null;}"
+
+
+def test_ide_onboarding_welcome_is_not_banner_anchor():
+    js = (
+        'function OC8(H){let _=sL7.c(22),{onDone:q,installationStatus:K}=H;'
+        'let w="VS Code",M=GZ.default.createElement(GZ.default.Fragment,null,'
+        'GZ.default.createElement(N,{color:"claude"},"\\u273B "),'
+        'GZ.default.createElement(N,null,"Welcome to Claude Code for ",w));'
+        'return GZ.default.createElement(Q6,{title:M,onCancel:q},null)}'
+    )
+    outcome = PATCH.apply(js, PatchContext(claude_version="2.1.167"))
+    assert outcome.status == "missed"
+    assert outcome.js == js
+
+
 def test_metadata():
     assert PATCH.id == "hide-startup-banner"
     assert PATCH.group == "ui"
@@ -44,6 +75,12 @@ def test_real_l1_anchor_matches(cli_js_real, real_js_versions):
         assert outcome.status == "applied", (
             f"hide-startup-banner did not apply against {version}"
         )
+
+
+def test_real_l1_anchor_matches_2_1_167(cli_js_real):
+    js = cli_js_real("2.1.167")
+    outcome = PATCH.apply(js, PatchContext(claude_version="2.1.167"))
+    assert outcome.status == "applied"
 
 
 def test_real_l2_patched_js_parses(cli_js_real, real_js_versions, parse_js):
