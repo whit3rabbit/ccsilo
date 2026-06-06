@@ -7,6 +7,30 @@ from ._pinned_default import DEFAULT_VERSION_RANGES
 
 
 _LINE = r'(?:"(?:\u2500|\\u2500)")'
+_SAVE_EDITOR_TEXT = "Save and close editor"
+
+
+def _hide_prompt_border_var(js: str):
+    save_idx = js.find(_SAVE_EDITOR_TEXT)
+    if save_idx == -1:
+        return js, False
+    window_start = max(0, save_idx - 2000)
+    window = js[window_start:save_idx]
+    matches = list(re.finditer(r",[$\w]+=[$\w]+\?\{\}:\{borderColor:", window))
+    if not matches:
+        return js, False
+    start = window_start + matches[-1].start()
+    tail = "borderLeft:!1,borderRight:!1,borderBottom:!0"
+    tail_idx = js.find(tail, start, save_idx)
+    if tail_idx == -1:
+        return js, False
+    segment = js[start:tail_idx + len(tail)]
+    old = 'borderStyle:"round"'
+    rel = segment.find(old)
+    if rel == -1:
+        return js, False
+    style_start = start + rel
+    return js[:style_start] + "borderStyle:undefined" + js[style_start + len(old):], True
 
 
 def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
@@ -51,6 +75,9 @@ def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
         )
         patched = True
 
+    new_js, new_main_input_patched = _hide_prompt_border_var(new_js)
+    patched = patched or new_main_input_patched
+
     editor = re.search(
         r'borderStyle:"round"(,borderLeft:!1,borderRight:!1,borderBottom:!0,width:"100%"\}.+?Save and close editor)',
         new_js,
@@ -70,7 +97,7 @@ PATCH = Patch(
     name="Input box border",
     group="ui",
     versions_supported=">=2.0.0,<3",
-    versions_tested=DEFAULT_VERSION_RANGES,
+    versions_tested=DEFAULT_VERSION_RANGES + ("==2.1.167",),
     apply=_apply,
     description="Remove the rounded border around the main prompt input box.",
 )

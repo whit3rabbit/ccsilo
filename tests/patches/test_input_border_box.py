@@ -14,6 +14,22 @@ def test_synthetic_applies(cli_js_synthetic):
     assert "borderStyle:undefined" in outcome.js
 
 
+def test_new_prompt_border_object_shape_applies():
+    js = (
+        'let te={value:q},dY=Pf?{}:{borderColor:(()=>{let S_={bash:"bashBorder"};'
+        'if(S_[M])return S_[M];return"promptBorder"})(),borderStyle:"round",'
+        'borderLeft:!1,borderRight:!1,borderBottom:!0};'
+        'if(k5)return m9.createElement(p,{flexDirection:"row",alignItems:"center",'
+        'justifyContent:"center",...dY,width:"100%"},'
+        'm9.createElement(N,{dimColor:!0,italic:!0},"Save and close editor to continue..."));'
+        'return m9.createElement(p,{flexDirection:"row",...dY,width:"100%",borderText:se})'
+    )
+    outcome = PATCH.apply(js, PatchContext(claude_version="2.1.167"))
+    assert outcome.status == "applied"
+    assert 'borderStyle:"round"' not in outcome.js
+    assert "borderStyle:undefined" in outcome.js
+
+
 def test_metadata():
     assert PATCH.id == "input-box-border"
     assert PATCH.group == "ui"
@@ -22,6 +38,11 @@ def test_metadata():
 @pytest.mark.parametrize("version", resolve_tested_versions(PATCH))
 def test_real_l1(cli_js_real, version):
     outcome = PATCH.apply(cli_js_real(version), PatchContext(claude_version=version))
+    assert outcome.status == "applied"
+
+
+def test_real_l1_2_1_167(cli_js_real):
+    outcome = PATCH.apply(cli_js_real("2.1.167"), PatchContext(claude_version="2.1.167"))
     assert outcome.status == "applied"
 
 
