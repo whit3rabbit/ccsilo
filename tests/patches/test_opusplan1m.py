@@ -28,6 +28,19 @@ def test_synthetic_is_idempotent(cli_js_synthetic):
     assert twice.js.count('"opusplan[1m]"') == once.js.count('"opusplan[1m]"')
 
 
+def test_synthetic_v2_applies_when_mode_switch_already_supports_1m(cli_js_synthetic):
+    js = cli_js_synthetic("opusplan1m-v2")
+    outcome = PATCH.apply(js, PatchContext(claude_version=None))
+
+    assert outcome.status == "applied"
+    assert '"fable[1m]","opusplan","opusplan[1m]"' in outcome.js
+    assert 'current==="opusplan[1m]"' in outcome.js
+    assert 'if(A==="opusplan[1m]")return"Architect mode: planner model in plan mode, worker model otherwise"' in outcome.js
+    assert 'if(A==="opusplan[1m]")return"Architect Mode"' in outcome.js
+    assert 'selected==="opusplan[1m]"' in outcome.js
+    assert outcome.js.count('value:"opusplan[1m]"') == 2
+
+
 def test_miss_when_anchor_absent():
     outcome = PATCH.apply("function unrelated(){return null}", PatchContext(claude_version=None))
     assert outcome.status == "missed"

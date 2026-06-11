@@ -100,6 +100,55 @@ def test_synthetic_error_branch_throws_status_bearing_nonretry_error(cli_js_synt
     assert result.returncode == 0, result.stderr or result.stdout
 
 
+def test_synthetic_retry_method_handles_nonretryable_quota(cli_js_synthetic, tmp_path):
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node not on PATH; skipping runtime retry method check")
+
+    old_retry = (
+        "function skipFirst(H){return!1}"
+        "function retryWatchdogEnabled(){return!0}"
+        "function retryWatchdogError(H){return H.status===429}"
+        "function shouldRetry(H){if(skipFirst(H))return!1;"
+        "if(retryWatchdogEnabled()&&retryWatchdogError(H))return!0;"
+        'let _=H.headers?.get("x-should-retry");if(_==="false")return!1;'
+        "if(H.status===429)return!0;return!1}"
+    )
+    retry_method = (
+        "class Client{constructor(){this._authState={tokenCache:null}}"
+        "_authFlags(H){return{usedTokenCache:false,didRefreshFor401:false}}"
+        "async shouldRetry(H,$){let q=this._authFlags($);"
+        "if(H.status===401&&this._authState.tokenCache&&q.usedTokenCache&&!q.didRefreshFor401)"
+        "return q.didRefreshFor401=!0,this._authState.tokenCache.invalidate(),!0;"
+        'let K=H.headers.get("x-should-retry");if(K==="true")return!0;'
+        'if(K==="false")return!1;if(H.status===408)return!0;'
+        "if(H.status===409)return!0;if(H.status===429)return!0;"
+        "if(H.status>=500)return!0;return!1}}"
+    )
+    js = cli_js_synthetic("anthropic-sse-error-surfacing").replace(old_retry, retry_method)
+    outcome = PATCH.apply(js, PatchContext(claude_version=None))
+    probe = (
+        outcome.js
+        + "\n(async()=>{"
+        + "\nconst client = new Client();"
+        + "\nlet quota = {status:429,type:'rate_limit_error',message:'Weekly/Monthly Limit Exhausted',error:{error:{code:'1310'}},headers:new Headers()};"
+        + "\nif(await client.shouldRetry(quota,{})!==false)process.exit(41);"
+        + "\nlet transient = {status:429,type:'rate_limit_error',message:'try later',error:{error:{code:'busy'}},headers:new Headers()};"
+        + "\nif(await client.shouldRetry(transient,{})!==true)process.exit(42);"
+        + "\nlet forcedOff = {status:500,type:'api_error',message:'down',error:{},headers:new Headers([['x-should-retry','false']])};"
+        + "\nif(await client.shouldRetry(forcedOff,{})!==false)process.exit(43);"
+        + "\nlet forcedOn = {status:400,type:'invalid_request_error',message:'retry',error:{},headers:new Headers([['x-should-retry','true']])};"
+        + "\nif(await client.shouldRetry(forcedOn,{})!==true)process.exit(44);"
+        + "\n})().catch(()=>process.exit(45));"
+    )
+    path = tmp_path / "probe.js"
+    path.write_text(probe, encoding="utf-8")
+
+    result = subprocess.run([node, str(path)], capture_output=True, text=True, timeout=30)
+
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
 def test_idempotent(cli_js_synthetic):
     js = cli_js_synthetic("anthropic-sse-error-surfacing")
     once = PATCH.apply(js, PatchContext(claude_version=None))

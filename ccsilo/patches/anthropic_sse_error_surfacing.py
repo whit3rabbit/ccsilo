@@ -24,6 +24,20 @@ _RETRY_PREDICATE_RE = re.compile(
     r'if\(([$\w]+)\(\2\)\)return!1;'
     r'if\(([$\w]+)\(\)&&([$\w]+)\(\2\)\)return!0;'
 )
+_RETRY_METHOD_RE = re.compile(
+    r'async shouldRetry\(([$\w]+),([$\w]+)\)\{'
+    r'let ([$\w]+)=this\._authFlags\(\2\);'
+    r'if\(\1\.status===401&&this\._authState\.tokenCache&&\3\.usedTokenCache&&!\3\.didRefreshFor401\)'
+    r'return \3\.didRefreshFor401=!0,this\._authState\.tokenCache\.invalidate\(\),!0;'
+    r'let ([$\w]+)=\1\.headers\.get\("x-should-retry"\);'
+    r'if\(\4==="true"\)return!0;'
+    r'if\(\4==="false"\)return!1;'
+    r'if\(\1\.status===408\)return!0;'
+    r'if\(\1\.status===409\)return!0;'
+    r'if\(\1\.status===429\)return!0;'
+    r'if\(\1\.status>=500\)return!0;'
+    r'return!1\}'
+)
 
 
 def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
@@ -92,12 +106,39 @@ def _patch_error_branch(js: str) -> str:
 
 def _patch_retry_predicate(js: str) -> str:
     match = _RETRY_PREDICATE_RE.search(js)
-    if not match:
-        raise ValueError("API retry predicate")
-    function_name, error_var, first_predicate, watchdog_enabled, watchdog_predicate = match.groups()
-    replacement = (
-        f'function {function_name}({error_var}){{'
-        f'if({first_predicate}({error_var}))return!1;'
+    if match:
+        function_name, error_var, first_predicate, watchdog_enabled, watchdog_predicate = match.groups()
+        replacement = (
+            f'function {function_name}({error_var}){{'
+            f'if({first_predicate}({error_var}))return!1;'
+            f'{_retry_guard_js(error_var)}'
+            f'if({watchdog_enabled}()&&{watchdog_predicate}({error_var}))return!0;'
+        )
+        return js[:match.start()] + replacement + js[match.end():]
+
+    match = _RETRY_METHOD_RE.search(js)
+    if match:
+        error_var, retry_context_var, auth_flags_var, _header_var = match.groups()
+        replacement = (
+            f'async shouldRetry({error_var},{retry_context_var}){{'
+            f'let {auth_flags_var}=this._authFlags({retry_context_var});'
+            f'if({error_var}.status===401&&this._authState.tokenCache&&{auth_flags_var}.usedTokenCache&&!{auth_flags_var}.didRefreshFor401)'
+            f'return {auth_flags_var}.didRefreshFor401=!0,this._authState.tokenCache.invalidate(),!0;'
+            f'{_retry_guard_js(error_var)}'
+            f'let ccsiloShouldRetryStatus={error_var}.status;'
+            'if(ccsiloShouldRetryStatus===408)return!0;'
+            'if(ccsiloShouldRetryStatus===409)return!0;'
+            'if(ccsiloShouldRetryStatus===429)return!0;'
+            'if(ccsiloShouldRetryStatus>=500)return!0;'
+            'return!1}'
+        )
+        return js[:match.start()] + replacement + js[match.end():]
+
+    raise ValueError("API retry predicate")
+
+
+def _retry_guard_js(error_var: str) -> str:
+    return (
         f'let ccsiloShouldRetry={error_var}.headers?.get?.("x-should-retry"),'
         f'ccsiloErrorCode=String({error_var}.error?.error?.code??'
         f'{error_var}.error?.code??{error_var}.error?.base_resp?.status_code??""),'
@@ -106,9 +147,8 @@ def _patch_retry_predicate(js: str) -> str:
         f'/limit exhausted|usage limit|insufficient balance|balance exhausted|in arrears|account .*locked|package has expired|daily call limit|subscription plan|fair use/i.test({error_var}.message??""));'
         'if(ccsiloShouldRetry==="false"||ccsiloQuotaExhausted)return!1;'
         f'if({error_var}?.ccsiloNonRetryable===!0)return!1;'
-        f'if({watchdog_enabled}()&&{watchdog_predicate}({error_var}))return!0;'
+        'if(ccsiloShouldRetry==="true")return!0;'
     )
-    return js[:match.start()] + replacement + js[match.end():]
 
 
 PATCH = Patch(

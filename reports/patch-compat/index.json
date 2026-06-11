@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-06-07T10:12:41.271846Z",
+  "generatedAt": "2026-06-11T01:52:58.025332Z",
   "reports": [
     {
       "ok": true,
-      "path": "2.1.168.json",
+      "path": "2.1.172.json",
       "smoke": {
         "ok": true,
         "platformKey": "linux-x64",
@@ -11,15 +11,15 @@
         "status": "passed"
       },
       "summary": {
-        "applied": 27,
+        "applied": 26,
         "failed": 0,
         "ok": 29,
-        "skipped": 1,
+        "skipped": 2,
         "total": 29,
         "unsupported": 1,
-        "untested": 26
+        "untested": 1
       },
-      "version": "2.1.168"
+      "version": "2.1.172"
     }
   ],
   "schemaVersion": 1

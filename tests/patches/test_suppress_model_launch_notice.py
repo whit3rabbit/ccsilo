@@ -39,6 +39,22 @@ def test_miss_has_detail():
     assert outcome.notes == ("missing Opus 4.7/4.8 launch eligibility gate",)
 
 
+def test_legacy_counter_cleanup_without_notice_skips():
+    js = (
+        "function clean(H){"
+        "if(H.opus1mMergeNoticeSeenCount===void 0&&H.voiceNoticeSeenCount===void 0"
+        "&&H.opus47LaunchSeenCount===void 0&&H.opus48LaunchSeenCount===void 0)return H;"
+        "let{opus1mMergeNoticeSeenCount:q,voiceNoticeSeenCount:K,"
+        "opus47LaunchSeenCount:_,opus48LaunchSeenCount:f,...A}=H;return A}"
+        "const defaults={unpinOpus47LaunchEffort:!1,unpinOpus48LaunchEffort:!1,unpinFable5LaunchEffort:!1}"
+    )
+
+    outcome = PATCH.apply(js, PatchContext(claude_version=None))
+
+    assert outcome.status == "skipped"
+    assert outcome.notes == ("model launch notice already absent",)
+
+
 def test_metadata():
     assert PATCH.id == "suppress-model-launch-notice"
     assert PATCH.group == "ui"

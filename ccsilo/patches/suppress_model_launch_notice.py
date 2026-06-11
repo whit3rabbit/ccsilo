@@ -33,10 +33,24 @@ def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
             new_js = js[:match.start()] + replacement + js[match.end():]
             return PatchOutcome(js=new_js, status="applied")
 
+    if _has_only_legacy_counter_cleanup(js):
+        return PatchOutcome(
+            js=js,
+            status="skipped",
+            notes=("model launch notice already absent",),
+        )
+
     return PatchOutcome(
         js=js,
         status="missed",
         notes=("missing Opus 4.7/4.8 launch eligibility gate",),
+    )
+
+
+def _has_only_legacy_counter_cleanup(js: str) -> bool:
+    return (
+        js.count("opus47LaunchSeenCount") == 2
+        and js.count("opus48LaunchSeenCount") == 2
     )
 
 
@@ -45,7 +59,7 @@ PATCH = Patch(
     name="Suppress model launch notice",
     group="ui",
     versions_supported=">=2.1.0,<3",
-    versions_tested=(">=2.1.0,<=2.1.163",),
+    versions_tested=(">=2.1.0,<=2.1.172",),
     apply=_apply,
     on_miss="skip",
     description="Hide the startup notice announcing newly available Claude model launches.",

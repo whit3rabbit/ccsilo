@@ -17,13 +17,16 @@ def _patch_extraction(js: str) -> str:
     match = re.search(r'function [$\w]+\(\)\{return [$\w]+\("tengu_session_memory"', js)
     if not match:
         match = re.search(
-            r"function [$\w]+\(\)\{if\([$\w]+\(\)\)return!1;let [$\w]+=process\.env\.CLAUDE_CODE_DISABLE_AUTO_MEMORY;",
+            r"function [$\w]+\(\)\{(?:if\([$\w]+\(\)\)return!1;){1,3}let [$\w]+=process\.env\.CLAUDE_CODE_DISABLE_AUTO_MEMORY;",
             js,
         )
     if not match:
         if re.search(r'function [$\w]+\(\)\{return true;return [$\w]+\("tengu_session_memory"', js):
             return js
-        if re.search(r"function [$\w]+\(\)\{return true;if\([$\w]+\(\)\)return!1;let [$\w]+=process\.env\.CLAUDE_CODE_DISABLE_AUTO_MEMORY;", js):
+        if re.search(
+            r"function [$\w]+\(\)\{return true;(?:if\([$\w]+\(\)\)return!1;){1,3}let [$\w]+=process\.env\.CLAUDE_CODE_DISABLE_AUTO_MEMORY;",
+            js,
+        ):
             return js
         raise ValueError("extraction gate")
     insert_at = match.start() + match.group(0).index("{") + 1
@@ -109,7 +112,7 @@ PATCH = Patch(
     name="Session memory",
     group="prompts",
     versions_supported=">=2.1.0,<3",
-    versions_tested=(">=2.1.0,<=2.1.163",),
+    versions_tested=(">=2.1.0,<=2.1.172",),
     apply=_apply,
     description="Enable session memory extraction and past-session search with environment-configurable thresholds.",
 )
