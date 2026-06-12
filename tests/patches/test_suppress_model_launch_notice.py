@@ -64,8 +64,11 @@ def test_metadata():
 def test_real_l1(cli_js_real, version):
     outcome = PATCH.apply(cli_js_real(version), PatchContext(claude_version=version))
 
-    assert outcome.status == "applied"
-    assert "ccsilo:suppress-model-launch-notice" in outcome.js
+    assert outcome.status in {"applied", "skipped"}
+    if outcome.status == "applied":
+        assert "ccsilo:suppress-model-launch-notice" in outcome.js
+    else:
+        assert outcome.notes == ("model launch notice already absent",)
 
 
 @pytest.mark.parametrize("version", resolve_tested_versions(PATCH))
