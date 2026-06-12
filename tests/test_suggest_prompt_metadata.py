@@ -309,6 +309,41 @@ def test_update_target_applies_auto_metadata_in_place(tmp_path):
     assert report["summary"]["reviewOnly"] == 1
 
 
+def test_fail_on_review_needed_blocks_review_only_candidates(tmp_path, capsys):
+    target = tmp_path / "prompts" / "2.1.10.json"
+    vendor = tmp_path / "vendor"
+    out = tmp_path / "report.json"
+    text = "You should always leave this ambiguous target for review."
+    write_catalog(target, "2.1.10", [prompt(text, version="2.1.10")])
+    write_catalog(
+        vendor / "prompts-2.1.9.json",
+        "2.1.9",
+        [
+            named_prompt("first-id", text),
+            named_prompt("second-id", text),
+        ],
+    )
+
+    status = suggest_prompt_metadata.main(
+        [
+            "--target",
+            str(target),
+            "--history-dir",
+            str(tmp_path / "prompts"),
+            "--catalog-dir",
+            str(vendor),
+            "--out",
+            str(out),
+            "--fail-on-review-needed",
+        ]
+    )
+
+    assert status == 1
+    assert out.exists()
+    captured = capsys.readouterr()
+    assert "1 prompt metadata candidates need review" in captured.err
+
+
 def test_cli_returns_useful_json_and_creates_parent_output_dirs(tmp_path, capsys):
     target = tmp_path / "prompts" / "2.1.10.json"
     vendor = tmp_path / "vendor"
@@ -344,4 +379,5 @@ def test_update_prompts_workflow_applies_suggested_metadata_to_changed_catalogs(
 
     assert "tools/suggest_prompt_metadata.py" in workflow
     assert "--update-target" in workflow
+    assert "--fail-on-review-needed" in workflow
     assert "tests/test_suggest_prompt_metadata.py" in workflow

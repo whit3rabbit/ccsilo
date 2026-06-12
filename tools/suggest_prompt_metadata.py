@@ -645,6 +645,11 @@ def _parse_args(argv: Optional[Sequence[str]]) -> argparse.Namespace:
         action="store_true",
         help="Apply auto-applicable metadata candidates back to --target after writing the report.",
     )
+    parser.add_argument(
+        "--fail-on-review-needed",
+        action="store_true",
+        help="Exit non-zero when any unnamed prompt still has a review-only metadata candidate.",
+    )
     parser.add_argument("--apply-confidence", type=float, default=0.98)
     args = parser.parse_args(argv)
     if not 0.0 <= args.apply_confidence <= 1.0:
@@ -691,6 +696,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print(f"[+] wrote seed candidate catalog -> {args.write_seed}")
     if args.update_target:
         print(f"[+] updated target catalog with auto-applicable candidates -> {args.target}")
+    if args.fail_on_review_needed and summary["reviewOnly"]:
+        print(
+            f"[!] {target_version}: {summary['reviewOnly']} prompt metadata candidates need review",
+            file=sys.stderr,
+        )
+        return 1
     return 0
 
 

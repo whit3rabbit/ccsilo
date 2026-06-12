@@ -232,7 +232,7 @@ tools/run_patch_smoke_docker.sh --all --max-versions 10 --run-smoke --smoke-time
 Rules:
 
 * Prefer `--since-existing-latest` after upstream releases and `--missing` for gap filling.
-* Validate generated prompt files before writing. Treat unnamed prompt entries as release blockers unless explicitly accepted. Use `--fail-on-unnamed` for release-prep runs.
+* Validate generated prompt files before writing. Treat review-only prompt metadata candidates as release blockers unless explicitly resolved. Use `tools/suggest_prompt_metadata.py --update-target --fail-on-review-needed` for release-prep runs; leave `no_candidate` extras unnamed unless a verified catalog match exists.
 * Commit prompt JSON updates separately from unrelated patch, TUI, or feature changes.
 * Use Docker smoke for committed patch reports. It defaults to `DOCKER_PLATFORM=linux/amd64` and writes reports to `reports/patch-compat`.
 * `tools/check_patch_releases.py --latest` rewrites `reports/patch-compat/index.json` with only the versions processed in that run. If the index should keep multiple latest reports, run those versions together with `--versions <latest> <previous> --run-smoke`.

@@ -53,7 +53,8 @@ jobs:
               --history-dir prompts \
               --catalog-dir vendor/tweakcc/data/prompts \
               --out "tmp/prompt-metadata-candidates/${version}.json" \
-              --update-target
+              --update-target \
+              --fail-on-review-needed
           done < <(git diff --name-only -z -- 'prompts/*.json')
 
           if [ "$changed" -eq 0 ]; then

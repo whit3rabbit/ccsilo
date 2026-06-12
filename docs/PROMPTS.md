@@ -74,8 +74,13 @@ Use `.venv/bin/python` from the repository root.
 # Regenerate known versions intentionally
 .venv/bin/python tools/extract_prompt_versions.py --versions 2.1.123 --force-prompts
 
-# Release-prep mode, fail if any generated prompt is unnamed
-.venv/bin/python tools/extract_prompt_versions.py --versions 2.1.123 --force-prompts --fail-on-unnamed
+# Release-prep mode, fail if any unnamed prompt still has a review-only metadata candidate
+.venv/bin/python tools/extract_prompt_versions.py --versions 2.1.123 --force-prompts
+.venv/bin/python tools/suggest_prompt_metadata.py \
+  --target prompts/2.1.123.json \
+  --out tmp/prompt-metadata-candidates-2.1.123.json \
+  --update-target \
+  --fail-on-review-needed
 ```
 
 Useful options:
@@ -88,7 +93,7 @@ Useful options:
 | `--force-download` | Remove the cached binary before downloading. |
 | `--force-extract` | Re-extract modules from the binary. |
 | `--force-prompts` | Rebuild the catalog even if `prompts/<version>.json` exists. |
-| `--fail-on-unnamed` | Mark a version failed if any prompt lacks `name` or `id`. |
+| `--fail-on-unnamed` | Mark a version failed if any prompt lacks `name` or `id`. This is stricter than normal release prep and requires explicit acceptance for documented no-candidate extras. |
 | `--stop-on-error` | Stop after the first failed version. |
 
 ## Extraction Flow
@@ -182,8 +187,10 @@ the target prompt `pieces`, and leaves every review-only or unresolved prompt
 unnamed.
 
 The scheduled prompt-update CI runs this suggestion pass for prompt catalogs
-changed by extraction and uses `--update-target` to write only auto-applicable
-metadata back to those changed catalogs before committing.
+changed by extraction. It uses `--update-target` to write only auto-applicable
+metadata back to those changed catalogs, then `--fail-on-review-needed` to block
+review-only candidates before committing. `no_candidate` entries remain unnamed
+unless a verified catalog match is added later.
 
 ## Bun-Specific Issues
 
@@ -240,8 +247,8 @@ Be strict about what the extractor can prove:
 
 Before committing prompt catalog changes:
 
-1. Use `--fail-on-unnamed` for release-prep regeneration.
-2. Review the summary output, especially `named` and `unnamed` counts.
+1. Run the metadata suggestion pass with `--fail-on-review-needed`.
+2. Review the summary output, especially `named`, `unnamed`, and `review-only` counts.
 3. Compare against the nearest vendor catalog when available.
 4. Run focused tests:
 
