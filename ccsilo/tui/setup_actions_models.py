@@ -2,10 +2,12 @@
 
 import os
 from .model_picker import (
+    models_editor_uses_architect_mode,
     model_field_label,
     next_model_target,
     normalize_model_target,
     sorted_unique_model_ids,
+    sync_architect_worker_default,
 )
 from .setup_actions_common import (  # noqa: F401
     _active_setup_status,
@@ -159,9 +161,15 @@ def _apply_models_choice(state, model_id: str):
         return
     key = normalize_model_target(getattr(state, "models_target", ""))
     state.models_pending[key] = value
+    architect_mode = models_editor_uses_architect_mode(state)
+    if architect_mode:
+        sync_architect_worker_default(state.models_pending, key)
     next_key = next_model_target(key)
     state.models_target = next_key
-    state.message = f"{model_field_label(key)} model set to {value}. Next target: {model_field_label(next_key)}."
+    state.message = (
+        f"{model_field_label(key, architect_mode=architect_mode)} model set to {value}. "
+        f"Next target: {model_field_label(next_key, architect_mode=architect_mode)}."
+    )
 
 def _skip_variant_model_list(state):
     state.variant_model_choices = []

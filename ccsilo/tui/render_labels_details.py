@@ -5,6 +5,8 @@ from ..variant_tweaks import (
     GATEWAY_MODEL_DISCOVERY_TWEAK_ID,
     default_tweak_ids_for_provider,
 )
+from ..variants.model import variant_id_from_name
+from ..workspace import workspace_root
 from ._const import ARCHITECT_MODE_TWEAK_ID
 from .options import (
     dashboard_source_label,
@@ -67,13 +69,16 @@ def variant_tweak_detail_text(state) -> str:
         recommended_ids=recommended,
     )
     enabled = "yes" if tweak_id in (state.selected_variant_tweaks or []) else "no"
+    trailing = [
+        f"Selected for new setup: {enabled}",
+        f"Claude Code version: {state.variant_claude_version or 'latest'}",
+    ]
+    if tweak_id == ARCHITECT_MODE_TWEAK_ID:
+        trailing.extend(_architect_mode_edit_lines(state))
     return _format_tweak_detail_text(
         patch,
         status,
-        [
-            f"Selected for new setup: {enabled}",
-            f"Claude Code version: {state.variant_claude_version or 'latest'}",
-        ],
+        trailing,
     )
 
 def dashboard_tweak_detail_text(state) -> str:
@@ -138,6 +143,21 @@ def _variant_model_proxy_detail_text(state) -> str:
         f"Required env: {GATEWAY_MODEL_DISCOVERY_ENV}=1",
         "Dependency: unchecking Gateway model discovery disables this proxy.",
     ])
+
+def _architect_mode_edit_lines(state):
+    setup_name = state.variant_name.strip() or "<setup-name>"
+    try:
+        setup_id = variant_id_from_name(setup_name)
+    except Exception:
+        setup_id = "<setup-id>"
+    setup_root = workspace_root() / "variants" / setup_id
+    return [
+        "",
+        "Auth note: normal Claude Code login/session can still be used. This alias does not start the setup-local OAuth architect proxy.",
+        f"Selected alias file: {setup_root / 'config' / 'settings.json'} -> model=opusplan",
+        f"Planner/worker aliases: {setup_root / 'variant.json'} -> modelOverrides",
+        f"Generated wrapper: {workspace_root() / 'bin' / setup_id} exports model override env vars",
+    ]
 
 def _variant_tweak_summary_text(state) -> str:
     selected = len(state.selected_variant_tweaks or [])

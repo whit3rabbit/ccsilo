@@ -2,6 +2,7 @@
 
 from ._const import MenuOption, VARIANT_MODEL_FIELDS
 from .model_picker import (
+    models_editor_uses_architect_mode,
     model_field_label,
     model_search_label,
     normalize_model_target,
@@ -40,7 +41,9 @@ def models_edit_options(state):
     provider = provider_for_setup(state, variant)
     options = []
     target = normalize_model_target(getattr(state, "models_target", ""))
+    architect_mode = models_editor_uses_architect_mode(state, variant)
     for key, label in VARIANT_MODEL_FIELDS:
+        label = model_field_label(key, architect_mode=architect_mode)
         value = models_display_value(state, provider, key)
         source = "override" if state.models_pending.get(key, "").strip() else "default"
         marker = ">" if key == target else " "
@@ -58,6 +61,7 @@ def models_edit_options(state):
                 search_text,
                 getattr(state, "models_search_active", False),
                 target,
+                architect_mode=architect_mode,
             )))
             for model_id in visible:
                 marker = "*" if _models_choice_selected(state, model_id) else " "
@@ -115,9 +119,9 @@ def models_pending_diff(state):
         "pending": pending,
     }
 
-def model_picker_summary(total, match_count, visible_count, search_text, active, target):
+def model_picker_summary(total, match_count, visible_count, search_text, active, target, *, architect_mode=False):
     search = model_search_label(search_text, active)
-    target_label = model_field_label(normalize_model_target(target))
+    target_label = model_field_label(normalize_model_target(target), architect_mode=architect_mode)
     if total:
         return (
             f"Target: {target_label} | Search: {search} | "

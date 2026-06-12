@@ -10,8 +10,14 @@ from ..variant_tweaks import (
     GATEWAY_MODEL_DISCOVERY_TWEAK_ID,
     default_tweak_ids_for_provider,
 )
-from ._const import VARIANT_MODEL_FIELDS, VARIANT_STEPS
-from .model_picker import model_field_label, next_model_target, normalize_model_target
+from ._const import ARCHITECT_MODE_TWEAK_ID, VARIANT_MODEL_FIELDS, VARIANT_STEPS
+from .model_picker import (
+    create_uses_architect_mode,
+    model_field_label,
+    next_model_target,
+    normalize_model_target,
+    sync_architect_worker_default,
+)
 from .options import (
     selected_variant_provider,
     variant_model_display_value,
@@ -88,8 +94,12 @@ def toggle_variant_tweak(state, tweak_id: str):
         if tweak_id == GATEWAY_MODEL_DISCOVERY_TWEAK_ID and state.variant_model_proxy == "architect":
             state.variant_model_proxy = ""
             state.message = "Gateway model discovery disabled; OAuth architect proxy disabled."
+        elif tweak_id == ARCHITECT_MODE_TWEAK_ID:
+            state.message = "Architect Mode disabled."
     else:
         _select_variant_tweak(state, tweak_id)
+        if tweak_id == ARCHITECT_MODE_TWEAK_ID:
+            state.message = "Architect Mode enabled. Set Planner and Worker aliases in the Models step."
 
 
 def _select_variant_tweak(state, tweak_id: str) -> None:
@@ -111,8 +121,9 @@ def require_variant_model_mapping(state) -> bool:
     provider = selected_variant_provider(state)
     if not provider or not provider.get("requiresModelMapping"):
         return True
+    architect_mode = create_uses_architect_mode(state)
     missing = [
-        label
+        model_field_label(key, architect_mode=architect_mode)
         for key, label in VARIANT_MODEL_FIELDS[:3]
         if not variant_model_display_value(state, provider, key)
     ]
@@ -230,9 +241,15 @@ def apply_variant_model_choice(state, model_id: str):
         return
     key = normalize_model_target(getattr(state, "variant_model_target", ""))
     state.variant_model_overrides[key] = value
+    architect_mode = create_uses_architect_mode(state)
+    if architect_mode:
+        sync_architect_worker_default(state.variant_model_overrides, key)
     next_key = next_model_target(key)
     state.variant_model_target = next_key
-    state.message = f"{model_field_label(key)} model set to {value}. Next target: {model_field_label(next_key)}."
+    state.message = (
+        f"{model_field_label(key, architect_mode=architect_mode)} model set to {value}. "
+        f"Next target: {model_field_label(next_key, architect_mode=architect_mode)}."
+    )
 
 
 def validate_variant_endpoint(state, provider) -> bool:

@@ -5,6 +5,7 @@
 former calls it; rebinding has to occur in the same module's globals.
 """
 
+from .model_picker import create_uses_architect_mode, models_editor_uses_architect_mode, sync_architect_worker_default
 from .options import selected_dashboard_option, selected_models_edit_option, selected_variant_option
 
 
@@ -64,6 +65,8 @@ def variant_append_text(state, char: str) -> None:
         key = str(option.value)
         state.variant_model_target = key
         state.variant_model_overrides[key] = state.variant_model_overrides.get(key, "") + char
+        if create_uses_architect_mode(state):
+            sync_architect_worker_default(state.variant_model_overrides, key)
     elif option.kind == "variant-ccrouter-package":
         state.variant_ccrouter_package += char
     elif option.kind == "variant-ccrouter-port":
@@ -79,6 +82,8 @@ def models_append_text(state, char: str) -> None:
     key = str(option.value)
     state.models_target = key
     state.models_pending[key] = state.models_pending.get(key, "") + char
+    if models_editor_uses_architect_mode(state):
+        sync_architect_worker_default(state.models_pending, key)
 
 
 def variant_backspace(state) -> bool:
@@ -99,6 +104,8 @@ def variant_backspace(state) -> bool:
         key = str(option.value)
         state.variant_model_target = key
         state.variant_model_overrides[key] = state.variant_model_overrides.get(key, "")[:-1]
+        if create_uses_architect_mode(state):
+            sync_architect_worker_default(state.variant_model_overrides, key)
     elif option.kind == "variant-ccrouter-package":
         state.variant_ccrouter_package = state.variant_ccrouter_package[:-1]
     elif option.kind == "variant-ccrouter-port":
@@ -115,4 +122,6 @@ def models_backspace(state) -> bool:
     key = str(option.value)
     state.models_target = key
     state.models_pending[key] = state.models_pending.get(key, "")[:-1]
+    if models_editor_uses_architect_mode(state):
+        sync_architect_worker_default(state.models_pending, key)
     return True

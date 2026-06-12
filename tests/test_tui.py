@@ -1666,7 +1666,7 @@ def test_variants_wizard_all_tweaks_lists_latest_curated_ports():
 
     assert "agents-md" in text
     assert "session-memory" in text
-    assert "Architect Mode  (model picker alias, no Claude OAuth)" in text
+    assert "Architect Mode  (plan-mode planner / worker routing)" in text
     assert "opusplan1m" not in text
     assert "mcp-non-blocking" in text
     assert "mcp-batch-size" in text
@@ -1798,7 +1798,7 @@ def test_ccr_oauth_provider_defaults_to_architect_proxy_and_tweak():
     assert state.variant_model_proxy == "architect"
     assert "opusplan1m" in state.selected_variant_tweaks
     assert "gateway-model-discovery" in state.selected_variant_tweaks
-    assert labels.count("[x] Architect Mode  (model picker alias, no Claude OAuth)") == 1
+    assert labels.count("[x] Architect Mode  (plan-mode planner / worker routing)") == 1
     assert sum(1 for option in options if option.value == "opusplan1m") == 1
     assert "[x] Gateway model discovery  (gateway-model-discovery)" in labels
     assert "[x] OAuth architect proxy  (requires Claude Code account)" in labels
@@ -1862,7 +1862,7 @@ def test_variants_wizard_opencode_defaults_use_gateway_discovery_without_archite
     assert "opusplan1m" not in state.selected_variant_tweaks
     assert "gateway-model-discovery" in state.selected_variant_tweaks
     assert "[x] OpenCode gateway discovery  (opencode-gateway-discovery)" in labels
-    assert "[ ] Architect Mode  (model picker alias, no Claude OAuth)" in labels
+    assert "[ ] Architect Mode  (plan-mode planner / worker routing)" in labels
     assert "[ ] OAuth architect proxy  (requires Claude Code account)" in labels
     assert "Model proxy port: auto" not in labels
 
@@ -1937,7 +1937,7 @@ def test_variants_wizard_architect_mode_toggle_uses_tweak_without_proxy():
 
     assert state.variant_model_proxy == ""
     assert "opusplan1m" not in state.selected_variant_tweaks
-    assert "[ ] Architect Mode  (model picker alias, no Claude OAuth)" in labels
+    assert "[ ] Architect Mode  (plan-mode planner / worker routing)" in labels
     assert "[ ] OAuth architect proxy  (requires Claude Code account)" in labels
 
     state.selected_index = next(index for index, option in enumerate(options) if option.kind == "variant-architect-mode")
@@ -1945,19 +1945,25 @@ def test_variants_wizard_architect_mode_toggle_uses_tweak_without_proxy():
 
     assert "opusplan1m" in state.selected_variant_tweaks
     assert state.variant_model_proxy == ""
+    assert state.message == "Architect Mode enabled. Set Planner and Worker aliases in the Models step."
 
 
 def test_variants_wizard_tweak_step_renders_detail_card():
+    from ccsilo.tui.render_labels_details import variant_tweak_detail_text
+
     state = tui.TuiState(mode="variants", variant_step=5, tweak_filter="all")
     options = tui._variant_options(state)
     state.selected_index = next(index for index, option in enumerate(options) if option.value == "opusplan1m")
 
     screen = _render_screen(state, 100, 30)
+    detail = variant_tweak_detail_text(state)
 
     assert "Tweak details" in screen
     assert "Architect Mode" in screen
     assert "Versions supported" in screen
     assert "Add an Architect Mode model alias" in screen
+    assert "normal Claude Code login/session can still be used" in detail
+    assert "Planner/worker aliases" in detail
 
 
 def test_dashboard_tweak_step_renders_detail_card():
@@ -2065,6 +2071,39 @@ def test_variants_wizard_blocks_required_model_mapping():
     tui._activate_variants(state)
 
     assert state.variant_step == 5
+
+
+def test_variants_architect_mode_model_step_uses_planner_worker_labels():
+    provider = {
+        "key": "mirror",
+        "label": "Mirror Claude Code",
+        "description": "Mirror",
+        "authMode": "none",
+        "models": {},
+        "requiresModelMapping": False,
+        "defaultVariantName": "mirror",
+    }
+    state = tui.TuiState(
+        mode="variants",
+        variant_step=4,
+        variant_name="mirror",
+        selected_variant_tweaks=["opusplan1m"],
+        variant_providers=[provider],
+        variant_model_overrides={"opus": "claude-planner", "sonnet": "claude-worker", "default": "claude-worker"},
+    )
+
+    labels = [option.label for option in tui._variant_options(state)]
+
+    assert any("Planner -> claude-planner" in label for label in labels)
+    assert any("Worker -> claude-worker" in label for label in labels)
+    assert any("Default worker -> claude-worker" in label for label in labels)
+
+    state.variant_model_target = "sonnet"
+    tui._apply_variant_model_choice(state, "claude-worker-2")
+
+    assert state.variant_model_overrides["sonnet"] == "claude-worker-2"
+    assert state.variant_model_overrides["default"] == "claude-worker-2"
+    assert state.message == "Worker model set to claude-worker-2. Next target: Haiku."
 
 
 def test_variants_text_inputs_cover_credentials_and_models():
@@ -2337,6 +2376,44 @@ def test_models_editor_refresh_applies_selected_model(monkeypatch):
     assert state.models_pending == {"opus": "local/model-a"}
     assert state.models_target == "sonnet"
     assert state.message == "Opus model set to local/model-a. Next target: Sonnet."
+
+
+def test_models_editor_architect_mode_labels_and_worker_default_sync():
+    variant = _variant("mirror", "Mirror", tweaks=["opusplan1m"])
+    variant.manifest["provider"] = {"key": "mirror", "label": "Mirror Claude Code"}
+    variant.manifest["modelOverrides"] = {
+        "opus": "claude-planner",
+        "sonnet": "claude-worker",
+        "default": "claude-worker",
+    }
+    provider = {
+        "key": "mirror",
+        "label": "Mirror Claude Code",
+        "models": {},
+        "modelDiscovery": {},
+        "requiresModelMapping": False,
+    }
+    state = tui.TuiState(
+        mode="models-edit",
+        variants=[variant],
+        selected_setup_id="mirror",
+        models_variant_id="mirror",
+        models_pending=dict(variant.manifest["modelOverrides"]),
+        variant_providers=[provider],
+    )
+
+    labels = [option.label for option in tui._models_edit_options(state)]
+
+    assert any("Planner -> claude-planner" in label for label in labels)
+    assert any("Worker -> claude-worker" in label for label in labels)
+    assert any("Default worker -> claude-worker" in label for label in labels)
+
+    state.models_target = "sonnet"
+    tui._apply_models_choice(state, "claude-worker-2")
+
+    assert state.models_pending["sonnet"] == "claude-worker-2"
+    assert state.models_pending["default"] == "claude-worker-2"
+    assert state.message == "Worker model set to claude-worker-2. Next target: Haiku."
 
 
 def test_models_editor_search_filters_and_caps():

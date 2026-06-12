@@ -13,7 +13,7 @@ from ._const import (
     VARIANT_STEPS,
     next_action_label,
 )
-from .model_picker import normalize_model_target, visible_model_ids
+from .model_picker import create_uses_architect_mode, model_field_label, normalize_model_target, visible_model_ids
 from .options_variant_provider_detail import variant_model_proxy_supported, variant_provider_detail_lines  # noqa: F401
 from .options_variant_provider import (  # noqa: F401
     _default_provider_section,
@@ -125,7 +125,8 @@ def variant_options(state):
         return options
     if state.variant_step == 4:
         provider = selected_variant_provider(state)
-        if provider and not provider.get("requiresModelMapping"):
+        architect_mode = create_uses_architect_mode(state)
+        if provider and not provider.get("requiresModelMapping") and not architect_mode:
             return [
                 MenuOption("variant-models-default", "Using provider default models"),
                 MenuOption("variant-models-continue", next_action_label("Continue to tweaks")),
@@ -133,6 +134,7 @@ def variant_options(state):
         options = []
         target = normalize_model_target(getattr(state, "variant_model_target", ""))
         for key, label in VARIANT_MODEL_FIELDS:
+            label = model_field_label(key, architect_mode=architect_mode)
             value = variant_model_display_value(state, provider, key)
             source = "override" if state.variant_model_overrides.get(key, "").strip() else "default"
             marker = ">" if key == target else " "
@@ -150,6 +152,7 @@ def variant_options(state):
                     search_text,
                     getattr(state, "variant_model_search_active", False),
                     target,
+                    architect_mode=architect_mode,
                 )))
                 for model_id in visible:
                     selected = _model_choice_selected(state, model_id)
@@ -177,7 +180,7 @@ def variant_options(state):
             options.append(
                 MenuOption(
                     "variant-architect-mode",
-                    f"{marker} Architect Mode  (model picker alias, no Claude OAuth)",
+                    f"{marker} Architect Mode  (plan-mode planner / worker routing)",
                     ARCHITECT_MODE_TWEAK_ID,
                 )
             )

@@ -182,6 +182,16 @@ SYNTHETIC = {
         'function fallback(selected,opts){if(selected===null||opts.some((Z)=>Z.value===selected))return wrap(opts);'
         'else if(selected==="opusplan")return wrap([...opts,opusPlanOption()]);return wrap(opts)}'
     ),
+    "opusplan1m-v3": (
+        'let aliases=["sonnet","opus","haiku","fable","best","sonnet[1m]","opus[1m]","fable[1m]","opusplan"];'
+        'function select(ctx){let{permissionMode:mode,mainLoopModel:model,exceeds200kTokens:overLimit=!1}=ctx,current=currentModel();'
+        'if((current==="opusplan"||current==="opusplan[1m]")&&mode==="plan"&&!overLimit){let plan=current==="opusplan[1m]"?oneM(opusModel()):opusModel();'
+        'if(!allowed(plan))return normalize(current);return plan}return model}'
+        'function desc(A){if(A==="opusplan")return"Opus in plan mode, else Sonnet";return""}'
+        'function label(A){if(A==="opusplan")return"Opus Plan";return""}'
+        'function fallback(selected,opts){if(selected===null||opts.some((Z)=>Z.value===selected))return wrap(opts);'
+        'else if(selected==="opusplan")return wrap([...opts,opusPlanOption()]);return wrap(opts)}'
+    ),
     "auto-accept-plan-mode": (
         'function plan(){return R.createElement(Box,'
         '{title:"Ready to code?",onChange:onPick,onCancel:onCancel})}'

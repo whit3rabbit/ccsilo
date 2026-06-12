@@ -36,7 +36,7 @@ from .options import (
     variant_title,
     variant_tweak_selector_labels,
 )
-from .model_picker import visible_model_ids
+from .model_picker import create_uses_architect_mode, model_field_label, visible_model_ids
 
 __all__ = [
     "current_labels",
@@ -246,10 +246,12 @@ def _create_preview_mcp_lines(state, provider):
     return lines
 
 def _create_preview_model_lines(state, provider):
-    if not provider.get("requiresModelMapping"):
+    architect_mode = create_uses_architect_mode(state)
+    if not provider.get("requiresModelMapping") and not architect_mode:
         return ["Models: provider defaults"]
-    lines = ["Models:"]
+    lines = ["Architect Mode models:" if architect_mode else "Models:"]
     for key, label in VARIANT_MODEL_FIELDS:
+        label = model_field_label(key, architect_mode=architect_mode)
         value = variant_model_display_value(state, provider, key)
         source = "override" if state.variant_model_overrides.get(key, "").strip() else "default"
         lines.append(f"  {label}: {value or '(not set)'} ({source})")
@@ -258,7 +260,12 @@ def _create_preview_model_lines(state, provider):
         setup_id = variant_id_from_name(name)
     except Exception:
         setup_id = "<setup-id>"
-    lines.append(f"Manual model edit: {workspace_root() / 'variants' / setup_id / 'variant.json'} -> modelOverrides")
+    setup_root = workspace_root() / 'variants' / setup_id
+    if architect_mode:
+        lines.append(f"Selected alias: {setup_root / 'config' / 'settings.json'} -> model=opusplan")
+        lines.append(f"Planner/worker aliases: {setup_root / 'variant.json'} -> modelOverrides")
+    else:
+        lines.append(f"Manual model edit: {setup_root / 'variant.json'} -> modelOverrides")
     return lines
 
 def upgrade_preview_labels(state):

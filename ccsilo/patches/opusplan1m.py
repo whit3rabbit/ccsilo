@@ -105,6 +105,11 @@ def _mode_switch_has_1m(js: str) -> bool:
             r'\s*&&\s*[$\w]+\s*===\s*"plan"\s*&&\s*![$\w]+\s*\)\s*return',
             js,
         )
+        or re.search(
+            r'if\s*\(\s*\(\s*([$\w]+)\s*===\s*"opusplan"\s*\|\|\s*\1\s*===\s*"opusplan\[1m\]"\s*\)'
+            r'\s*&&\s*[$\w]+\s*===\s*"plan"\s*&&\s*![$\w]+\s*\)\s*\{(?=[\s\S]{0,1200}?return)',
+            js,
+        )
     )
 
 
@@ -139,5 +144,8 @@ PATCH = Patch(
     versions_supported=">=2.1.0,<3",
     versions_tested=(">=2.1.0,<=2.1.172",),
     apply=_apply,
-    description="Add an Architect Mode model alias that uses a planner model in plan mode and a worker model otherwise.",
+    description=(
+        "Add an Architect Mode model alias that uses a planner model in plan mode and a worker model otherwise. "
+        "This alias can use normal setup auth; it does not start the setup-local OAuth architect proxy."
+    ),
 )

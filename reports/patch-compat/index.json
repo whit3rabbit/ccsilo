@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-06-11T11:01:02.888543Z",
+  "generatedAt": "2026-06-12T02:29:27.444046Z",
   "reports": [
     {
       "ok": true,
-      "path": "2.1.173.json",
+      "path": "2.1.175.json",
       "smoke": {
         "ok": true,
         "platformKey": "linux-x64",
@@ -19,7 +19,27 @@
         "unsupported": 1,
         "untested": 27
       },
-      "version": "2.1.173"
+      "version": "2.1.175"
+    },
+    {
+      "ok": true,
+      "path": "2.1.174.json",
+      "smoke": {
+        "ok": true,
+        "platformKey": "linux-x64",
+        "stage": "run",
+        "status": "passed"
+      },
+      "summary": {
+        "applied": 26,
+        "failed": 0,
+        "ok": 29,
+        "skipped": 2,
+        "total": 29,
+        "unsupported": 1,
+        "untested": 27
+      },
+      "version": "2.1.174"
     }
   ],
   "schemaVersion": 1

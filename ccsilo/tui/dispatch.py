@@ -1,7 +1,7 @@
 """Key handling and activation dispatch for the TUI."""
 
 from ._const import SOURCE_ARTIFACT, SOURCE_LATEST, SOURCE_VERSION
-from .model_picker import model_field_label
+from .model_picker import create_uses_architect_mode, model_field_label
 from .options import setup_upgrade_status
 
 import sys as _sys
@@ -778,7 +778,8 @@ def _activate_variants(state):
             _tui()._advance_variant(state)
     elif option.kind == "variant-model":
         state.variant_model_target = str(option.value)
-        state.message = f"Target alias: {model_field_label(state.variant_model_target)}. Type manually, or select a discovered model."
+        label = model_field_label(state.variant_model_target, architect_mode=create_uses_architect_mode(state))
+        state.message = f"Target alias: {label}. Type manually, or select a discovered model."
     elif option.kind == "variant-model-refresh":
         _tui()._refresh_variant_models(state)
     elif option.kind == "variant-model-choice":
