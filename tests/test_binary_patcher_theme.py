@@ -1,8 +1,11 @@
+import json
+
 import pytest
 
 from ccsilo.binary_patcher.index import PatchInputs, apply_patches as apply_binary_patches
 from ccsilo.bun_extract import parse_bun_binary
-from ccsilo.binary_patcher.theme import ThemeAnchorNotFound, apply_theme
+from ccsilo.binary_patcher.theme import ThemeAnchorNotFound, apply_theme, themes_from_config
+from ccsilo.providers import provider_patch_config
 from tests.helpers.bun_fixture import build_bun_fixture
 
 
@@ -54,6 +57,20 @@ def test_apply_theme_rewrites_memoized_object_options_bundle():
     assert '_H=[{"label":"Dark mode","value":"dark"},{"label":"Z.ai gold","value":"zai-gold"}]' in result.js
     assert 'Ct5={"dark":"Dark mode","zai-gold":"Z.ai gold"}' in result.js
     assert 'function getNames(){return{"dark":"Dark mode","zai-gold":"Z.ai gold"}' not in result.js
+
+
+def test_apply_theme_keeps_provider_theme_tables_in_sync():
+    themes = themes_from_config(provider_patch_config("zai"))
+    result = apply_theme(MEMOIZED_OPTIONS_FIXTURE, themes)
+    name_table = result.js.split("function picker()", 1)[0]
+
+    assert themes
+    for theme in themes:
+        theme_id = json.dumps(theme["id"])
+        theme_name = json.dumps(theme["name"])
+        assert f"{theme_id}:{theme_name}" in name_table
+        assert f'"value":{theme_id}' in result.js
+        assert f"case{theme_id}:return" in result.js
 
 
 def test_apply_theme_rewrites_old_format_bundle():
