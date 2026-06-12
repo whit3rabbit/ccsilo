@@ -30,6 +30,7 @@ class _Location:
     start: int
     end: int
     identifiers: list = None
+    prefix: str = ""
 
 
 def apply_theme(js, themes):
@@ -40,7 +41,8 @@ def apply_theme(js, themes):
     locations = _find_theme_locations(js)
     new_js = js
 
-    obj_text = "return" + _json({theme["id"]: theme["name"] for theme in themes})
+    obj_prefix = locations["obj"].prefix or "return"
+    obj_text = obj_prefix + _json({theme["id"]: theme["name"] for theme in themes})
     new_js = new_js[: locations["obj"].start] + obj_text + new_js[locations["obj"].end :]
 
     obj_arr_text = _json([{"label": theme["name"], "value": theme["id"]} for theme in themes])
@@ -82,7 +84,7 @@ def _find_theme_locations(js):
         raise ThemeAnchorNotFound("objArr")
 
     obj_match = re.search(
-        r'(?:return|[$\w]+=)\{(?:"?(?:[$\w-]+)"?:"(?:Auto |Dark|Light|Monochrome)[^"]*",?)+\}',
+        r'(?P<prefix>return|[$\w]+=)\{(?:"?(?:[$\w-]+)"?:"(?:Auto |Dark|Light|Monochrome)[^"]*",?)+\}',
         js,
     )
     if obj_match is None:
@@ -91,7 +93,7 @@ def _find_theme_locations(js):
     return {
         "switch": switch_loc,
         "objArr": obj_arr_loc,
-        "obj": _Location(obj_match.start(), obj_match.end()),
+        "obj": _Location(obj_match.start(), obj_match.end(), prefix=obj_match.group("prefix")),
     }
 
 

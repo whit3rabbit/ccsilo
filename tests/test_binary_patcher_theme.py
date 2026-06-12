@@ -52,7 +52,8 @@ def test_apply_theme_rewrites_memoized_object_options_bundle():
     assert result.replaced == 3
     assert 'case"zai-gold":return{"bashBorder":"#daa"' in result.js
     assert '_H=[{"label":"Dark mode","value":"dark"},{"label":"Z.ai gold","value":"zai-gold"}]' in result.js
-    assert 'return{"dark":"Dark mode","zai-gold":"Z.ai gold"}' in result.js
+    assert 'Ct5={"dark":"Dark mode","zai-gold":"Z.ai gold"}' in result.js
+    assert 'function getNames(){return{"dark":"Dark mode","zai-gold":"Z.ai gold"}' not in result.js
 
 
 def test_apply_theme_rewrites_old_format_bundle():
