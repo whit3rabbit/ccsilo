@@ -294,7 +294,7 @@ def context_hint(state):
     if state.mode == "upgrade-preview":
         return "Press y to proceed or n to cancel."
     if state.mode == "create-preview":
-        return "Press y to create this setup, i toggles PATH install, or n to return to review."
+        return "Select setup name or command alias and type. Enter activates the selected row."
     if state.mode in {"tweaks-edit", "tweak-editor"} and state.tweak_apply_preview:
         return "Review the diff, then press y to rebuild or n to cancel."
     if state.mode in {"tweaks-edit", "tweak-editor"} and getattr(state, "tweak_search_active", False):
@@ -381,7 +381,7 @@ def key_line(state):
     if state.mode == "upgrade-preview":
         return "Keys: Y proceed | N/Esc cancel"
     if state.mode == "create-preview":
-        return "Keys: Y create | I install | N/Esc cancel"
+        return "Keys: Type edit | Up/Down | Enter select/create | I install | N/Esc cancel"
     if state.mode == "health-result":
         return "Keys: Q quit | Esc back | Enter manage | C copy logs | ? more"
     if state.mode == "logs":

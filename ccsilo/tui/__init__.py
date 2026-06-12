@@ -19,7 +19,7 @@ __all__ = [
     "TUI_THEMES", "TuiTheme",
     "apply_dashboard_tweaks_to_native", "apply_patch_packages_to_native", "apply_variant",
     "CCR_PACKAGE_DEFAULT", "create_variant", "default_ccrouter_config_mode", "default_install_dir", "doctor_variant", "inspect_variant_command_install", "install_variant_command", "load_variant", "preflight_variant_command_install", "remove_variant", "run_ccrouter_command", "update_variant_models", "update_variants", "variant_install_cleanup_paths",
-    "download_binary", "download_versions", "extract_all",
+    "download_binary", "download_versions", "effective_latest_download_version", "extract_all",
     "load_download_index", "list_variant_providers", "parse_bun_binary",
     "provider_default_variant_name", "refresh_download_index", "scan_variants",
     "CURATED_TWEAK_IDS", "DASHBOARD_TWEAK_IDS", "DEFAULT_TWEAK_IDS",
@@ -82,7 +82,12 @@ __all__ = [
 # Imports must stay in this module so internal callers resolve through the
 # package globals that ``monkeypatch.setattr`` updates.
 from ..bun_extract import parse_bun_binary
-from ..download_index import download_versions, load_download_index, refresh_download_index
+from ..download_index import (
+    download_versions,
+    effective_latest_download_version,
+    load_download_index,
+    refresh_download_index,
+)
 from ..downloader import download_binary
 from ..extractor import extract_all
 from ..patch_workflow import apply_dashboard_tweaks_to_native, apply_patch_packages_to_native

@@ -1134,6 +1134,7 @@ def test_variants_wizard_selects_provider_toggles_tweak_and_creates(monkeypatch,
     assert "Setup create preview" in preview
     assert "source binary" not in preview.lower()
 
+    state.selected_index = 3
     start = time.monotonic()
     tui._handle_char_key(state, "y")
     elapsed = time.monotonic() - start
@@ -1203,6 +1204,27 @@ def test_variants_wizard_selects_specific_claude_code_version_for_create(monkeyp
     tui._run_variant_create(state)
 
     assert calls[0]["claude_version"] == "2.1.122"
+
+
+def test_variants_wizard_marks_highest_listed_version_as_latest():
+    state = tui.TuiState(
+        mode="variants",
+        variant_step=1,
+        variant_name="mirror",
+        download_index={
+            "binary": {
+                "latest": "2.1.175",
+                "versions": [{"version": "2.1.176"}, {"version": "2.1.175"}],
+            },
+        },
+        download_versions=["2.1.176", "2.1.175"],
+    )
+
+    labels = [option.label for option in tui._variant_options(state)]
+
+    assert "* Claude Code: latest native binary (2.1.176)" in labels
+    assert "  Claude Code: 2.1.176 (latest)" in labels
+    assert "  Claude Code: 2.1.175" in labels
 
 
 def test_variants_credentials_step_edits_endpoint_and_stored_key():
@@ -1344,16 +1366,75 @@ def test_variants_create_preview_toggles_install_command(monkeypatch, tmp_path):
 
     assert state.mode == "create-preview"
     assert state.variant_install_command is True
+    assert "Setup name: mirror" in tui._screen_text(state)
+    assert "Setup id: mirror" in tui._screen_text(state)
+    assert "Command alias: mirror" in tui._screen_text(state)
     assert "Install command: yes" in tui._screen_text(state)
 
+    state.selected_index = 2
     tui._handle_char_key(state, "i")
 
     assert state.variant_install_command is False
     assert "Install command: no" in tui._screen_text(state)
 
 
+def test_variants_create_preview_name_edits_sync_default_alias():
+    provider = {
+        "key": "mirror",
+        "label": "Mirror Claude",
+        "authMode": "none",
+        "models": {},
+        "defaultVariantName": "mirror",
+    }
+    state = tui.TuiState(
+        mode="create-preview",
+        variant_name="mirror",
+        variant_install_alias="mirror",
+        variant_providers=[provider],
+    )
+
+    state.selected_index = 0
+    for char in "-dev":
+        tui._handle_char_key(state, char)
+
+    assert state.variant_name == "mirror-dev"
+    assert state.variant_install_alias == "mirror-dev"
+    screen = tui._screen_text(state)
+    assert "Setup name: mirror-dev" in screen
+    assert "Setup id: mirror-dev" in screen
+    assert "Command alias: mirror-dev" in screen
+
+
+def test_variants_create_preview_custom_alias_stops_name_sync():
+    provider = {
+        "key": "mirror",
+        "label": "Mirror Claude",
+        "authMode": "none",
+        "models": {},
+        "defaultVariantName": "mirror",
+    }
+    state = tui.TuiState(
+        mode="create-preview",
+        variant_name="mirror",
+        variant_install_alias="mirror",
+        variant_providers=[provider],
+    )
+
+    state.selected_index = 1
+    for char in "-local":
+        tui._handle_char_key(state, char)
+    state.selected_index = 0
+    for char in "-dev":
+        tui._handle_char_key(state, char)
+
+    assert state.variant_name == "mirror-dev"
+    assert state.variant_install_alias == "mirror-local"
+    assert state.variant_install_alias_customized is True
+
+
 def test_run_variant_create_installs_selected_command(monkeypatch, tmp_path):
     calls = []
+    preflight_calls = []
     install_calls = []
 
     class FakeVariant:
@@ -1377,8 +1458,8 @@ def test_run_variant_create_installs_selected_command(monkeypatch, tmp_path):
         stages = []
 
     class InstallResult:
-        alias = "mirror"
-        path = tmp_path / "home" / ".local" / "bin" / "mirror"
+        alias = "cc-mirror"
+        path = tmp_path / "home" / ".local" / "bin" / "cc-mirror"
         target = tmp_path / ".ccsilo" / "bin" / "mirror"
         status = "installed"
         on_path = True
@@ -1388,11 +1469,16 @@ def test_run_variant_create_installs_selected_command(monkeypatch, tmp_path):
         calls.append(kwargs)
         return Result()
 
-    def fake_install(variant, yes=False):
-        install_calls.append((variant.variant_id, yes))
+    def fake_preflight(variant_id, *, target, alias=None, yes=False):
+        preflight_calls.append((variant_id, str(target), alias, yes))
+        return InstallResult()
+
+    def fake_install(variant, alias=None, yes=False):
+        install_calls.append((variant.variant_id, alias, yes))
         return InstallResult()
 
     monkeypatch.setattr(tui, "create_variant", fake_create_variant)
+    monkeypatch.setattr(tui, "inspect_variant_command_install", fake_preflight)
     monkeypatch.setattr(tui, "install_variant_command", fake_install)
     monkeypatch.setattr(tui, "doctor_variant", lambda name: [{"id": name, "ok": True, "checks": []}])
     monkeypatch.setattr(tui, "_refresh_state", lambda state_arg: True)
@@ -1408,6 +1494,8 @@ def test_run_variant_create_installs_selected_command(monkeypatch, tmp_path):
     state = tui.TuiState(
         mode="create-preview",
         variant_name="mirror",
+        variant_install_alias="cc-mirror",
+        variant_install_alias_customized=True,
         variant_providers=[provider],
         variant_install_command=True,
     )
@@ -1415,7 +1503,8 @@ def test_run_variant_create_installs_selected_command(monkeypatch, tmp_path):
     tui._run_variant_create(state)
 
     assert calls[0]["provider_key"] == "mirror"
-    assert install_calls == [("mirror", True)]
+    assert preflight_calls == [("mirror", str(tui.workspace_root() / "bin" / "mirror"), "cc-mirror", True)]
+    assert install_calls == [("mirror", "cc-mirror", True)]
     assert state.mode == "health-result"
     assert "Installed command: " in "\n".join(state.last_action_summary)
     assert str(InstallResult.path) in "\n".join(state.last_action_summary)
@@ -1426,7 +1515,7 @@ def test_run_variant_create_skips_blocked_install_command(monkeypatch, tmp_path)
     home = tmp_path / "home"
     install_dir = home / ".local" / "bin"
     install_dir.mkdir(parents=True)
-    blocked = install_dir / "zai"
+    blocked = install_dir / "cc-zai"
     blocked.write_text("#!/bin/sh\n", encoding="utf-8")
     calls = []
     install_calls = []
@@ -1477,6 +1566,8 @@ def test_run_variant_create_skips_blocked_install_command(monkeypatch, tmp_path)
     state = tui.TuiState(
         mode="create-preview",
         variant_name="zai",
+        variant_install_alias="cc-zai",
+        variant_install_alias_customized=True,
         variant_providers=[provider],
         variant_install_command=True,
     )
@@ -2611,6 +2702,26 @@ def test_setup_detail_shows_new_claude_code_version():
     assert "Upgrade Claude Code (2.1.122 -> 2.1.123)" in labels
 
 
+def test_setup_detail_uses_highest_listed_version_when_latest_marker_lags():
+    variant = _variant("deepseek-main", version="2.1.175")
+    state = tui.TuiState(
+        mode="setup-detail",
+        variants=[variant],
+        selected_setup_id="deepseek-main",
+        download_index={
+            "binary": {
+                "latest": "2.1.175",
+                "versions": [{"version": "2.1.176"}, {"version": "2.1.175"}],
+            },
+        },
+        download_versions=["2.1.176", "2.1.175"],
+    )
+
+    labels = [option.label for option in tui.options.setup_detail_options(state)]
+
+    assert "Upgrade Claude Code (2.1.175 -> 2.1.176)" in labels
+
+
 def test_setup_detail_shows_when_claude_code_is_current():
     variant = _variant("deepseek-main", version="2.1.123")
     state = tui.TuiState(
@@ -3053,6 +3164,45 @@ def test_upgrade_preview_applies_update_and_health(monkeypatch, tmp_path):
     assert "Health: healthy" in "\n".join(state.last_action_summary)
 
 
+def test_upgrade_preview_uses_highest_listed_version_when_latest_marker_lags(monkeypatch, tmp_path):
+    variant = _variant("deepseek-main", version="2.1.175")
+    calls = []
+
+    class Result:
+        wrapper_path = tmp_path / "cc-deepseek"
+
+    def fake_update(name, *, claude_version=None):
+        calls.append((name, claude_version))
+        return [Result()]
+
+    def fake_refresh(state_arg):
+        variant.manifest["source"]["version"] = "2.1.176"
+        state_arg.variants = [variant]
+        return True
+
+    monkeypatch.setattr(tui, "update_variants", fake_update)
+    monkeypatch.setattr(tui, "_refresh_state", fake_refresh)
+    monkeypatch.setattr(tui, "doctor_variant", lambda name: [{"id": name, "ok": True, "checks": []}])
+    state = tui.TuiState(
+        mode="upgrade-preview",
+        variants=[variant],
+        selected_setup_id="deepseek-main",
+        download_index={
+            "binary": {
+                "latest": "2.1.175",
+                "versions": [{"version": "2.1.176"}, {"version": "2.1.175"}],
+            },
+        },
+        download_versions=["2.1.176", "2.1.175"],
+    )
+
+    tui._run_setup_upgrade(state)
+
+    assert calls == [("deepseek-main", "2.1.176")]
+    assert state.mode == "health-result"
+    assert "2.1.175 -> 2.1.176" in "\n".join(state.last_action_summary)
+
+
 def test_upgrade_preview_shows_latest_status_and_patch_reapply():
     from ccsilo.tui.render_labels_modes import upgrade_preview_labels
 
@@ -3130,7 +3280,7 @@ def test_upgrade_failure_summary_reports_verified_state(monkeypatch, tmp_path):
 
     def fake_update(name, *, claude_version=None):
         assert name == "deepseek-main"
-        assert claude_version == "latest"
+        assert claude_version == "2.1.123"
         stages = [
             VariantBuildStage("prepare directories", "ok", "/tmp/deepseek-main"),
             VariantBuildStage("patch binary", "failed", "anchor missing"),

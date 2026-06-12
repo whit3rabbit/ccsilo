@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from ..download_index import effective_latest_download_version
 from ..variants import CCR_PROVIDER_KEYS
 from .._utils import version_sort_key
 from ._const import MenuOption
@@ -116,7 +117,7 @@ def setup_upgrade_action_label(state, variant):
 
 def setup_upgrade_status(state, variant):
     current = _setup_version(variant) if variant is not None else "?"
-    latest = str(((getattr(state, "download_index", {}) or {}).get("binary") or {}).get("latest") or "")
+    latest = effective_latest_download_version(getattr(state, "download_index", {}) or {})
     if not latest:
         return {
             "state": "unknown",

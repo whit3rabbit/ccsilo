@@ -1,6 +1,7 @@
 """Key handling and activation dispatch for the TUI."""
 
 from ._const import SOURCE_ARTIFACT, SOURCE_LATEST, SOURCE_VERSION
+from .keys import sync_variant_install_alias
 from .model_picker import create_uses_architect_mode, model_field_label
 from .options import setup_upgrade_status
 
@@ -38,6 +39,31 @@ def _variant_model_search_active(state):
 
 def _models_editor_search_active(state):
     return state.mode == "models-edit" and getattr(state, "models_search_active", False)
+
+
+def _create_preview_selected_kind(state):
+    return {
+        0: "name",
+        1: "alias",
+        2: "install",
+        3: "create",
+    }.get(getattr(state, "selected_index", 0), "create")
+
+
+def _start_create_preview_action(state):
+    name = state.variant_name.strip() or "new setup"
+    _tui()._start_busy_action(
+        state,
+        "Creating setup",
+        f"Building custom Claude setup {name}",
+        _tui()._busy_create_action,
+    )
+
+
+def _toggle_create_preview_install(state):
+    state.variant_install_command = not state.variant_install_command
+    state.variant_install_choice_initialized = True
+    state.message = "Install command: yes" if state.variant_install_command else "Install command: no"
 
 
 def _event_requests_quit(event, char_key_code):
@@ -103,6 +129,17 @@ def _handle_backspace_key(state):
     if state.mode == "delete-confirm":
         state.delete_confirm_text = state.delete_confirm_text[:-1]
         return True
+    if state.mode == "create-preview":
+        selected = _create_preview_selected_kind(state)
+        if selected == "name":
+            state.variant_name = state.variant_name[:-1]
+            sync_variant_install_alias(state)
+            return True
+        if selected == "alias":
+            state.variant_install_alias = state.variant_install_alias[:-1]
+            state.variant_install_alias_customized = True
+            return True
+        return False
     if state.mode == "dashboard":
         return _tui()._dashboard_backspace(state)
     if state.mode == "models-edit":
@@ -201,18 +238,21 @@ def _handle_char_key(state, char):
             _tui()._go_back(state)
         return True
     if state.mode == "create-preview":
+        selected = _create_preview_selected_kind(state)
+        if selected in {"name", "alias"} and char.isprintable() and char not in "\r\n\t":
+            if selected == "name":
+                state.variant_name += char
+                sync_variant_install_alias(state)
+            else:
+                state.variant_install_alias += char
+                state.variant_install_alias_customized = True
+            return True
         if lowered == "y":
-            name = state.variant_name.strip() or "new setup"
-            _tui()._start_busy_action(
-                state,
-                "Creating setup",
-                f"Building custom Claude setup {name}",
-                _tui()._busy_create_action,
-            )
+            _start_create_preview_action(state)
         elif lowered == "i":
-            state.variant_install_command = not state.variant_install_command
-            state.variant_install_choice_initialized = True
-            state.message = "Install command: yes" if state.variant_install_command else "Install command: no"
+            _toggle_create_preview_install(state)
+        elif char == " " and selected == "install":
+            _toggle_create_preview_install(state)
         elif lowered == "n":
             _tui()._go_back(state)
         return True
@@ -391,7 +431,7 @@ def _activate(state):
         elif state.mode == "first-run-setup":
             _tui()._activate_variants(state)
         elif state.mode == "create-preview":
-            state.message = "Press y to create this setup, or n/Esc to cancel."
+            _activate_create_preview(state)
         elif state.mode == "upgrade-preview":
             state.message = "Press y to proceed, or n/Esc to cancel."
         elif state.mode == "delete-confirm":
@@ -423,6 +463,19 @@ def _activate(state):
 
     _tui()._refresh_state(state)
     return not state.pending_run_command
+
+
+def _activate_create_preview(state):
+    selected = _create_preview_selected_kind(state)
+    if selected == "name":
+        state.message = "Type to edit the setup name."
+    elif selected == "alias":
+        state.message = "Type to edit the command alias."
+    elif selected == "install":
+        _toggle_create_preview_install(state)
+    else:
+        _start_create_preview_action(state)
+
 
 def _activate_tweaks_source(state):
     """Enter tweak-editor scoped to the selected setup."""
@@ -611,6 +664,7 @@ def _open_variant_create_preview(state):
     if not state.variant_install_choice_initialized:
         state.variant_install_command = _tui().default_install_dir() is not None
         state.variant_install_choice_initialized = True
+    sync_variant_install_alias(state)
     state.last_action_summary = []
     _tui()._set_mode(state, "create-preview")
 

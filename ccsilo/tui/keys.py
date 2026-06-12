@@ -7,6 +7,7 @@ former calls it; rebinding has to occur in the same module's globals.
 
 from .model_picker import create_uses_architect_mode, models_editor_uses_architect_mode, sync_architect_worker_default
 from .options import selected_dashboard_option, selected_models_edit_option, selected_variant_option
+from ..variants.model import variant_id_from_name
 
 
 def dashboard_accepts_profile_text(state) -> bool:
@@ -53,6 +54,7 @@ def variant_append_text(state, char: str) -> None:
         return
     if option.kind == "variant-name":
         state.variant_name += char
+        sync_variant_install_alias(state)
     elif option.kind == "variant-endpoint":
         state.variant_base_url += char
         state.variant_model_choices = []
@@ -92,6 +94,7 @@ def variant_backspace(state) -> bool:
     option = selected_variant_option(state)
     if option.kind == "variant-name":
         state.variant_name = state.variant_name[:-1]
+        sync_variant_install_alias(state)
     elif option.kind == "variant-endpoint":
         state.variant_base_url = state.variant_base_url[:-1]
         state.variant_model_choices = []
@@ -113,6 +116,19 @@ def variant_backspace(state) -> bool:
     elif option.kind == "variant-model-proxy-port":
         state.variant_model_proxy_port = state.variant_model_proxy_port[:-1]
     return True
+
+
+def sync_variant_install_alias(state) -> None:
+    if getattr(state, "variant_install_alias_customized", False):
+        return
+    name = getattr(state, "variant_name", "").strip()
+    if not name:
+        state.variant_install_alias = ""
+        return
+    try:
+        state.variant_install_alias = variant_id_from_name(name)
+    except ValueError:
+        state.variant_install_alias = ""
 
 
 def models_backspace(state) -> bool:

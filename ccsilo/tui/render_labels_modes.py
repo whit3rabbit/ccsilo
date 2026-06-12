@@ -149,16 +149,19 @@ def create_preview_labels(state):
     else:
         validation = "Validation: ready"
 
+    alias = _create_preview_alias(state, setup_id)
     mcp_lines = _create_preview_mcp_lines(state, provider)
     model_lines = _create_preview_model_lines(state, provider)
     tweak_lines = [f"  {tweak_id}" for tweak_id in state.selected_variant_tweaks] or ["  none"]
     return [
-        f"Setup: {name or '(unnamed)'}",
+        f"Setup name: {name or '(type a setup name)'}",
+        f"Command alias: {alias or '(type a command alias)'}",
+        *_create_preview_install_lines(state, setup_id, alias),
+        "Create setup",
         f"Setup id: {setup_id}",
         f"Provider: {provider.get('key') or '?'}",
         f"Claude Code: {state.variant_claude_version or 'latest'}",
-        f"Command: {command}",
-        *_create_preview_install_lines(state, setup_id),
+        f"Wrapper command: {command}",
         *_create_preview_ccrouter_lines(state, provider),
         *_create_preview_model_proxy_lines(state),
         *_create_preview_endpoint_lines(state, provider),
@@ -170,18 +173,30 @@ def create_preview_labels(state):
         *tweak_lines,
         validation,
         "",
-        "Proceed? y/N",
+        "Cancel: press N/Esc",
     ]
 
-def _create_preview_install_lines(state, setup_id):
+
+def _create_preview_alias(state, setup_id):
+    alias = state.variant_install_alias.strip()
+    if alias or state.variant_install_alias_customized:
+        return alias
+    if setup_id == "(invalid)":
+        return ""
+    return setup_id
+
+
+def _create_preview_install_lines(state, setup_id, alias):
     if not state.variant_install_command:
-        return ["Install command: no (press I to toggle)"]
+        return ["Install command: no (select row or press I to toggle)"]
     if setup_id == "(invalid)":
         return ["Install command: yes (unavailable until setup id is valid)"]
+    if not alias:
+        return ["Install command: yes (type a command alias first)"]
     install_dir = default_install_dir(allow_create=True)
     if install_dir is None:
         return ["Install command: yes (no install directory found)"]
-    return [f"Install command: yes ({install_dir / setup_id})"]
+    return [f"Install command: yes ({install_dir / alias})"]
 
 def _create_preview_ccrouter_lines(state, provider):
     if provider.get("key") not in CCR_PROVIDER_KEYS:

@@ -92,6 +92,9 @@ def _run_variant_create(state):
     before = _expected_setup_snapshot(expected_setup_id)
     failed_stage = "create setup"
     install_plan = None
+    install_alias = state.variant_install_alias.strip()
+    if not install_alias and not state.variant_install_alias_customized:
+        install_alias = expected_setup_id
     try:
         if state.variant_install_command:
             failed_stage = "validate install command"
@@ -99,6 +102,7 @@ def _run_variant_create(state):
                 inspect_variant_command_install,
                 expected_setup_id,
                 target=workspace_root() / "bin" / expected_setup_id,
+                alias=install_alias,
                 yes=True,
             )
         failed_stage = "create setup"
@@ -132,7 +136,12 @@ def _run_variant_create(state):
                 install_output = f"Skipped command install: {install_plan.warning}"
             else:
                 failed_stage = "install command"
-                install_result, install_output = _run_quiet(install_variant_command, result_variant, yes=True)
+                install_result, install_output = _run_quiet(
+                    install_variant_command,
+                    result_variant,
+                    alias=install_alias,
+                    yes=True,
+                )
         state.selected_setup_id = setup_id
         health = _run_setup_health(state, setup_id, show_result=False)
         log_sections = [

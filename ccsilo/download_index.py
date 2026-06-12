@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from ._utils import version_sort_key
 from .downloader import (
     GCS_BUCKET,
     NPM_REGISTRY_URL,
@@ -73,6 +74,15 @@ def download_versions(index: Dict, kind: str = "binary") -> List[str]:
         if isinstance(item, dict) and isinstance(item.get("version"), str):
             result.append(item["version"])
     return result
+
+
+def effective_latest_download_version(index: Dict, kind: str = "binary") -> str:
+    marker = str((index.get(kind, {}) or {}).get("latest") or "")
+    versions = download_versions(index, kind)
+    candidates = [version for version in [marker, *versions] if version]
+    if not candidates:
+        return ""
+    return sorted(candidates, key=version_sort_key, reverse=True)[0]
 
 
 def download_version_entry(index: Dict, version: str, kind: str = "binary") -> Optional[Dict]:

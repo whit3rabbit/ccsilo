@@ -24,3 +24,23 @@ def test_refresh_download_index_writes_workspace_cache(tmp_path, monkeypatch):
     assert index["platform"] == "darwin-arm64"
     assert index["binary"]["versions"][0]["downloadUrl"].endswith("/2.1.4/darwin-arm64/claude")
     assert download_index.load_download_index(root)["binary"]["latest"] == "2.1.4"
+
+
+def test_effective_latest_download_version_prefers_highest_listed_version():
+    index = {
+        "binary": {
+            "latest": "2.1.175",
+            "versions": [
+                {"version": "2.1.176"},
+                {"version": "2.1.175"},
+            ],
+        },
+    }
+
+    assert download_index.effective_latest_download_version(index) == "2.1.176"
+
+
+def test_effective_latest_download_version_falls_back_to_marker():
+    index = {"binary": {"latest": "2.1.175", "versions": []}}
+
+    assert download_index.effective_latest_download_version(index) == "2.1.175"

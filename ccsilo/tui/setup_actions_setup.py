@@ -165,9 +165,10 @@ def _run_setup_upgrade(state):
     target = state.setup_upgrade_target or "latest"
     before = _variant_setup_snapshot(variant)
     target_version = _target_version_for_summary(state, target)
+    update_target = target_version if target == "latest" and target_version else target
     cached_before = _has_cached_native_artifact(state, target_version)
     try:
-        results, update_output = _run_quiet(update_variants, setup_id, claude_version=target)
+        results, update_output = _run_quiet(update_variants, setup_id, claude_version=update_target)
         _tui()._refresh_state(state)
         state.selected_setup_id = setup_id
         refreshed = _tui()._selected_setup_variant(state)
@@ -216,7 +217,7 @@ def _run_setup_upgrade(state):
         )
         state.last_action_summary = _append_backend_stages([
             f"Upgrade failed: {setup_id}",
-            f"Claude Code: {old_version} -> {target}",
+            f"Claude Code: {old_version} -> {update_target}",
             f"Base download succeeded: {base_status}",
             f"Command replaced: {command_replaced}",
             f"Previous setup remains active: {active}",

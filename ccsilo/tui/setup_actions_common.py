@@ -37,6 +37,7 @@ run_ccrouter_command = _proxy('run_ccrouter_command')
 variant_install_cleanup_paths = _proxy('variant_install_cleanup_paths')
 _models_pending_diff = _proxy('_models_pending_diff')
 download_versions = _proxy('download_versions')
+effective_latest_download_version = _proxy('effective_latest_download_version')
 refresh_download_index = _proxy('refresh_download_index')
 
 __all__ = [
@@ -93,6 +94,7 @@ __all__ = [
     "variant_install_cleanup_paths",
     "_models_pending_diff",
     "download_versions",
+    "effective_latest_download_version",
     "refresh_download_index",
 ]
 
@@ -274,7 +276,7 @@ def _create_failure_summary(setup_id, before, exc, failed_stage="create setup"):
 
 def _target_version_for_summary(state, target):
     if target == "latest":
-        return str((state.download_index.get("binary") or {}).get("latest") or "")
+        return effective_latest_download_version(state.download_index)
     return str(target or "")
 
 def _has_cached_native_artifact(state, version):

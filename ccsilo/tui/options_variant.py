@@ -1,5 +1,6 @@
 """Setup creation and model-edit option helpers."""
 
+from ..download_index import effective_latest_download_version
 from ..providers import PLUGIN_RECOMMENDATIONS, list_optional_mcp_entries
 from ..variants import CCR_PROVIDER_KEYS
 from ..variant_tweaks import (
@@ -221,7 +222,7 @@ def variant_options(state):
 
 def _variant_version_options(state):
     selected = state.variant_claude_version or SOURCE_LATEST
-    latest = (state.download_index.get("binary") or {}).get("latest")
+    latest = effective_latest_download_version(state.download_index)
     latest_label = "Claude Code: latest native binary"
     if latest:
         latest_label = f"{latest_label} ({latest})"

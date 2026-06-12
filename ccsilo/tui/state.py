@@ -79,6 +79,8 @@ class TuiState:
     variant_model_target: str = "opus"
     variant_install_command: bool = False
     variant_install_choice_initialized: bool = False
+    variant_install_alias: str = ""
+    variant_install_alias_customized: bool = False
     selected_variant_mcp_ids: List[str] = field(default_factory=list)
     selected_variant_tweaks: List[str] = field(default_factory=lambda: list(DEFAULT_TWEAK_IDS))
     selected_setup_id: Optional[str] = None
@@ -215,7 +217,9 @@ class TuiState:
             return len(setup_manager_options(self))
         if self.mode == "setup-detail":
             return len(setup_detail_options(self))
-        if self.mode in {"loading", "busy", "create-preview", "upgrade-preview", "delete-confirm", "inspect-delete-confirm", "health-result", "logs", "help", "error"}:
+        if self.mode == "create-preview":
+            return 4
+        if self.mode in {"loading", "busy", "upgrade-preview", "delete-confirm", "inspect-delete-confirm", "health-result", "logs", "help", "error"}:
             return 1
         if self.mode == "dashboard":
             return len(dashboard_options(self))

@@ -2,7 +2,13 @@
 
 from urllib.parse import urlparse
 
-from ..variants import CCR_OAUTH_PROVIDER_KEY, CCR_PACKAGE_DEFAULT, CCR_PROVIDER_KEYS, default_ccrouter_config_mode
+from ..variants import (
+    CCR_OAUTH_PROVIDER_KEY,
+    CCR_PACKAGE_DEFAULT,
+    CCR_PROVIDER_KEYS,
+    default_ccrouter_config_mode,
+    variant_id_from_name,
+)
 from ..providers import normalize_mcp_ids, provider_default_variant_name
 from ..variant_tweaks import (
     CURATED_TWEAK_IDS,
@@ -55,6 +61,8 @@ def reset_variant(state):
     state.variant_model_target = "opus"
     state.variant_install_command = False
     state.variant_install_choice_initialized = False
+    state.variant_install_alias = ""
+    state.variant_install_alias_customized = False
     state.selected_variant_mcp_ids = []
     state.selected_variant_tweaks = list(DEFAULT_TWEAK_IDS)
     state.tweak_filter = "recommended"
@@ -81,6 +89,8 @@ def set_variant_provider_defaults(state, provider):
     state.variant_model_target = "opus"
     state.variant_install_command = False
     state.variant_install_choice_initialized = False
+    state.variant_install_alias = _default_install_alias_for_name(state.variant_name)
+    state.variant_install_alias_customized = False
     state.selected_variant_mcp_ids = []
     state.selected_variant_tweaks = default_tweak_ids_for_provider(provider_key)
     if state.variant_model_proxy == "architect":
@@ -210,6 +220,13 @@ def toggle_variant_model_proxy(state):
         if state.variant_model_proxy == "architect"
         else "OAuth architect proxy: disabled"
     )
+
+
+def _default_install_alias_for_name(name: str) -> str:
+    try:
+        return variant_id_from_name(name)
+    except ValueError:
+        return ""
 
 
 def cycle_variant_ccrouter_mode(state):
