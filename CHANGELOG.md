@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.6] - 2026-06-13
+
+### Added
+- Added a `compact-window` environment tweak and `--compact-window` variant option for `CLAUDE_CODE_AUTO_COMPACT_WINDOW`.
+
+### Changed
+- Updated Z.ai defaults to GLM-5.2[1m] for Opus and Sonnet mappings.
+- Updated MiniMax Cloud defaults to MiniMax-M3 and set provider compact-window defaults.
+
 ## [0.6.5] - 2026-06-13
 
 ### Added
