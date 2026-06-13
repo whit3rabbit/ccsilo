@@ -156,6 +156,7 @@ def setup_detail_options(state):
         MenuOption("setup-action-models", "Edit models", setup_id),
         MenuOption("setup-action-tweaks", "Edit tweaks", setup_id),
         MenuOption("setup-action-add-tweaks", "Add tweaks", setup_id),
+        MenuOption("setup-action-command-alias", "Install/Rename command", setup_id),
     ]
     if _managed_ccrouter(variant):
         options.extend(
@@ -182,10 +183,43 @@ def setup_row_label(state, variant):
     return f"{variant.variant_id:<20} {provider:<12} {version:<12} {health:<8} {setup_command_label(variant)}"
 
 def setup_command_label(variant):
+    installs = setup_managed_installs(variant)
+    if installs:
+        return str(installs[0].get("alias") or Path(str(installs[0].get("path") or "")).name)
     wrapper = (variant.manifest.get("paths") or {}).get("wrapper") if variant.manifest else ""
     if not wrapper:
         return "(no command)"
     return Path(str(wrapper)).name or str(wrapper)
+
+def setup_managed_installs(variant):
+    manifest = variant.manifest if variant is not None else {}
+    return [
+        item
+        for item in (manifest.get("installs", []) or [])
+        if isinstance(item, dict) and item.get("managedBy") == "ccsilo"
+    ]
+
+def setup_default_command_alias(variant):
+    installs = setup_managed_installs(variant)
+    if installs:
+        alias = str(installs[0].get("alias") or "").strip()
+        if alias:
+            return alias
+        path = str(installs[0].get("path") or "")
+        if path:
+            return Path(path).name
+    return str(getattr(variant, "variant_id", "") or "")
+
+def setup_installed_command_label(variant):
+    installs = setup_managed_installs(variant)
+    if not installs:
+        return "none"
+    labels = []
+    for item in installs:
+        alias = str(item.get("alias") or Path(str(item.get("path") or "")).name or "?")
+        path = str(item.get("path") or "")
+        labels.append(f"{alias} ({path})" if path else alias)
+    return ", ".join(labels)
 
 def setup_health_status(state, setup_id):
     summary = state.setup_health.get(setup_id)
@@ -231,6 +265,7 @@ def setup_detail_lines(state):
         f"Claude Code: {version}",
         f"Health: {setup_health_status(state, variant.variant_id)}",
         f"Command: {paths.get('wrapper') or '(no command)'}",
+        f"Installed command: {setup_installed_command_label(variant)}",
         f"Setup config: {variant.path / 'variant.json'}",
         f"Enabled tweaks: {tweak_count}",
     ]

@@ -39,7 +39,7 @@ def go_back(state) -> None:
         set_mode(state, "setup-manager")
     elif state.mode == "help":
         set_mode(state, state.help_return_mode or "setup-manager")
-    elif state.mode in {"upgrade-preview", "delete-confirm", "logs", "error"}:
+    elif state.mode in {"upgrade-preview", "delete-confirm", "command-alias", "logs", "error"}:
         set_mode(state, "setup-detail" if state.selected_setup_id else "setup-manager")
     elif state.mode == "inspect-delete-confirm":
         state.inspect_delete_confirm_path = ""

@@ -37,6 +37,7 @@ from .setup_actions_common import (  # noqa: F401
     fetch_provider_models,
     inspect_variant_command_install,
     install_variant_command,
+    replace_variant_command_alias,
     load_tui_settings,
     load_variant,
     provider_default_variant_name,
@@ -56,6 +57,7 @@ from .setup_actions_common import (  # noqa: F401
 __all__ = [
     "_run_setup_health",
     "_run_setup_ccrouter_action",
+    "_run_setup_command_alias",
     "_run_setup_upgrade",
     "_inspect_delete_artifact",
     "_run_inspect_delete",
@@ -154,6 +156,86 @@ def _run_setup_ccrouter_action(state, setup_id, action):
     else:
         state.message = f"CCR {action} exited {getattr(result, 'returncode', '?')} for setup {setup_id}."
     _tui()._set_mode(state, "health-result")
+
+def _run_setup_command_alias(state):
+    variant = _tui()._selected_setup_variant(state)
+    if variant is None:
+        state.message = "Select a setup first."
+        return
+    alias = state.setup_command_alias.strip()
+    if not alias:
+        state.message = "Type a command alias first."
+        return
+    paths = (variant.manifest or {}).get("paths") or {}
+    target = paths.get("wrapper") or ""
+    if not target:
+        state.message = "Setup wrapper is missing."
+        return
+    try:
+        plan, preflight_output = _run_quiet(
+            inspect_variant_command_install,
+            variant.variant_id,
+            target=target,
+            alias=alias,
+            yes=True,
+        )
+    except Exception as exc:
+        state.last_action_log = _stage_log_lines("Install command preflight", str(exc))
+        state.message = f"Command alias blocked: {exc}"
+        return
+    if getattr(plan, "status", "") == "blocked":
+        state.last_action_log = _stage_log_lines("Install command preflight", preflight_output or plan.warning)
+        state.last_action_summary = [
+            "Command install blocked.",
+            f"Setup: {variant.variant_id}",
+            f"Alias: {alias}",
+            f"Install path: {plan.path}",
+            f"Reason: {plan.warning}",
+            "Change the alias or cancel.",
+        ]
+        state.message = f"Command alias blocked: {plan.warning}"
+        return
+    try:
+        replace_result, install_output = _run_quiet(
+            replace_variant_command_alias,
+            variant,
+            alias=alias,
+            yes=True,
+        )
+    except Exception as exc:
+        state.last_action_log = _stage_log_lines("Install command failure", str(exc))
+        state.last_action_summary = [
+            "Command install failed.",
+            f"Setup: {variant.variant_id}",
+            f"Alias: {alias}",
+            f"Failed stage: install command: {exc}",
+        ]
+        state.message = f"Command install failed: {exc}"
+        return
+    install = getattr(replace_result, "install", replace_result)
+    removed = list(getattr(replace_result, "removed_symlinks", []) or [])
+    skipped = list(getattr(replace_result, "skipped_symlinks", []) or [])
+    state.last_action_log = _stage_log_lines("Install command preflight", preflight_output, "Install command", install_output)
+    state.last_action_summary = [
+        "Command installed.",
+        f"Setup: {variant.variant_id}",
+        f"Alias: {install.alias}",
+        f"Path: {install.path}",
+        f"Target: {install.target}",
+        f"Status: {install.status}",
+        f"On PATH: {'yes' if install.on_path else 'no'}",
+        f"Old managed commands removed: {len(removed)}",
+        f"Old managed commands skipped: {len(skipped)}",
+    ]
+    if install.warning:
+        state.last_action_summary.append(f"Warning: {install.warning}")
+    for item in skipped:
+        state.last_action_summary.append(f"Skipped old command: {item.path} ({item.reason})")
+    _tui()._refresh_state(state)
+    state.selected_setup_id = variant.variant_id
+    message = f"Command installed: {install.alias}"
+    _tui()._set_mode(state, "health-result")
+    state.message = message
 
 def _run_setup_upgrade(state):
     setup_id = state.selected_setup_id

@@ -3,7 +3,7 @@
 from ._const import SOURCE_ARTIFACT, SOURCE_LATEST, SOURCE_VERSION
 from .keys import sync_variant_install_alias
 from .model_picker import create_uses_architect_mode, model_field_label
-from .options import setup_upgrade_status
+from .options import setup_default_command_alias, setup_upgrade_status
 
 import sys as _sys
 
@@ -18,7 +18,7 @@ def _proxy(name):
     return call
 
 
-__all__ = ['_event_requests_quit', '_handle_backspace_key', '_handle_char_key', '_variant_accepts_name_text', '_toggle_selected', '_activate', '_activate_tweaks_source', '_activate_tweaks_edit', '_activate_models_edit', '_activate_setup_manager', '_activate_setup_detail', '_current_setup_id_for_action', '_start_setup_create', '_open_upgrade_preview', '_open_delete_confirm', '_open_inspect_delete_confirm', '_cancel_inspect_delete', '_open_tweak_editor', '_open_tweak_adder', '_open_model_editor', '_open_variant_create_preview', '_cycle_tweak_filter', '_cycle_variant_provider_filter', '_cycle_setup_provider_filter', '_cycle_setup_sort', '_clamp_setup_manager_selection', '_activate_dashboard', '_activate_variants', '_activate_patch_packages']
+__all__ = ['_event_requests_quit', '_handle_backspace_key', '_handle_char_key', '_variant_accepts_name_text', '_toggle_selected', '_activate', '_activate_tweaks_source', '_activate_tweaks_edit', '_activate_models_edit', '_activate_setup_manager', '_activate_setup_detail', '_current_setup_id_for_action', '_start_setup_create', '_open_upgrade_preview', '_open_delete_confirm', '_open_command_alias', '_open_inspect_delete_confirm', '_cancel_inspect_delete', '_open_tweak_editor', '_open_tweak_adder', '_open_model_editor', '_open_variant_create_preview', '_cycle_tweak_filter', '_cycle_variant_provider_filter', '_cycle_setup_provider_filter', '_cycle_setup_sort', '_clamp_setup_manager_selection', '_activate_dashboard', '_activate_variants', '_activate_patch_packages']
 
 
 def _variant_provider_selector_mode(state):
@@ -129,6 +129,9 @@ def _handle_backspace_key(state):
     if state.mode == "delete-confirm":
         state.delete_confirm_text = state.delete_confirm_text[:-1]
         return True
+    if state.mode == "command-alias":
+        state.setup_command_alias = state.setup_command_alias[:-1]
+        return True
     if state.mode == "create-preview":
         selected = _create_preview_selected_kind(state)
         if selected == "name":
@@ -166,6 +169,11 @@ def _handle_char_key(state, char):
             _tui()._cancel_inspect_delete(state)
         else:
             state.message = "Press y to delete, or n/Esc to cancel."
+        return True
+
+    if state.mode == "command-alias":
+        if char.isprintable() and char not in "\r\n\t":
+            state.setup_command_alias += char
         return True
 
     if state.mode == "dashboard" and _tui()._dashboard_accepts_profile_text(state):
@@ -436,6 +444,8 @@ def _activate(state):
             state.message = "Press y to proceed, or n/Esc to cancel."
         elif state.mode == "delete-confirm":
             _tui()._run_setup_delete(state)
+        elif state.mode == "command-alias":
+            _tui()._run_setup_command_alias(state)
         elif state.mode == "health-result":
             _tui()._set_mode(state, "setup-detail" if state.selected_setup_id else "setup-manager")
         elif state.mode == "dashboard":
@@ -541,6 +551,8 @@ def _activate_setup_detail(state):
         _tui()._open_tweak_editor(state)
     elif option.kind == "setup-action-add-tweaks":
         _tui()._open_tweak_adder(state)
+    elif option.kind == "setup-action-command-alias":
+        _tui()._open_command_alias(state)
     elif option.kind == "setup-action-delete":
         _tui()._open_delete_confirm(state)
     elif option.kind.startswith("setup-action-ccrouter-") and setup_id:
@@ -597,6 +609,19 @@ def _open_delete_confirm(state):
     state.selected_setup_id = setup_id
     state.delete_confirm_text = ""
     _tui()._set_mode(state, "delete-confirm")
+
+def _open_command_alias(state):
+    setup_id = _tui()._current_setup_id_for_action(state)
+    if setup_id is None:
+        return
+    variant = next((item for item in state.variants if item.variant_id == setup_id), None)
+    if variant is None:
+        state.message = f"Setup not found: {setup_id}"
+        return
+    state.selected_setup_id = setup_id
+    state.setup_command_alias = setup_default_command_alias(variant)
+    _tui()._set_mode(state, "command-alias")
+    state.message = "Edit command alias."
 
 def _open_inspect_delete_confirm(state):
     artifact = _tui()._selected_artifact(state)

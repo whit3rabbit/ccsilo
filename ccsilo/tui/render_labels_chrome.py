@@ -71,6 +71,7 @@ def active_tab(state):
         "setup-detail",
         "upgrade-preview",
         "delete-confirm",
+        "command-alias",
         "health-result",
         "logs",
         "help",
@@ -224,6 +225,8 @@ def context_line(state):
         return "Create setup > Preview"
     if state.mode == "delete-confirm":
         return f"Home > {state.selected_setup_id or 'setup'} > Delete"
+    if state.mode == "command-alias":
+        return f"Home > {state.selected_setup_id or 'setup'} > Command"
     if state.mode == "inspect-delete-confirm":
         return "Inspect > Delete native download"
     if state.mode == "health-result":
@@ -289,6 +292,8 @@ def context_hint(state):
         return "Pick a setup, run it, or use a lifecycle action."
     if state.mode == "delete-confirm":
         return "Type the exact setup id, then press Enter."
+    if state.mode == "command-alias":
+        return "Type the command alias, then press Enter."
     if state.mode == "inspect-delete-confirm":
         return "Confirm with y, or cancel with n/Esc."
     if state.mode == "upgrade-preview":
@@ -376,6 +381,8 @@ def key_line(state):
         return "Keys: Q quit | Enter select | M models | Esc | Up/Down | ?"
     if state.mode == "delete-confirm":
         return "Keys: Type setup name | Enter delete | Esc cancel"
+    if state.mode == "command-alias":
+        return "Keys: Type alias | Backspace edit | Enter apply | Esc cancel"
     if state.mode == "inspect-delete-confirm":
         return "Keys: Y delete | N/Esc cancel"
     if state.mode == "upgrade-preview":

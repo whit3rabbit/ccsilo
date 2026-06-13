@@ -105,6 +105,18 @@ def _run_variant_create(state):
                 alias=install_alias,
                 yes=True,
             )
+            if getattr(install_plan, "status", "") == "blocked":
+                state.last_action_log = _stage_log_lines("Validate install command", install_plan.warning)
+                state.last_action_summary = [
+                    "Command install blocked.",
+                    f"Setup: {expected_setup_id}",
+                    f"Alias: {install_alias}",
+                    f"Install path: {install_plan.path}",
+                    f"Reason: {install_plan.warning}",
+                    "Change the alias or turn install command off.",
+                ]
+                state.message = f"Command alias blocked: {install_plan.warning}"
+                return
         failed_stage = "create setup"
         result, output = _run_quiet(
             create_variant,
@@ -131,17 +143,13 @@ def _run_variant_create(state):
         install_output = ""
         result_variant = getattr(result, "variant", None)
         if state.variant_install_command and result_variant is not None:
-            if getattr(install_plan, "status", "") == "blocked":
-                install_result = install_plan
-                install_output = f"Skipped command install: {install_plan.warning}"
-            else:
-                failed_stage = "install command"
-                install_result, install_output = _run_quiet(
-                    install_variant_command,
-                    result_variant,
-                    alias=install_alias,
-                    yes=True,
-                )
+            failed_stage = "install command"
+            install_result, install_output = _run_quiet(
+                install_variant_command,
+                result_variant,
+                alias=install_alias,
+                yes=True,
+            )
         state.selected_setup_id = setup_id
         health = _run_setup_health(state, setup_id, show_result=False)
         log_sections = [

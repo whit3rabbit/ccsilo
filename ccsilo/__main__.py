@@ -186,7 +186,7 @@ def _install_variant_command_or_skip(variant, *, alias=None, bin_dir=None, yes=F
     try:
         return install_variant_command(variant, alias=alias, bin_dir=bin_dir, yes=yes)
     except ValueError as exc:
-        if not str(exc).startswith("Refusing to overwrite"):
+        if not str(exc).startswith("Refusing to "):
             raise
         manifest = variant.manifest or {}
         target = (manifest.get("paths") or {}).get("wrapper") or ""
@@ -197,7 +197,7 @@ def _install_variant_command_or_skip(variant, *, alias=None, bin_dir=None, yes=F
             bin_dir=bin_dir,
             yes=yes,
         )
-        if plan.status == "blocked" and plan.warning.startswith("Refusing to overwrite"):
+        if plan.status == "blocked" and plan.warning.startswith("Refusing to "):
             return plan
         raise
 

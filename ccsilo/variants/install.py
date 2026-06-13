@@ -31,6 +31,13 @@ class InstallResult:
 
 
 @dataclass
+class InstallAliasReplaceResult:
+    install: InstallResult
+    removed_symlinks: List["SymlinkRemoval"] = field(default_factory=list)
+    skipped_symlinks: List["SymlinkRemoval"] = field(default_factory=list)
+
+
+@dataclass
 class SymlinkRemoval:
     path: str
     target: str
@@ -98,7 +105,7 @@ def install_variant_command(
     if not target.is_file():
         raise ValueError(f"Setup wrapper is missing: {target}")
     link_path = install_dir / command_name
-    status = _validate_install_link(link_path, target)
+    status = _validate_install_link(link_path, target, command_name)
     if status == "available":
         if not hasattr(os, "symlink"):
             raise ValueError("Symlinks are not supported on this platform")
@@ -116,6 +123,29 @@ def install_variant_command(
     )
     _record_install(variant, result, root=root)
     return result
+
+
+def replace_variant_command_alias(
+    variant,
+    *,
+    alias: Optional[str] = None,
+    bin_dir: Optional[os.PathLike] = None,
+    yes: bool = False,
+    root=None,
+) -> InstallAliasReplaceResult:
+    result = install_variant_command(
+        variant,
+        alias=alias,
+        bin_dir=bin_dir,
+        yes=yes,
+        root=root,
+    )
+    removed, skipped = _remove_replaced_manifest_installs(variant, result, root=root)
+    return InstallAliasReplaceResult(
+        install=result,
+        removed_symlinks=removed,
+        skipped_symlinks=skipped,
+    )
 
 
 def preflight_variant_command_install(
@@ -159,7 +189,7 @@ def inspect_variant_command_install(
         status = "blocked"
         warning = dir_warning
     else:
-        status, warning = _install_link_state(link_path, target_path)
+        status, warning = _install_link_state_for_alias(link_path, target_path, command_name)
     on_path = _path_on_path(install_dir)
     if not warning and not on_path:
         warning = _path_warning(install_dir)
@@ -176,10 +206,10 @@ def inspect_variant_command_install(
 def remove_variant_managed_installs(variant) -> Tuple[List[SymlinkRemoval], List[SymlinkRemoval]]:
     manifest = variant.manifest or {}
     removed, skipped = _remove_manifest_installs(manifest)
-    seen = {_path_key(Path(item.path)) for item in removed + skipped}
+    seen = {_record_path_key(Path(item.path)) for item in removed + skipped}
     targets = _variant_wrapper_targets(variant, manifest)
     for link_path in _inferred_variant_install_paths(variant, manifest):
-        key = _path_key(link_path)
+        key = _record_path_key(link_path)
         if key in seen:
             continue
         if not link_path.exists() and not link_path.is_symlink():
@@ -198,12 +228,12 @@ def variant_install_cleanup_paths(variant) -> List[Path]:
     for item in manifest.get("installs", []) or []:
         if isinstance(item, dict) and item.get("managedBy") == MANAGED_BY and item.get("path"):
             path = Path(str(item["path"]))
-            key = _path_key(path)
+            key = _record_path_key(path)
             if key not in seen:
                 paths.append(path)
                 seen.add(key)
     for path in _inferred_variant_install_paths(variant, manifest):
-        key = _path_key(path)
+        key = _record_path_key(path)
         if key not in seen and (path.exists() or path.is_symlink()):
             paths.append(path)
             seen.add(key)
@@ -261,7 +291,7 @@ def _record_install(variant, result: InstallResult, *, root=None) -> None:
         if isinstance(item, dict)
         and not (
             str(item.get("alias") or "") == result.alias
-            and _same_path(Path(str(item.get("path") or "")), result.path)
+            and _same_record_path(Path(str(item.get("path") or "")), result.path)
         )
     ]
     installs.append(
@@ -277,6 +307,34 @@ def _record_install(variant, result: InstallResult, *, root=None) -> None:
     variant.manifest = manifest
     metadata_path = Path(getattr(variant, "path", workspace_root(root) / "variants" / getattr(variant, "variant_id", ""))) / VARIANT_METADATA
     write_json(metadata_path, manifest)
+
+
+def _remove_replaced_manifest_installs(
+    variant,
+    result: InstallResult,
+    *,
+    root=None,
+) -> Tuple[List[SymlinkRemoval], List[SymlinkRemoval]]:
+    manifest = dict(variant.manifest or {})
+    installs = []
+    removed: List[SymlinkRemoval] = []
+    skipped: List[SymlinkRemoval] = []
+    for item in manifest.get("installs", []) or []:
+        if not isinstance(item, dict) or item.get("managedBy") != MANAGED_BY:
+            installs.append(item)
+            continue
+        item_path = Path(str(item.get("path") or ""))
+        if _same_record_path(item_path, result.path):
+            installs.append(item)
+            continue
+        item_removed, item_skipped = _remove_manifest_installs({"installs": [item]})
+        removed.extend(item_removed)
+        skipped.extend(item_skipped)
+    manifest["installs"] = installs
+    variant.manifest = manifest
+    metadata_path = Path(getattr(variant, "path", workspace_root(root) / "variants" / getattr(variant, "variant_id", ""))) / VARIANT_METADATA
+    write_json(metadata_path, manifest)
+    return removed, skipped
 
 
 def _remove_manifest_installs(manifest: Dict) -> Tuple[List[SymlinkRemoval], List[SymlinkRemoval]]:
@@ -336,7 +394,7 @@ def _inferred_variant_install_paths(variant, manifest: Dict) -> List[Path]:
     for install_dir in dirs:
         for alias in aliases:
             path = install_dir / alias
-            key = _path_key(path)
+            key = _record_path_key(path)
             if key not in seen:
                 paths.append(path)
                 seen.add(key)
@@ -440,11 +498,24 @@ def _prepare_install_dir(install_dir: Path, *, yes: bool, create: bool) -> None:
         install_dir.mkdir(parents=True, exist_ok=True)
 
 
-def _validate_install_link(link_path: Path, target: Path) -> str:
-    status, reason = _install_link_state(link_path, target)
+def _validate_install_link(link_path: Path, target: Path, command_name: str) -> str:
+    status, reason = _install_link_state_for_alias(link_path, target, command_name)
     if status == "blocked":
         raise ValueError(reason)
     return status
+
+
+def _install_link_state_for_alias(link_path: Path, target: Path, command_name: str) -> Tuple[str, str]:
+    status, reason = _install_link_state(link_path, target)
+    if status == "blocked":
+        return status, reason
+    for path_candidate in _path_command_candidates(command_name):
+        if _same_path(path_candidate, link_path):
+            continue
+        candidate_status, candidate_reason = _install_link_state(path_candidate, target)
+        if candidate_status == "blocked":
+            return "blocked", _path_conflict_warning(path_candidate, candidate_reason)
+    return status, reason
 
 
 def _install_link_state(link_path: Path, target: Path) -> Tuple[str, str]:
@@ -456,6 +527,30 @@ def _install_link_state(link_path: Path, target: Path) -> Tuple[str, str]:
             return "blocked", f"Refusing to overwrite symlink pointing elsewhere: {link_path} -> {current_target}"
         return "already-installed", ""
     return "available", ""
+
+
+def _path_command_candidates(command_name: str, *, env: Optional[Dict[str, str]] = None, home: Optional[Path] = None) -> List[Path]:
+    env = env or os.environ
+    home_path = _home_path(env=env, home=home)
+    candidates: List[Path] = []
+    seen = set()
+    for entry in _path_entries(env):
+        path = _expand_path_entry(entry, home_path) / command_name
+        key = _path_key(path)
+        if key in seen:
+            continue
+        seen.add(key)
+        if path.exists() or path.is_symlink():
+            candidates.append(path)
+    return candidates
+
+
+def _path_conflict_warning(path: Path, reason: str) -> str:
+    if "non-symlink command" in reason:
+        return f"Refusing to install alias already used by PATH command: {path}"
+    if "symlink pointing elsewhere" in reason:
+        return f"Refusing to install alias already used by PATH symlink: {path}"
+    return reason
 
 
 def _home_path(*, env: Dict[str, str], home: Optional[Path]) -> Path:
@@ -504,6 +599,14 @@ def _path_key(path: Path) -> str:
         return str(path.expanduser().resolve(strict=False))
     except OSError:
         return str(path.expanduser().absolute())
+
+
+def _same_record_path(left: Path, right: Path) -> bool:
+    return _record_path_key(left) == _record_path_key(right)
+
+
+def _record_path_key(path: Path) -> str:
+    return str(path.expanduser().absolute())
 
 
 def _symlink_target(path: Path) -> Path:

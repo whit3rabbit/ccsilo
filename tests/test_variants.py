@@ -22,6 +22,7 @@ from ccsilo.variants import (
     list_variant_providers,
     load_variant,
     preflight_variant_command_install,
+    replace_variant_command_alias,
     remove_variant,
     run_variant,
     scan_variants,
@@ -279,6 +280,28 @@ def test_preflight_variant_command_install_refuses_blocked_command_without_creat
     assert blocked.read_text(encoding="utf-8") == "#!/bin/sh\n"
 
 
+def test_inspect_variant_command_install_blocks_conflict_elsewhere_on_path(monkeypatch, tmp_path):
+    home = tmp_path / "home"
+    install_dir = home / ".local" / "bin"
+    path_dir = home / "tools" / "bin"
+    install_dir.mkdir(parents=True)
+    path_dir.mkdir(parents=True)
+    blocked = path_dir / "demo"
+    blocked.write_text("#!/bin/sh\n", encoding="utf-8")
+    target = tmp_path / ".ccsilo" / "bin" / "demo"
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("PATH", os.pathsep.join([str(path_dir), str(install_dir)]))
+
+    result = inspect_variant_command_install("demo", target=target, bin_dir=install_dir)
+
+    assert result.status == "blocked"
+    assert result.path == install_dir / "demo"
+    assert "already used by PATH command" in result.warning
+    assert str(blocked) in result.warning
+    with pytest.raises(ValueError, match="already used by PATH command"):
+        preflight_variant_command_install("demo", target=target, bin_dir=install_dir)
+
+
 @pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlink not supported")
 def test_inspect_variant_command_install_classifies_existing_command_states(tmp_path):
     install_dir = tmp_path / "home" / ".local" / "bin"
@@ -305,6 +328,53 @@ def test_inspect_variant_command_install_classifies_existing_command_states(tmp_
     blocked_symlink = inspect_variant_command_install("demo", target=target, bin_dir=install_dir)
     assert blocked_symlink.status == "blocked"
     assert "symlink pointing elsewhere" in blocked_symlink.warning
+
+
+@pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlink not supported")
+def test_inspect_variant_command_install_allows_same_target_path_alias(monkeypatch, tmp_path):
+    home = tmp_path / "home"
+    install_dir = home / ".local" / "bin"
+    path_dir = home / "tools" / "bin"
+    install_dir.mkdir(parents=True)
+    path_dir.mkdir(parents=True)
+    target = tmp_path / ".ccsilo" / "bin" / "demo"
+    target.parent.mkdir(parents=True)
+    target.write_text("#!/bin/sh\n", encoding="utf-8")
+    path_alias = path_dir / "demo"
+    os.symlink(target, path_alias)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("PATH", os.pathsep.join([str(path_dir), str(install_dir)]))
+
+    available = inspect_variant_command_install("demo", target=target, bin_dir=install_dir)
+    assert available.status == "available"
+
+    path_alias.unlink()
+    other = tmp_path / "other-wrapper"
+    other.write_text("#!/bin/sh\n", encoding="utf-8")
+    os.symlink(other, path_alias)
+    blocked = inspect_variant_command_install("demo", target=target, bin_dir=install_dir)
+    assert blocked.status == "blocked"
+    assert "already used by PATH symlink" in blocked.warning
+
+
+@pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlink not supported")
+def test_replace_variant_command_alias_removes_old_managed_symlink(tmp_path):
+    root = tmp_path / ".ccsilo"
+    install_dir = tmp_path / "home" / ".local" / "bin"
+    install_dir.mkdir(parents=True)
+    variant = install_test_variant(root, root / "bin" / "demo")
+    old = install_variant_command(variant, alias="old-demo", bin_dir=install_dir)
+
+    result = replace_variant_command_alias(variant, alias="new-demo", bin_dir=install_dir)
+
+    assert result.install.status == "installed"
+    assert result.install.path == install_dir / "new-demo"
+    assert result.install.path.is_symlink()
+    assert not old.path.exists()
+    assert not old.path.is_symlink()
+    assert [item.path for item in result.removed_symlinks] == [str(old.path)]
+    manifest = json.loads((variant.path / "variant.json").read_text(encoding="utf-8"))
+    assert [item["alias"] for item in manifest["installs"]] == ["new-demo"]
 
 
 @pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlink not supported")

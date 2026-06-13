@@ -4,7 +4,7 @@ import os
 
 from ..variant_tweaks import GATEWAY_MODEL_DISCOVERY_ENV
 from ..variants import CCR_PROVIDER_KEYS
-from ..variants.install import default_install_dir
+from ..variants.install import default_install_dir, inspect_variant_command_install
 from ..variants.model import default_bin_dir, variant_id_from_name
 from ..workspace import short_sha, workspace_root
 from ._const import VARIANT_MODEL_FIELDS, VARIANT_STEPS
@@ -17,6 +17,7 @@ from .options import (
     models_pending_diff,
     selected_setup_variant,
     selected_variant_provider,
+    setup_default_command_alias,
     setup_detail_lines,
     setup_detail_options,
     setup_upgrade_status,
@@ -49,6 +50,7 @@ __all__ = [
     "_create_preview_api_key_storage",
     "_create_preview_mcp_lines",
     "_create_preview_model_lines",
+    "command_alias_labels",
     "upgrade_preview_labels",
     "delete_confirm_labels",
     "inspect_delete_confirm_labels",
@@ -89,6 +91,8 @@ def current_labels(state):
         return "Upgrade preview", upgrade_preview_labels(state)
     if state.mode == "delete-confirm":
         return "Delete setup", delete_confirm_labels(state)
+    if state.mode == "command-alias":
+        return "Install command", command_alias_labels(state)
     if state.mode == "inspect-delete-confirm":
         return "Delete native download", inspect_delete_confirm_labels(state)
     if state.mode == "health-result":
@@ -196,7 +200,17 @@ def _create_preview_install_lines(state, setup_id, alias):
     install_dir = default_install_dir(allow_create=True)
     if install_dir is None:
         return ["Install command: yes (no install directory found)"]
-    return [f"Install command: yes ({install_dir / alias})"]
+    target = workspace_root() / "bin" / setup_id
+    try:
+        plan = inspect_variant_command_install(setup_id, target=target, alias=alias, yes=True)
+    except Exception as exc:
+        return [f"Install command: blocked ({exc})"]
+    if plan.status == "blocked":
+        return [f"Install command: blocked ({plan.warning})", f"Install path: {plan.path}"]
+    lines = [f"Install command: yes ({plan.path}, {plan.status})"]
+    if plan.warning:
+        lines.append(f"Install warning: {plan.warning}")
+    return lines
 
 def _create_preview_ccrouter_lines(state, provider):
     if provider.get("key") not in CCR_PROVIDER_KEYS:
@@ -338,6 +352,38 @@ def delete_confirm_labels(state):
         "",
         "Shared downloads and caches are not removed.",
     ]
+
+def command_alias_labels(state):
+    variant = selected_setup_variant(state)
+    if variant is None:
+        return ["No setup selected."]
+    paths = (variant.manifest or {}).get("paths") or {}
+    target = paths.get("wrapper") or ""
+    alias = state.setup_command_alias.strip() or setup_default_command_alias(variant)
+    lines = [
+        f"Setup: {variant.variant_id}",
+        f"Command alias: {alias or '(type a command alias)'}",
+        f"Target wrapper: {target or '(no command)'}",
+    ]
+    if not target:
+        lines.append("Status: blocked, setup wrapper is missing")
+        return lines
+    if not alias:
+        lines.append("Status: blocked, command alias is empty")
+        return lines
+    try:
+        plan = inspect_variant_command_install(variant.variant_id, target=target, alias=alias, yes=True)
+    except Exception as exc:
+        lines.append(f"Status: blocked, {exc}")
+        return lines
+    lines.extend([
+        f"Install path: {plan.path}",
+        f"Status: {plan.status}",
+    ])
+    if plan.warning:
+        lines.append(f"Warning: {plan.warning}")
+    lines.extend(["", "Enter applies. Esc cancels."])
+    return lines
 
 def inspect_delete_confirm_labels(state):
     artifact = next(

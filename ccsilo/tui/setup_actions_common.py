@@ -33,6 +33,7 @@ variant_id_from_name = _proxy('variant_id_from_name')
 create_variant = _proxy('create_variant')
 inspect_variant_command_install = _proxy('inspect_variant_command_install')
 install_variant_command = _proxy('install_variant_command')
+replace_variant_command_alias = _proxy('replace_variant_command_alias')
 run_ccrouter_command = _proxy('run_ccrouter_command')
 variant_install_cleanup_paths = _proxy('variant_install_cleanup_paths')
 _models_pending_diff = _proxy('_models_pending_diff')
@@ -90,6 +91,7 @@ __all__ = [
     "create_variant",
     "inspect_variant_command_install",
     "install_variant_command",
+    "replace_variant_command_alias",
     "run_ccrouter_command",
     "variant_install_cleanup_paths",
     "_models_pending_diff",

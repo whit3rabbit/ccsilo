@@ -1432,6 +1432,44 @@ def test_variants_create_preview_custom_alias_stops_name_sync():
     assert state.variant_install_alias_customized is True
 
 
+def test_variants_create_preview_shows_blocked_alias_and_edit_clears(monkeypatch, tmp_path):
+    home = tmp_path / "home"
+    install_dir = home / ".local" / "bin"
+    install_dir.mkdir(parents=True)
+    blocked = install_dir / "cc-zai"
+    blocked.write_text("#!/bin/sh\n", encoding="utf-8")
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("PATH", str(install_dir))
+    provider = {
+        "key": "zai",
+        "label": "Z.AI",
+        "authMode": "none",
+        "models": {},
+        "defaultVariantName": "zai",
+    }
+    state = tui.TuiState(
+        mode="create-preview",
+        variant_name="zai",
+        variant_install_alias="cc-zai",
+        variant_install_alias_customized=True,
+        variant_providers=[provider],
+        variant_install_command=True,
+    )
+
+    assert "Install command: blocked" in tui._screen_text(state)
+
+    state.selected_index = 1
+    for _ in "cc-zai":
+        tui._handle_backspace_key(state)
+    for char in "cc-zai-dev":
+        tui._handle_char_key(state, char)
+
+    screen = tui._screen_text(state)
+    assert "Command alias: cc-zai-dev" in screen
+    assert "Install command: yes" in screen
+    assert "Install command: blocked" not in screen
+
+
 def test_run_variant_create_installs_selected_command(monkeypatch, tmp_path):
     calls = []
     preflight_calls = []
@@ -1575,17 +1613,13 @@ def test_run_variant_create_skips_blocked_install_command(monkeypatch, tmp_path)
     tui._run_variant_create(state)
 
     summary = "\n".join(state.last_action_summary)
-    assert len(calls) == 1
+    assert calls == []
     assert install_calls == []
-    assert state.mode == "health-result"
-    assert "Setup created." in summary
-    assert f"Run it with:\n  {root / 'bin' / 'zai'}" in summary
-    assert f"Installed command: skipped, existing command preserved: {blocked}" in summary
-    assert "Install warning: Refusing to overwrite non-symlink command" in summary
-    assert "Health: healthy" in summary
-    assert state.message.startswith("Setup created; command install skipped:")
-    assert state.selected_setup_id == "zai"
-    assert calls[0]["provider_key"] == "zai"
+    assert state.mode == "create-preview"
+    assert "Command install blocked." in summary
+    assert f"Install path: {blocked}" in summary
+    assert "Reason: Refusing to overwrite non-symlink command" in summary
+    assert state.message.startswith("Command alias blocked:")
     assert blocked.read_text(encoding="utf-8") == "#!/bin/sh\n"
 
 
@@ -2686,6 +2720,98 @@ def test_setup_detail_exposes_edit_and_add_tweaks_actions():
 
     assert "Edit tweaks" in labels
     assert "Add tweaks" in labels
+    assert "Install/Rename command" in labels
+
+
+@pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlink not supported")
+def test_setup_detail_command_alias_renames_managed_install(monkeypatch, tmp_path):
+    root = tmp_path / ".ccsilo"
+    home = tmp_path / "home"
+    install_dir = home / ".local" / "bin"
+    variant_dir = root / "variants" / "mirror"
+    wrapper = root / "bin" / "mirror"
+    install_dir.mkdir(parents=True)
+    variant_dir.mkdir(parents=True)
+    wrapper.parent.mkdir(parents=True)
+    wrapper.write_text("#!/bin/sh\n", encoding="utf-8")
+    wrapper.chmod(0o755)
+    manifest = {
+        "schemaVersion": 1,
+        "id": "mirror",
+        "name": "mirror",
+        "provider": {"key": "mirror"},
+        "source": {"version": "2.1.123"},
+        "paths": {"wrapper": str(wrapper)},
+        "createdAt": "2026-01-01T00:00:00Z",
+        "updatedAt": "2026-01-01T00:00:00Z",
+    }
+    (variant_dir / "variant.json").write_text(json.dumps(manifest), encoding="utf-8")
+    monkeypatch.setenv("CCSILO_WORKSPACE", str(root))
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("PATH", str(install_dir))
+    variant = tui.load_variant("mirror")
+    old = tui.install_variant_command(variant, alias="old-mirror", bin_dir=install_dir)
+    variant = tui.load_variant("mirror")
+    state = tui.TuiState(mode="setup-detail", variants=[variant], selected_setup_id="mirror")
+
+    tui._open_command_alias(state)
+    assert state.mode == "command-alias"
+    assert state.setup_command_alias == "old-mirror"
+
+    state.setup_command_alias = "new-mirror"
+    tui._activate(state)
+
+    manifest = json.loads((variant_dir / "variant.json").read_text(encoding="utf-8"))
+    assert state.mode == "health-result"
+    assert "Command installed." in "\n".join(state.last_action_summary)
+    assert "Old managed commands removed: 1" in "\n".join(state.last_action_summary)
+    assert not old.path.exists()
+    assert not old.path.is_symlink()
+    assert (install_dir / "new-mirror").is_symlink()
+    assert [item["alias"] for item in manifest["installs"]] == ["new-mirror"]
+
+
+def test_setup_detail_command_alias_blocks_unmanaged_conflict(monkeypatch, tmp_path):
+    root = tmp_path / ".ccsilo"
+    home = tmp_path / "home"
+    install_dir = home / ".local" / "bin"
+    variant_dir = root / "variants" / "mirror"
+    wrapper = root / "bin" / "mirror"
+    install_dir.mkdir(parents=True)
+    variant_dir.mkdir(parents=True)
+    wrapper.parent.mkdir(parents=True)
+    wrapper.write_text("#!/bin/sh\n", encoding="utf-8")
+    wrapper.chmod(0o755)
+    blocked = install_dir / "mirror"
+    blocked.write_text("#!/bin/sh\n", encoding="utf-8")
+    manifest = {
+        "schemaVersion": 1,
+        "id": "mirror",
+        "name": "mirror",
+        "provider": {"key": "mirror"},
+        "source": {"version": "2.1.123"},
+        "paths": {"wrapper": str(wrapper)},
+        "createdAt": "2026-01-01T00:00:00Z",
+        "updatedAt": "2026-01-01T00:00:00Z",
+    }
+    (variant_dir / "variant.json").write_text(json.dumps(manifest), encoding="utf-8")
+    monkeypatch.setenv("CCSILO_WORKSPACE", str(root))
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("PATH", str(install_dir))
+    variant = tui.load_variant("mirror")
+    state = tui.TuiState(
+        mode="command-alias",
+        variants=[variant],
+        selected_setup_id="mirror",
+        setup_command_alias="mirror",
+    )
+
+    tui._activate(state)
+
+    assert state.mode == "command-alias"
+    assert "Command install blocked." in "\n".join(state.last_action_summary)
+    assert "Refusing to overwrite non-symlink command" in state.message
+    assert blocked.read_text(encoding="utf-8") == "#!/bin/sh\n"
 
 
 def test_setup_detail_shows_new_claude_code_version():
