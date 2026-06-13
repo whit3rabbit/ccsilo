@@ -251,16 +251,17 @@ GitHub Actions:
 * `.github/workflows/ci.yml` runs on push, pull request, and manual dispatch. It installs `.[dev]`, runs `ruff check ccsilo tests tools`, runs `pytest -q`, builds a wheel, installs it in a clean venv, and smoke-checks `ccsilo --help` plus `ccsilo variant providers --json`.
 * The `CI` workflow has an optional manual Docker patch smoke job controlled by `run_docker_smoke`.
 * `.github/workflows/update-prompts.yml` is the daily release-tracking workflow. It updates prompt catalogs, runs Docker patch smoke for releases newer than the newest local report, validates prompt/report tooling, and commits prompt/report changes.
-* `.github/workflows/release.yml` builds and validates on published GitHub releases, but PyPI/TestPyPI publishing is manual `workflow_dispatch` through Trusted Publishing.
+* `.github/workflows/release.yml` automatically builds, publishes to PyPI, and uploads built distribution assets to the GitHub Release when a Release is published. It can also be run manually via `workflow_dispatch` to publish to PyPI and create/update the GitHub Release.
 
 Release rules:
 
 * PyPI publishing uses Trusted Publishing. Do not store PyPI API tokens.
 * TestPyPI and PyPI environments must be named `testpypi` and `pypi`; require manual approval on `pypi`.
 * Dispatch `Release` with `repository=testpypi` before the first real upload for a version.
-* Publish to real PyPI by manually dispatching `Release` with `repository=pypi` from the exact `v<pyproject.toml version>` tag.
+* Publish to real PyPI and GitHub Releases by publishing a release on GitHub, or by manually dispatching `Release` with `repository=pypi` from the exact `v<pyproject.toml version>` tag.
 * Derive release tags from `pyproject.toml`, do not hand-type them:
-  `VERSION="$(.venv/bin/python -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"])')"; TAG="v${VERSION}"`.
+  `VERSION="$(.venv/bin/python -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"])')"; TAG="v${VERSION}"`
+* Update `CHANGELOG.md` with release notes before pushing a new release.
 * PyPI versions are immutable. If a real upload succeeds or partially creates a version, bump `pyproject.toml` before trying again.
 * After publishing, verify `pipx install ccsilo`, `ccsilo --help`, and `ccsilo variant providers --json`.
 * Keep `docs/RELEASE.md` synchronized with the workflow.

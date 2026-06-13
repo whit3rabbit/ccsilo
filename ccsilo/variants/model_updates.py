@@ -1,5 +1,6 @@
 """Model alias updates for existing variants."""
 
+from pathlib import Path
 from typing import Dict
 
 from .._utils import utc_now as _utc_now
@@ -13,7 +14,7 @@ from .tweaks import (
     GATEWAY_MODEL_DISCOVERY_TWEAK_ID,
     sync_tweak_env,
 )
-from .wrapper import write_wrapper as _write_wrapper
+from .wrapper import _write_settings_config, write_wrapper as _write_wrapper
 
 import sys as _sys
 
@@ -54,6 +55,7 @@ def update_variant_models(
     )
     manifest["updatedAt"] = _utc_now()
     validate_variant_manifest(manifest)
+    _write_settings_config(manifest, Path(manifest["paths"]["configDir"]))
     _write_wrapper(manifest)
     write_json(variant.path / VARIANT_METADATA, manifest)
     return _variants().load_variant(variant.variant_id, root=root)

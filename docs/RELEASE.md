@@ -80,12 +80,7 @@ python -m venv /tmp/ccsilo-testpypi
 
 ## PyPI
 
-Publish to PyPI by manually dispatching the `Release` workflow with
-`repository=pypi` from the version tag. The workflow validates that the tag
-matches `pyproject.toml`, builds and checks the distributions, publishes to
-PyPI through the protected `pypi` environment, then creates or updates the
-matching GitHub Release. Creating or publishing a GitHub Release by itself does
-not upload to PyPI.
+Publish to PyPI and GitHub Releases by publishing a release on GitHub, or by manually dispatching the `Release` workflow with `repository=pypi` from the version tag. The workflow validates that the tag matches `pyproject.toml`, builds and checks the distributions, publishes to PyPI through the protected `pypi` environment, and creates or updates the matching GitHub Release, uploading the python distributions to it.
 
 Before publishing to PyPI:
 
@@ -102,6 +97,8 @@ VERSION="$(.venv/bin/python -c 'import pathlib, tomllib; print(tomllib.loads(pat
 TAG="v${VERSION}"
 git tag -a "$TAG" -m "ccsilo ${VERSION}"
 git push upstream "$TAG"
+# The push of the tag or publishing a release on GitHub will trigger the automated workflow.
+# Alternatively, run the workflow manually:
 gh workflow run release.yml --ref "$TAG" -f repository=pypi
 gh run list --workflow release.yml --limit 1
 gh run watch
@@ -119,11 +116,11 @@ VERSION="$(.venv/bin/python -c 'import pathlib, tomllib; print(tomllib.loads(pat
 TAG="v${VERSION}"
 git tag -a "$TAG" -m "ccsilo ${VERSION}" <commit-with-matching-version-and-safe-release-workflow>
 git push upstream "$TAG"
-gh release create "$TAG" --title "$TAG" --generate-notes --latest --verify-tag
+gh release create "$TAG" dist/* --title "$TAG" --generate-notes --latest --verify-tag
 ```
 
-Published GitHub Releases still run the release workflow's version/tag
-validation and build checks, but they do not publish to PyPI.
+When a GitHub Release is published, the release workflow automatically runs to validate the tag, build distributions, publish to PyPI, and upload the wheel/sdist packages to the release.
+
 
 After publishing:
 
@@ -143,17 +140,9 @@ creating the project, or partially uploads files for a version, do not retry the
 same version blindly. Bump `pyproject.toml`, commit the bump, tag the new
 version, and publish again.
 
-The release tag must be `v<project.version>` from `pyproject.toml`. For PyPI
-dispatches, the workflow fails unless `--ref` is that exact tag. If the tag or
-GitHub Release is wrong after a successful upload, fix the tag/release metadata
-only. Do not re-run the PyPI publish for the same version.
+The release tag must be `v<project.version>` from `pyproject.toml`. For PyPI dispatches, the workflow fails unless `--ref` is that exact tag. If the tag or GitHub Release is wrong after a successful upload, fix the tag/release metadata only. Do not re-run the PyPI publish for the same version.
 
-Do not create or publish a GitHub Release from a tag whose
-`.github/workflows/release.yml` still publishes on `release.published`; that can
-attempt to upload an already-immutable PyPI version. Move the tag to a commit
-with the safe workflow and the same project version before publishing the
-GitHub Release.
+Publishing a GitHub Release triggers the workflow to publish the package to PyPI automatically, ensuring alignment between the GitHub release and the PyPI version.
 
-TestPyPI is also effectively immutable for a given filename. For repeated
-TestPyPI dry runs, bump the version or use a local build and `twine check`
-instead.
+TestPyPI is also effectively immutable for a given filename. For repeated TestPyPI dry runs, bump the version or use a local build and `twine check` instead.
+

@@ -27,6 +27,7 @@ from .tweaks import YET_ANOTHER_STATUSLINE_TWEAK_ID
 
 SECRETS_FILE = "secrets.env"
 SECRETS_FILE_MODE = 0o600
+ARCHITECT_MODE_TWEAK_ID = "opusplan1m"
 _YET_ANOTHER_STATUSLINE_SOURCE = (
     Path(__file__).resolve().parent.parent
     / "data"
@@ -42,8 +43,8 @@ _YET_ANOTHER_STATUSLINE_FILES = (
 
 def write_variant_config(manifest: Dict) -> None:
     paths = manifest["paths"]
-    env = dict(manifest.get("env", {}))
-    write_json(Path(paths["configDir"]) / "settings.json", {"env": env})
+    config_dir = Path(paths["configDir"])
+    _write_settings_config(manifest, config_dir)
     model_proxy = manifest.get("modelProxy")
     if isinstance(model_proxy, dict) and model_proxy.get("mode") in {"architect", "openai"}:
         runtime_config = {
@@ -66,13 +67,13 @@ def write_variant_config(manifest: Dict) -> None:
         )
     apply_provider_claude_config(
         manifest["provider"]["key"],
-        paths["configDir"],
+        config_dir,
         auth_bootstrap=not (isinstance(model_proxy, dict) and model_proxy.get("mode") in {"architect", "openai"}),
         optional_mcp_ids=(manifest.get("mcp") or {}).get("selected", []),
         read_json=read_json,
         write_json=write_json,
     )
-    sync_setup_config_tweaks(manifest, paths["configDir"])
+    sync_setup_config_tweaks(manifest, config_dir)
     tweak_config = provider_patch_config(manifest["provider"]["key"])
     theme_ids = {
         theme.get("id")
@@ -82,7 +83,7 @@ def write_variant_config(manifest: Dict) -> None:
     # Write theme and onboarding state so new variants boot directly into
     # branded dark, while preserving existing valid theme choices.
     ensure_onboarding_state(
-        paths["configDir"],
+        config_dir,
         theme_id="dark",
         skip_onboarding=True,
         valid_theme_ids=theme_ids,
@@ -92,6 +93,52 @@ def write_variant_config(manifest: Dict) -> None:
     tweak_config["ccInstallationPath"] = paths["binary"]
     tweak_config["lastModified"] = _utc_now()
     write_json(Path(paths["tweakccDir"]) / "config.json", tweak_config)
+
+
+def _write_settings_config(manifest: Dict, config_dir: Path) -> None:
+    settings_path = config_dir / "settings.json"
+    settings = read_json(settings_path) if settings_path.exists() else {}
+    existing_env = settings.get("env", {})
+    if existing_env is None:
+        existing_env = {}
+    if not isinstance(existing_env, dict):
+        raise ValueError(f"{settings_path} env must be an object")
+
+    env = dict(existing_env)
+    next_env = _runtime_env_for_manifest(manifest)
+    for key in _previous_manifest_env(manifest):
+        if key not in next_env:
+            env.pop(key, None)
+    env.update(next_env)
+    settings["env"] = env
+    if _uses_architect_mode(manifest) and not str(settings.get("model") or "").strip():
+        settings["model"] = "opusplan"
+    write_json(settings_path, settings)
+
+
+def _runtime_env_for_manifest(manifest: Dict) -> Dict[str, object]:
+    env = dict(manifest.get("env") or {})
+    if _uses_architect_mode(manifest):
+        env.pop("ANTHROPIC_MODEL", None)
+    return env
+
+
+def _uses_architect_mode(manifest: Dict) -> bool:
+    return ARCHITECT_MODE_TWEAK_ID in (manifest.get("tweaks") or [])
+
+
+def _previous_manifest_env(manifest: Dict) -> Dict[str, object]:
+    root = str((manifest.get("paths") or {}).get("root") or "").strip()
+    if not root:
+        return {}
+    metadata_path = Path(root) / "variant.json"
+    if not metadata_path.exists():
+        return {}
+    previous = read_json(metadata_path)
+    env = previous.get("env") or {}
+    if not isinstance(env, dict):
+        return {}
+    return dict(env)
 
 
 def sync_setup_config_tweaks(manifest: Dict, config_dir) -> None:
@@ -119,8 +166,19 @@ def _disable_statusline_setting(config_dir: Path) -> None:
     if not settings_path.exists():
         return
     settings = read_json(settings_path)
-    if settings.pop("statusLine", None) is not None:
+    if _is_ccsilo_statusline(settings.get("statusLine"), config_dir):
+        settings.pop("statusLine", None)
         write_json(settings_path, settings)
+
+
+def _is_ccsilo_statusline(value, config_dir: Path) -> bool:
+    if not isinstance(value, dict) or value.get("type") != "command":
+        return False
+    command = value.get("command")
+    if not isinstance(command, str):
+        return False
+    managed_command = str(config_dir / "statusline" / YET_ANOTHER_STATUSLINE_TWEAK_ID / "statusline_command.py")
+    return managed_command in command
 
 
 def _copy_yet_another_statusline(config_dir: Path) -> Path:
@@ -216,7 +274,7 @@ def write_wrapper(manifest: Dict) -> Path:
     model_proxy = _model_proxy_config(manifest)
     if managed_ccrouter:
         lines.extend(_ccrouter_home_lines(manifest, managed_ccrouter))
-    for key, value in sorted(manifest.get("env", {}).items()):
+    for key, value in sorted(_runtime_env_for_manifest(manifest).items()):
         env_key = require_env_name(key, label="wrapper env key")
         lines.append(f"export {env_key}={shlex.quote(str(value))}")
     for key in manifest.get("envUnset") or []:

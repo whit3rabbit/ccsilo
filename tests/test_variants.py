@@ -34,6 +34,7 @@ from ccsilo.variants.ccrouter import (
     CCR_PACKAGE_DEFAULT,
 )
 from ccsilo.variants.builder import patch_entry_js
+from ccsilo.variants.wrapper import write_variant_config
 from ccsilo.variants.wrapper import write_wrapper
 from ccsilo.variants.wrapper import write_secrets
 from ccsilo.variant_tweaks import GATEWAY_MODEL_DISCOVERY_ENV, GATEWAY_MODEL_DISCOVERY_TWEAK_ID
@@ -442,6 +443,54 @@ def test_create_variant_with_yet_another_statusline_tweak_writes_local_config(tm
     ]
 
 
+def test_apply_variant_preserves_user_statusline_when_tweak_absent(tmp_path, monkeypatch):
+    import ccsilo.variants as variants_module
+
+    root = tmp_path / ".ccsilo"
+    artifact = write_source_artifact(tmp_path)
+    create_variant(
+        name="Custom Statusline",
+        provider_key="zai",
+        credential_env="Z_AI_API_KEY",
+        tweaks=["mcp-batch-size"],
+        root=root,
+        source_artifact=artifact,
+        force=True,
+    )
+    settings_path = root / "variants" / "custom-statusline" / "config" / "settings.json"
+    settings = json.loads(settings_path.read_text(encoding="utf-8"))
+    settings["statusLine"] = {"type": "command", "command": "python3 custom-status.py"}
+    settings_path.write_text(json.dumps(settings), encoding="utf-8")
+
+    monkeypatch.setattr(variants_module, "_download_source_artifact", lambda version, root=None: artifact)
+    apply_variant("custom-statusline", root=root)
+
+    reapplied = json.loads(settings_path.read_text(encoding="utf-8"))
+    assert reapplied["statusLine"] == {"type": "command", "command": "python3 custom-status.py"}
+
+
+def test_apply_variant_rejects_invalid_settings_without_clobbering(tmp_path, monkeypatch):
+    import ccsilo.variants as variants_module
+
+    root = tmp_path / ".ccsilo"
+    artifact = write_source_artifact(tmp_path)
+    create_variant(
+        name="Invalid Settings",
+        provider_key="mirror",
+        root=root,
+        source_artifact=artifact,
+        force=True,
+    )
+    settings_path = root / "variants" / "invalid-settings" / "config" / "settings.json"
+    settings_path.write_text("[]", encoding="utf-8")
+
+    monkeypatch.setattr(variants_module, "_download_source_artifact", lambda version, root=None: artifact)
+    with pytest.raises(VariantBuildError, match="settings.json must contain a JSON object"):
+        apply_variant("invalid-settings", root=root)
+
+    assert settings_path.read_text(encoding="utf-8") == "[]"
+
+
 def test_create_variant_with_source_binary_imports_without_download(tmp_path, monkeypatch):
     import ccsilo.variants as variants_module
 
@@ -782,6 +831,148 @@ def test_create_and_reapply_variant_preserves_selected_optional_mcp(tmp_path, mo
     reapplied_config = json.loads(config_path.read_text(encoding="utf-8"))
     assert sorted(reapplied_config["mcpServers"]) == ["github"]
     assert "notion" not in reapplied_config["mcpServers"]
+
+
+def test_update_variant_preserves_user_settings_and_managed_env_wins(tmp_path, monkeypatch):
+    import ccsilo.variants as variants_module
+
+    root = tmp_path / ".ccsilo"
+    first_dir = tmp_path / "first"
+    second_dir = tmp_path / "second"
+    first_dir.mkdir()
+    second_dir.mkdir()
+    first = write_source_artifact(first_dir, version="2.1.120")
+    second = write_source_artifact(second_dir, version="2.1.121")
+
+    create_variant(
+        name="Zai Preserve",
+        provider_key="zai",
+        credential_env="Z_AI_API_KEY",
+        root=root,
+        source_artifact=first,
+        force=True,
+    )
+    settings_path = root / "variants" / "zai-preserve" / "config" / "settings.json"
+    settings = json.loads(settings_path.read_text(encoding="utf-8"))
+    settings["hooks"] = {
+        "PreToolUse": [
+            {
+                "matcher": "Write|Edit",
+                "hooks": [{"type": "command", "command": "python3 hooks/check.py"}],
+            }
+        ]
+    }
+    settings["customSetting"] = {"enabled": True}
+    settings.setdefault("permissions", {}).setdefault("ask", []).append("Bash")
+    settings["permissions"].setdefault("deny", []).append("UserTool")
+    settings.setdefault("env", {})["USER_ONLY_ENV"] = "keep"
+    settings["env"]["DISABLE_TELEMETRY"] = "user-edited"
+    settings_path.write_text(json.dumps(settings), encoding="utf-8")
+
+    monkeypatch.setattr(variants_module, "_download_source_artifact", lambda version, root=None: second)
+    updated = update_variants("zai-preserve", claude_version="2.1.121", root=root)[0]
+
+    reapplied = json.loads(settings_path.read_text(encoding="utf-8"))
+    assert updated.variant.manifest["source"]["version"] == "2.1.121"
+    assert reapplied["hooks"] == settings["hooks"]
+    assert reapplied["customSetting"] == {"enabled": True}
+    assert reapplied["permissions"]["ask"] == ["Bash"]
+    assert "UserTool" in reapplied["permissions"]["deny"]
+    assert "mcp__web_reader__webReader" in reapplied["permissions"]["deny"]
+    assert reapplied["forceLoginMethod"] == "console"
+    assert reapplied["env"]["USER_ONLY_ENV"] == "keep"
+    assert reapplied["env"]["DISABLE_TELEMETRY"] == "1"
+
+
+def test_update_variant_preserves_claude_config_mcp_and_config_files(tmp_path, monkeypatch):
+    import ccsilo.variants as variants_module
+
+    root = tmp_path / ".ccsilo"
+    artifact = write_source_artifact(tmp_path)
+    create_variant(
+        name="Mirror Preserve",
+        provider_key="mirror",
+        mcp_ids=["github"],
+        root=root,
+        source_artifact=artifact,
+        force=True,
+    )
+    config_dir = root / "variants" / "mirror-preserve" / "config"
+    claude_config_path = config_dir / ".claude.json"
+    claude_config = json.loads(claude_config_path.read_text(encoding="utf-8"))
+    claude_config["customClaudeKey"] = {"keep": True}
+    claude_config.setdefault("mcpServers", {})["user-mcp"] = {"command": "node", "args": ["server.js"]}
+    claude_config_path.write_text(json.dumps(claude_config), encoding="utf-8")
+
+    skill_path = config_dir / "skills" / "local-skill" / "SKILL.md"
+    hook_path = config_dir / "hooks" / "hooks.json"
+    plugin_path = config_dir / "plugins" / "demo" / ".claude-plugin" / "plugin.json"
+    claude_md_path = config_dir / "CLAUDE.md"
+    models_claude_md_path = config_dir / "models" / "CLAUDE.md"
+    model_file_path = config_dir / "models" / "custom-model.json"
+    mcp_path = config_dir / ".mcp.json"
+    skill_path.parent.mkdir(parents=True)
+    hook_path.parent.mkdir(parents=True)
+    plugin_path.parent.mkdir(parents=True)
+    models_claude_md_path.parent.mkdir(parents=True)
+    skill_path.write_text("# Local Skill\n", encoding="utf-8")
+    hook_path.write_text('{"SessionStart":[]}\n', encoding="utf-8")
+    plugin_path.write_text('{"name":"demo","version":"0.1.0","description":"Demo plugin"}\n', encoding="utf-8")
+    claude_md_path.write_text("# Silo Instructions\n", encoding="utf-8")
+    models_claude_md_path.write_text("# Model Instructions\n", encoding="utf-8")
+    model_file_path.write_text('{"id":"custom-model"}\n', encoding="utf-8")
+    mcp_path.write_text('{"user-file-mcp":{"command":"node"}}\n', encoding="utf-8")
+
+    monkeypatch.setattr(variants_module, "_download_source_artifact", lambda version, root=None: artifact)
+    update_variants("mirror-preserve", root=root)
+
+    reapplied = json.loads(claude_config_path.read_text(encoding="utf-8"))
+    assert reapplied["customClaudeKey"] == {"keep": True}
+    assert reapplied["mcpServers"]["user-mcp"] == {"command": "node", "args": ["server.js"]}
+    assert reapplied["mcpServers"]["github"]["headers"] == {"Authorization": "Bearer ${GITHUB_TOKEN}"}
+    assert skill_path.read_text(encoding="utf-8") == "# Local Skill\n"
+    assert hook_path.read_text(encoding="utf-8") == '{"SessionStart":[]}\n'
+    assert plugin_path.is_file()
+    assert claude_md_path.read_text(encoding="utf-8") == "# Silo Instructions\n"
+    assert models_claude_md_path.read_text(encoding="utf-8") == "# Model Instructions\n"
+    assert model_file_path.read_text(encoding="utf-8") == '{"id":"custom-model"}\n'
+    assert mcp_path.read_text(encoding="utf-8") == '{"user-file-mcp":{"command":"node"}}\n'
+
+
+def test_architect_tweak_lets_silo_model_setting_win(tmp_path):
+    root = tmp_path / ".ccsilo"
+    artifact = write_source_artifact(tmp_path)
+
+    result = create_variant(
+        name="Architect Mirror",
+        provider_key="mirror",
+        model_overrides={
+            "opus": "claude-fable-5",
+            "sonnet": "claude-sonnet-4-6",
+            "default": "claude-sonnet-4-6",
+        },
+        tweaks=["mcp-batch-size"],
+        root=root,
+        source_artifact=artifact,
+        force=True,
+    )
+    manifest = dict(result.variant.manifest)
+    manifest["tweaks"] = [*manifest["tweaks"], "opusplan1m"]
+    write_variant_config(manifest)
+    write_wrapper(manifest)
+
+    settings_path = root / "variants" / "architect-mirror" / "config" / "settings.json"
+    settings = json.loads(settings_path.read_text(encoding="utf-8"))
+    wrapper = result.wrapper_path.read_text(encoding="utf-8")
+
+    assert manifest["env"]["ANTHROPIC_MODEL"] == "claude-sonnet-4-6"
+    assert settings["model"] == "opusplan"
+    assert "ANTHROPIC_MODEL" not in settings["env"]
+    assert settings["env"]["ANTHROPIC_DEFAULT_OPUS_MODEL"] == "claude-fable-5"
+    assert settings["env"]["ANTHROPIC_DEFAULT_SONNET_MODEL"] == "claude-sonnet-4-6"
+    assert "export ANTHROPIC_MODEL=" not in wrapper
+    assert "export ANTHROPIC_DEFAULT_OPUS_MODEL=claude-fable-5" in wrapper
+    assert "export ANTHROPIC_DEFAULT_SONNET_MODEL=claude-sonnet-4-6" in wrapper
 
 
 def test_macos_grow_skip_uses_unpacked_node_runtime(tmp_path, monkeypatch):
@@ -1954,13 +2145,20 @@ def test_apply_variant_removes_unchecked_default_tweak_env(tmp_path, monkeypatch
         if tweak_id not in {"mcp-batch-size", "rtk-shell-prefix"}
     ]
     (variant.path / "variant.json").write_text(json.dumps(manifest), encoding="utf-8")
+    settings_path = root / "variants" / "remove-defaults" / "config" / "settings.json"
+    settings = json.loads(settings_path.read_text(encoding="utf-8"))
+    settings.setdefault("env", {})["USER_ONLY_ENV"] = "keep"
+    settings_path.write_text(json.dumps(settings), encoding="utf-8")
 
     monkeypatch.setattr(variants_module, "_download_source_artifact", lambda version, root=None: artifact)
     rebuilt = apply_variant("remove-defaults", root=root)
+    reapplied_settings = json.loads(settings_path.read_text(encoding="utf-8"))
 
     assert "mcp-batch-size" not in rebuilt.variant.manifest["tweaks"]
     assert "rtk-shell-prefix" not in rebuilt.variant.manifest["tweaks"]
     assert "MCP_SERVER_CONNECTION_BATCH_SIZE" not in rebuilt.variant.manifest["env"]
+    assert "MCP_SERVER_CONNECTION_BATCH_SIZE" not in reapplied_settings["env"]
+    assert reapplied_settings["env"]["USER_ONLY_ENV"] == "keep"
     assert "MCP_SERVER_CONNECTION_BATCH_SIZE" not in rebuilt.wrapper_path.read_text(encoding="utf-8")
     assert "mcp-batch-size" not in rebuilt.variant.manifest["patchResults"]["appliedTweaks"]
     assert "rtk-shell-prefix" not in rebuilt.variant.manifest["patchResults"]["appliedTweaks"]
@@ -2046,6 +2244,61 @@ def test_update_variant_models_rewrites_manifest_and_wrapper_without_rebuild(tmp
     assert updated.manifest["env"]["ANTHROPIC_MODEL"] == "new-model"
     assert "export ANTHROPIC_DEFAULT_OPUS_MODEL=new-model" in wrapper
     assert "old-model" not in wrapper
+
+
+def test_update_variant_models_for_architect_tweak_does_not_export_default_model(tmp_path, monkeypatch):
+    import ccsilo.variants as variants_module
+
+    root = tmp_path / ".ccsilo"
+    artifact = write_source_artifact(tmp_path)
+    create_variant(
+        name="Architect Mirror",
+        provider_key="mirror",
+        model_overrides={
+            "opus": "old-opus",
+            "sonnet": "old-sonnet",
+            "default": "old-sonnet",
+        },
+        tweaks=["mcp-batch-size"],
+        root=root,
+        source_artifact=artifact,
+        force=True,
+    )
+    variant = load_variant("architect-mirror", root=root)
+    manifest = dict(variant.manifest)
+    manifest["tweaks"] = [*manifest["tweaks"], "opusplan1m"]
+    (variant.path / "variant.json").write_text(json.dumps(manifest), encoding="utf-8")
+    settings_path = root / "variants" / "architect-mirror" / "config" / "settings.json"
+    settings = json.loads(settings_path.read_text(encoding="utf-8"))
+    settings.setdefault("env", {})["ANTHROPIC_MODEL"] = "old-sonnet"
+    settings["env"]["USER_ONLY_ENV"] = "keep"
+    settings_path.write_text(json.dumps(settings), encoding="utf-8")
+    monkeypatch.setattr(
+        variants_module,
+        "_download_source_artifact",
+        lambda version, root=None: (_ for _ in ()).throw(AssertionError("should not rebuild")),
+    )
+
+    updated = update_variant_models(
+        "architect-mirror",
+        {
+            "opus": "claude-fable-5",
+            "sonnet": "claude-sonnet-4-6",
+            "default": "claude-sonnet-4-6",
+        },
+        root=root,
+    )
+
+    settings = json.loads(settings_path.read_text(encoding="utf-8"))
+    wrapper = Path(updated.manifest["paths"]["wrapper"]).read_text(encoding="utf-8")
+
+    assert updated.manifest["env"]["ANTHROPIC_MODEL"] == "claude-sonnet-4-6"
+    assert settings["model"] == "opusplan"
+    assert "ANTHROPIC_MODEL" not in settings["env"]
+    assert settings["env"]["USER_ONLY_ENV"] == "keep"
+    assert "export ANTHROPIC_MODEL=" not in wrapper
+    assert "export ANTHROPIC_DEFAULT_OPUS_MODEL=claude-fable-5" in wrapper
+    assert "export ANTHROPIC_DEFAULT_SONNET_MODEL=claude-sonnet-4-6" in wrapper
 
 
 def test_update_variant_models_backfills_gateway_discovery_for_model_proxy(tmp_path, monkeypatch):
