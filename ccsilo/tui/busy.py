@@ -29,6 +29,7 @@ __all__ = [
     "_start_busy_action",
     "_poll_busy_action",
     "_busy_create_action",
+    "_busy_integration_install_action",
     "_busy_upgrade_action",
     "_busy_tweak_apply_action",
 ]
@@ -88,10 +89,13 @@ def _busy_create_action(worker_state):
     _tui()._run_variant_create(worker_state)
     _tui()._refresh_state(worker_state)
 
+def _busy_integration_install_action(worker_state):
+    _tui()._run_variant_integration_install(worker_state)
+    _tui()._refresh_state(worker_state)
+
 def _busy_upgrade_action(worker_state):
     _tui()._run_setup_upgrade(worker_state)
 
 def _busy_tweak_apply_action(worker_state):
     _tui()._run_tweak_apply(worker_state)
     _tui()._refresh_state(worker_state)
-

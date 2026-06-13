@@ -903,6 +903,77 @@ def test_create_and_reapply_variant_preserves_selected_optional_mcp(tmp_path, mo
     assert "notion" not in reapplied_config["mcpServers"]
 
 
+def test_create_and_reapply_variant_preserves_selected_local_integrations(tmp_path, monkeypatch):
+    import ccsilo.variants as variants_module
+
+    root = tmp_path / ".ccsilo"
+    home = tmp_path / "home"
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir(parents=True)
+    _write_executable(bin_dir / "rtk", "#!/bin/sh\nexit 0\n")
+    (home / ".claude" / "rules").mkdir(parents=True)
+    (home / ".claude" / "skills" / "context7-mcp").mkdir(parents=True)
+    (home / ".claude.json").write_text(
+        json.dumps({
+            "mcpServers": {
+                "context7": {
+                    "type": "http",
+                    "url": "https://mcp.context7.com/mcp",
+                    "headers": {"CONTEXT7_API_KEY": "secret"},
+                }
+            }
+        }),
+        encoding="utf-8",
+    )
+    (home / ".claude" / "rules" / "context7.md").write_text("Use Context7.\n", encoding="utf-8")
+    (home / ".claude" / "skills" / "context7-mcp" / "SKILL.md").write_text("# Context7\n", encoding="utf-8")
+    (home / ".claude" / "settings.json").write_text(
+        json.dumps({
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash",
+                        "hooks": [{"type": "command", "command": "rtk hook claude"}],
+                    }
+                ]
+            }
+        }),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("PATH", str(bin_dir))
+    artifact = write_source_artifact(tmp_path)
+
+    result = create_variant(
+        name="Mirror Integrations",
+        provider_key="mirror",
+        integration_ids=["context7", "rtk"],
+        root=root,
+        source_artifact=artifact,
+        force=True,
+    )
+
+    config_dir = root / "variants" / "mirror-integrations" / "config"
+    claude_config = json.loads((config_dir / ".claude.json").read_text(encoding="utf-8"))
+    settings = json.loads((config_dir / "settings.json").read_text(encoding="utf-8"))
+    assert result.variant.manifest["integrations"]["selected"] == ["context7", "rtk"]
+    assert claude_config["mcpServers"]["context7"]["headers"] == {"CONTEXT7_API_KEY": "secret"}
+    assert (config_dir / "rules" / "context7.md").read_text(encoding="utf-8") == "Use Context7.\n"
+    assert (config_dir / "skills" / "context7-mcp" / "SKILL.md").read_text(encoding="utf-8") == "# Context7\n"
+    assert settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"] == "rtk hook claude"
+
+    monkeypatch.setattr(variants_module, "_download_source_artifact", lambda version, root=None: artifact)
+    update_variants("mirror-integrations", root=root)
+
+    updated_settings = json.loads((config_dir / "settings.json").read_text(encoding="utf-8"))
+    assert sum(
+        1
+        for group in updated_settings["hooks"]["PreToolUse"]
+        for hook in group["hooks"]
+        if hook["command"] == "rtk hook claude"
+    ) == 1
+
+
 def test_update_variant_preserves_user_settings_and_managed_env_wins(tmp_path, monkeypatch):
     import ccsilo.variants as variants_module
 

@@ -26,6 +26,7 @@ short_sha = _proxy('short_sha')
 _run_quiet = _proxy('_run_quiet')
 apply_dashboard_tweaks_to_native = _proxy('apply_dashboard_tweaks_to_native')
 fetch_provider_models = _proxy('fetch_provider_models')
+install_local_integration = _proxy('install_local_integration')
 stored_credential_value = _proxy('stored_credential_value')
 update_variant_models = _proxy('update_variant_models')
 provider_default_variant_name = _proxy('provider_default_variant_name')
@@ -84,6 +85,7 @@ __all__ = [
     "_run_quiet",
     "apply_dashboard_tweaks_to_native",
     "fetch_provider_models",
+    "install_local_integration",
     "stored_credential_value",
     "update_variant_models",
     "provider_default_variant_name",

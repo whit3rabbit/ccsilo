@@ -8,7 +8,14 @@ from typing import Dict, Iterable, List, Optional
 
 from ..binary_patcher.bun_compat import has_bun_node_compat
 from .._utils import require_env_name, safe_read_json as _safe_read_json, utc_now as _utc_now
-from ..providers import build_provider_env, get_provider, normalize_mcp_ids, provider_default_variant_name, provider_models_url
+from ..providers import (
+    build_provider_env,
+    get_provider,
+    normalize_integration_ids,
+    normalize_mcp_ids,
+    provider_default_variant_name,
+    provider_models_url,
+)
 from ..providers.proxy import gateway_model_id
 from ..workspace import NativeArtifact, SEMVER_RE, import_local_native_binary, read_json, workspace_root
 from .builder import patch_refs_for_profile as _patch_refs_for_profile
@@ -104,6 +111,7 @@ def create_variant(
     extra_env: Optional[List[str]] = None,
     tweak_options: Optional[Dict[str, str]] = None,
     mcp_ids: Optional[Iterable[str]] = None,
+    integration_ids: Optional[Iterable[str]] = None,
     ccrouter_mode: Optional[str] = None,
     ccrouter_config: Optional[str] = None,
     ccrouter_package: Optional[str] = None,
@@ -156,6 +164,7 @@ def create_variant(
     if model_proxy_payload is not None:
         tweak_ids = _model_proxy_tweak_ids(tweak_ids)
     selected_mcp_ids = normalize_mcp_ids(mcp_ids or [])
+    selected_integration_ids = normalize_integration_ids(integration_ids or [])
     safe_env.update(env_for_tweaks(tweak_ids, tweak_options))
     now = _utc_now()
     existing = _safe_read_json(path / VARIANT_METADATA)
@@ -185,6 +194,9 @@ def create_variant(
         "tweakOptions": dict(tweak_options or {}),
         "mcp": {
             "selected": selected_mcp_ids,
+        },
+        "integrations": {
+            "selected": selected_integration_ids,
         },
         "modelOverrides": dict(model_overrides or {}),
         "env": safe_env,

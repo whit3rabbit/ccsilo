@@ -9,7 +9,7 @@ from ..variants import (
     default_ccrouter_config_mode,
     variant_id_from_name,
 )
-from ..providers import normalize_mcp_ids, provider_default_variant_name
+from ..providers import RTK_ID, normalize_integration_ids, normalize_mcp_ids, provider_default_variant_name
 from ..variant_tweaks import (
     CURATED_TWEAK_IDS,
     DEFAULT_TWEAK_IDS,
@@ -64,6 +64,9 @@ def reset_variant(state):
     state.variant_install_alias = ""
     state.variant_install_alias_customized = False
     state.selected_variant_mcp_ids = []
+    state.selected_variant_integration_ids = [RTK_ID] if "rtk-shell-prefix" in DEFAULT_TWEAK_IDS else []
+    state.variant_integration_install_confirm = ""
+    state.pending_variant_integration_install_id = ""
     state.selected_variant_tweaks = list(DEFAULT_TWEAK_IDS)
     state.tweak_filter = "recommended"
 
@@ -92,7 +95,11 @@ def set_variant_provider_defaults(state, provider):
     state.variant_install_alias = _default_install_alias_for_name(state.variant_name)
     state.variant_install_alias_customized = False
     state.selected_variant_mcp_ids = []
-    state.selected_variant_tweaks = default_tweak_ids_for_provider(provider_key)
+    default_tweaks = default_tweak_ids_for_provider(provider_key)
+    state.selected_variant_integration_ids = [RTK_ID] if "rtk-shell-prefix" in default_tweaks else []
+    state.variant_integration_install_confirm = ""
+    state.pending_variant_integration_install_id = ""
+    state.selected_variant_tweaks = default_tweaks
     if state.variant_model_proxy == "architect":
         _select_variant_tweak(state, GATEWAY_MODEL_DISCOVERY_TWEAK_ID)
 
@@ -101,6 +108,8 @@ def toggle_variant_tweak(state, tweak_id: str):
     removing = tweak_id in state.selected_variant_tweaks
     if removing:
         state.selected_variant_tweaks.remove(tweak_id)
+        if tweak_id == "rtk-shell-prefix" and RTK_ID in state.selected_variant_integration_ids:
+            state.selected_variant_integration_ids.remove(RTK_ID)
         if tweak_id == GATEWAY_MODEL_DISCOVERY_TWEAK_ID and state.variant_model_proxy == "architect":
             state.variant_model_proxy = ""
             state.message = "Gateway model discovery disabled; OAuth architect proxy disabled."
@@ -108,6 +117,8 @@ def toggle_variant_tweak(state, tweak_id: str):
             state.message = "Architect Mode disabled."
     else:
         _select_variant_tweak(state, tweak_id)
+        if tweak_id == "rtk-shell-prefix":
+            _select_variant_integration(state, RTK_ID)
         if tweak_id == ARCHITECT_MODE_TWEAK_ID:
             state.message = "Architect Mode enabled. Set Planner and Worker aliases in the Models step."
 
@@ -125,6 +136,27 @@ def toggle_variant_mcp(state, mcp_id: str):
         return
     state.selected_variant_mcp_ids.append(mcp_id)
     state.selected_variant_mcp_ids = normalize_mcp_ids(state.selected_variant_mcp_ids)
+
+
+def toggle_variant_integration(state, integration_id: str):
+    integration_id = normalize_integration_ids([integration_id])[0]
+    if integration_id in state.selected_variant_integration_ids:
+        state.selected_variant_integration_ids.remove(integration_id)
+        if integration_id == RTK_ID and "rtk-shell-prefix" in state.selected_variant_tweaks:
+            state.selected_variant_tweaks.remove("rtk-shell-prefix")
+        state.message = f"{integration_id} integration disabled."
+        return
+    _select_variant_integration(state, integration_id)
+    if integration_id == RTK_ID:
+        _select_variant_tweak(state, "rtk-shell-prefix")
+    state.message = f"{integration_id} integration enabled."
+
+
+def _select_variant_integration(state, integration_id: str) -> None:
+    if integration_id in state.selected_variant_integration_ids:
+        return
+    state.selected_variant_integration_ids.append(integration_id)
+    state.selected_variant_integration_ids = normalize_integration_ids(state.selected_variant_integration_ids)
 
 
 def require_variant_model_mapping(state) -> bool:

@@ -31,13 +31,29 @@ from .mcp_catalog import (
     normalize_mcp_ids,
     optional_mcp_servers,
 )
+from .local_integrations import (
+    CONTEXT7_ID,
+    KNOWN_LOCAL_INTEGRATION_IDS,
+    RTK_ID,
+    LocalIntegrationInstallResult,
+    LocalIntegrationStatus,
+    detect_local_integrations,
+    install_local_integration,
+    normalize_integration_ids,
+    sync_local_integrations,
+)
 from .schema import DEFAULT_TIMEOUT_MS, MODEL_ENV_KEYS, ProviderEnv, ProviderSchemaError, ProviderTemplate
 
 __all__ = [
+    "CONTEXT7_ID",
     "DEFAULT_TIMEOUT_MS",
+    "KNOWN_LOCAL_INTEGRATION_IDS",
     "MODEL_ENV_KEYS",
     "PLACEHOLDER_CREDENTIAL",
     "PLUGIN_RECOMMENDATIONS",
+    "RTK_ID",
+    "LocalIntegrationInstallResult",
+    "LocalIntegrationStatus",
     "McpCatalogEntry",
     "ProviderConfigResult",
     "ProviderEnv",
@@ -45,12 +61,15 @@ __all__ = [
     "ProviderTemplate",
     "apply_provider_claude_config",
     "build_provider_env",
+    "detect_local_integrations",
     "ensure_onboarding_state",
     "get_provider",
+    "install_local_integration",
     "list_mcp_catalog",
     "list_optional_mcp_entries",
     "list_providers",
     "mcp_entry_payload",
+    "normalize_integration_ids",
     "normalize_mcp_ids",
     "optional_mcp_servers",
     "provider_claude_config",
@@ -62,4 +81,5 @@ __all__ = [
     "fetch_provider_models",
     "parse_model_ids",
     "provider_models_url",
+    "sync_local_integrations",
 ]

@@ -12,12 +12,15 @@ from ccsilo.providers import (
     ensure_onboarding_state,
     fetch_provider_models,
     get_provider,
+    detect_local_integrations,
     list_mcp_catalog,
     list_providers,
+    normalize_integration_ids,
     parse_model_ids,
     provider_patch_config,
     provider_models_url,
     provider_prompt_overlays,
+    sync_local_integrations,
 )
 from ccsilo.providers.proxy import proxy_provider_for_key
 from ccsilo.providers.schema import ProviderSchemaError, provider_from_json
@@ -798,3 +801,78 @@ def test_provider_config_writer_adds_selected_optional_mcp(tmp_path):
     assert config["mcpServers"]["github"]["headers"] == {
         "Authorization": "Bearer ${GITHUB_TOKEN}"
     }
+
+
+def test_local_integration_detection_and_sync_copies_context7_and_rtk(tmp_path):
+    home = tmp_path / "home"
+    config_dir = tmp_path / "variant" / "config"
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir(parents=True)
+    rtk = bin_dir / "rtk"
+    rtk.write_text("#!/bin/sh\n", encoding="utf-8")
+    rtk.chmod(0o755)
+    (home / ".claude" / "rules").mkdir(parents=True)
+    (home / ".claude" / "skills" / "context7-mcp").mkdir(parents=True)
+    (home / ".claude.json").write_text(
+        json.dumps({
+            "mcpServers": {
+                "context7": {
+                    "type": "http",
+                    "url": "https://mcp.context7.com/mcp",
+                    "headers": {"CONTEXT7_API_KEY": "secret"},
+                }
+            }
+        }),
+        encoding="utf-8",
+    )
+    (home / ".claude" / "rules" / "context7.md").write_text("Use Context7.\n", encoding="utf-8")
+    (home / ".claude" / "skills" / "context7-mcp" / "SKILL.md").write_text("# Context7\n", encoding="utf-8")
+    (home / ".claude" / "settings.json").write_text(
+        json.dumps({
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash",
+                        "hooks": [{"type": "command", "command": "rtk hook claude"}],
+                    }
+                ]
+            }
+        }),
+        encoding="utf-8",
+    )
+    env = {"HOME": str(home), "PATH": str(bin_dir)}
+
+    statuses = detect_local_integrations(home=home, env=env)
+    changed = sync_local_integrations(["context7", "rtk"], config_dir, home=home, env=env)
+    changed_again = sync_local_integrations(["context7", "rtk"], config_dir, home=home, env=env)
+
+    assert statuses["context7"].available is True
+    assert statuses["rtk"].available is True
+    assert changed == {"context7": True, "rtk": True}
+    assert changed_again == {"context7": False, "rtk": False}
+    claude_config = json.loads((config_dir / ".claude.json").read_text(encoding="utf-8"))
+    settings = json.loads((config_dir / "settings.json").read_text(encoding="utf-8"))
+    assert claude_config["mcpServers"]["context7"]["headers"] == {"CONTEXT7_API_KEY": "secret"}
+    assert (config_dir / "rules" / "context7.md").read_text(encoding="utf-8") == "Use Context7.\n"
+    assert (config_dir / "skills" / "context7-mcp" / "SKILL.md").read_text(encoding="utf-8") == "# Context7\n"
+    hooks = settings["hooks"]["PreToolUse"]
+    assert sum(
+        1
+        for group in hooks
+        for hook in group["hooks"]
+        if hook["command"] == "rtk hook claude"
+    ) == 1
+
+
+def test_local_integration_detection_reports_missing_and_rejects_unknown(tmp_path):
+    statuses = detect_local_integrations(
+        home=tmp_path,
+        env={"HOME": str(tmp_path), "PATH": "", "CCSILO_RTK_HOMEBREW_DIRS": ""},
+    )
+
+    assert statuses["context7"].available is False
+    assert statuses["context7"].missing == ("mcp", "rule", "skill")
+    assert statuses["rtk"].available is False
+    assert "binary" in statuses["rtk"].missing
+    with pytest.raises(ValueError, match="Unknown local integration id"):
+        normalize_integration_ids(["context8"])

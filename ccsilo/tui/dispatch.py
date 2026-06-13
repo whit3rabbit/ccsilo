@@ -398,6 +398,8 @@ def _toggle_selected(state):
             _tui()._toggle_variant_tweak(state, str(option.value))
         elif option and option.kind == "variant-mcp":
             _tui()._toggle_variant_mcp(state, str(option.value))
+        elif option and option.kind == "variant-integration":
+            _tui()._toggle_variant_integration(state, str(option.value))
         elif option and option.kind == "variant-store-secret":
             _tui()._toggle_variant_store_secret(state)
         elif option and option.kind == "variant-ccrouter-autostart":
@@ -848,6 +850,23 @@ def _activate_variants(state):
         state.message = "Type a model proxy port, or auto."
     elif option.kind == "variant-mcp":
         _tui()._toggle_variant_mcp(state, str(option.value))
+    elif option.kind == "variant-integration":
+        _tui()._toggle_variant_integration(state, str(option.value))
+    elif option.kind == "variant-integration-missing":
+        state.message = "Install or prep this integration before enabling it."
+    elif option.kind == "variant-integration-install":
+        integration_id = str(option.value)
+        if state.variant_integration_install_confirm == integration_id:
+            state.pending_variant_integration_install_id = integration_id
+            _tui()._start_busy_action(
+                state,
+                "Installing integration",
+                f"Running global install/prep for {integration_id}",
+                _tui()._busy_integration_install_action,
+            )
+        else:
+            state.variant_integration_install_confirm = integration_id
+            state.message = f"Press Enter again to install/prep {integration_id}. This may change global Claude/Homebrew state."
     elif option.kind == "variant-mcp-continue":
         provider = _tui()._selected_variant_provider(state)
         if provider and not provider.get("requiresModelMapping"):

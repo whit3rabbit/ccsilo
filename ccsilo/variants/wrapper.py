@@ -19,6 +19,7 @@ from ..providers import (
     get_provider,
     provider_auth_bootstrap_enabled,
     provider_patch_config,
+    sync_local_integrations,
 )
 from ..workspace import read_json, write_json
 from .ccrouter import CCR_PROVIDER_KEYS
@@ -73,6 +74,7 @@ def write_variant_config(manifest: Dict) -> None:
         read_json=read_json,
         write_json=write_json,
     )
+    sync_local_integrations((manifest.get("integrations") or {}).get("selected", []), config_dir)
     sync_setup_config_tweaks(manifest, config_dir)
     tweak_config = provider_patch_config(manifest["provider"]["key"])
     theme_ids = {

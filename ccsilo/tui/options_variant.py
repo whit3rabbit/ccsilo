@@ -1,7 +1,7 @@
 """Setup creation and model-edit option helpers."""
 
 from ..download_index import effective_latest_download_version
-from ..providers import PLUGIN_RECOMMENDATIONS, list_optional_mcp_entries
+from ..providers import CONTEXT7_ID, RTK_ID, PLUGIN_RECOMMENDATIONS, detect_local_integrations, list_optional_mcp_entries
 from ..variants import CCR_PROVIDER_KEYS
 from ..variant_tweaks import (
     CURATED_TWEAK_IDS,
@@ -120,6 +120,7 @@ def variant_options(state):
             env = ", ".join(entry.required_env)
             auth = f" env:{env}" if env else (" oauth" if entry.auth == "oauth" else "")
             options.append(MenuOption("variant-mcp", f"{marker} {entry.name}  ({entry.id}){auth}", entry.id))
+        options.extend(_variant_integration_options(state))
         options.append(MenuOption("section", f"Plugin recommendations: {', '.join(PLUGIN_RECOMMENDATIONS)}"))
         next_label = "Continue to models" if provider and provider.get("requiresModelMapping") else "Continue to tweaks"
         options.append(MenuOption("variant-mcp-continue", next_action_label(next_label)))
@@ -276,6 +277,49 @@ def _model_choice_selected(state, model_id):
     overrides = state.variant_model_overrides or {}
     key = normalize_model_target(getattr(state, "variant_model_target", ""))
     return overrides.get(key) == model_id
+
+
+def _variant_integration_options(state):
+    statuses = _integration_statuses(state)
+    options = [MenuOption("section", "Local integrations")]
+    for integration_id in (CONTEXT7_ID, RTK_ID):
+        status = statuses.get(integration_id)
+        if status is None:
+            continue
+        selected = integration_id in state.selected_variant_integration_ids
+        marker = "[x]" if selected else "[ ]"
+        status_text = _integration_status_text(status)
+        kind = "variant-integration"
+        if integration_id == CONTEXT7_ID and not status.available:
+            kind = "variant-integration-missing"
+        if integration_id == RTK_ID and "binary" in status.missing:
+            kind = "variant-integration-missing"
+        options.append(MenuOption(kind, f"{marker} {status.name}  ({integration_id}, {status_text})", integration_id))
+        if status.missing:
+            confirm = state.variant_integration_install_confirm == integration_id
+            label = (
+                f"Confirm install/prep {status.name}"
+                if confirm
+                else f"Install/prep {status.name}"
+            )
+            options.append(MenuOption("variant-integration-install", f"{label}  ({', '.join(status.missing)})", integration_id))
+    return options
+
+
+def _integration_statuses(state):
+    statuses = getattr(state, "variant_integration_status", None)
+    if not statuses:
+        statuses = detect_local_integrations()
+        state.variant_integration_status = statuses
+    return statuses
+
+
+def _integration_status_text(status):
+    if status.available and not status.missing:
+        return "detected"
+    if status.available:
+        return f"detected, missing {', '.join(status.missing)}"
+    return f"missing {', '.join(status.missing) or 'all'}"
 
 
 def selected_variant_option(state):

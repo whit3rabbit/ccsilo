@@ -130,6 +130,7 @@ def _run_variant_create(state):
             store_secret=store_secret,
             model_overrides=_tui()._variant_model_overrides_for_create(state),
             mcp_ids=state.selected_variant_mcp_ids,
+            integration_ids=state.selected_variant_integration_ids,
             **_tui()._variant_ccrouter_options_for_create(state, provider),
             **_tui()._variant_model_proxy_options_for_create(state, provider),
             force=False,

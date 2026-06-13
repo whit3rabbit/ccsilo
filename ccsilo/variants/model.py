@@ -128,6 +128,20 @@ def validate_variant_manifest(manifest: Dict) -> None:
         from ..providers import normalize_mcp_ids
 
         normalize_mcp_ids(selected_mcp)
+    integrations = manifest.get("integrations", {})
+    if integrations is None:
+        integrations = {}
+    if not isinstance(integrations, dict):
+        raise ValueError("variant integrations must be an object")
+    selected_integrations = integrations.get("selected", [])
+    if selected_integrations is None:
+        selected_integrations = []
+    if not isinstance(selected_integrations, list) or not all(isinstance(item, str) for item in selected_integrations):
+        raise ValueError("variant integrations.selected must be a list of strings")
+    if selected_integrations:
+        from ..providers import normalize_integration_ids
+
+        normalize_integration_ids(selected_integrations)
     ccrouter = manifest.get("ccrouter")
     if ccrouter is not None:
         if not isinstance(ccrouter, dict):

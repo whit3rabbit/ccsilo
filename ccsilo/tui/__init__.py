@@ -21,7 +21,7 @@ __all__ = [
     "CCR_PACKAGE_DEFAULT", "create_variant", "default_ccrouter_config_mode", "default_install_dir", "doctor_variant", "inspect_variant_command_install", "install_variant_command", "load_variant", "preflight_variant_command_install", "replace_variant_command_alias", "remove_variant", "run_ccrouter_command", "update_variant_models", "update_variants", "variant_install_cleanup_paths",
     "download_binary", "download_versions", "effective_latest_download_version", "extract_all",
     "load_download_index", "list_variant_providers", "parse_bun_binary",
-    "provider_default_variant_name", "refresh_download_index", "scan_variants",
+    "install_local_integration", "provider_default_variant_name", "refresh_download_index", "scan_variants",
     "CURATED_TWEAK_IDS", "DASHBOARD_TWEAK_IDS", "DEFAULT_TWEAK_IDS",
     "DashboardTweakProfile", "NativeArtifact", "PatchPackage", "PatchProfile",
     "delete_dashboard_tweak_profile", "delete_native_download", "delete_patch_profile", "extraction_paths",
@@ -59,7 +59,7 @@ __all__ = [
     "_models_edit_options", "_models_pending_diff", "_selected_models_edit_option",
     "_active_theme", "_cycle_theme", "_load_saved_theme_id",
     "_advance_variant", "_require_variant_model_mapping", "_reset_variant",
-    "_set_variant_provider_defaults", "_toggle_variant_mcp", "_toggle_variant_tweak",
+    "_set_variant_provider_defaults", "_toggle_variant_integration", "_toggle_variant_mcp", "_toggle_variant_tweak",
     "_toggle_variant_store_secret", "_variant_api_key_for_create",
     "_variant_base_url_for_create", "_variant_credential_env_for_create",
     "_variant_ccrouter_options_for_create", "_variant_model_proxy_options_for_create", "_variant_model_overrides_for_create", "_variant_store_secret_for_create",
@@ -67,10 +67,10 @@ __all__ = [
     "_toggle_variant_model_proxy",
     "_refresh_startup_download_index",
     "_run_inspect_delete", "_run_setup_health", "_run_setup_upgrade", "_run_setup_delete", "_route_startup",
-    "_run_setup_ccrouter_action", "_run_setup_command_alias",
+    "_run_setup_ccrouter_action", "_run_setup_command_alias", "_run_variant_integration_install",
     "_queue_setup_run", "_run_pending_setup",
     "_skip_variant_model_list", "_skip_models_editor_model_list",
-    "_start_busy_action", "_poll_busy_action",
+    "_start_busy_action", "_poll_busy_action", "_busy_integration_install_action",
     "_load_saved_setup_list_preferences", "_save_setup_list_preferences",
     "_copy_logs", "_copy_setup_config", "_copy_text_to_clipboard", "_open_help", "_open_logs", "_open_variant_create_preview",
     "_open_command_alias", "_open_tweak_adder",
@@ -91,8 +91,7 @@ from ..download_index import (
 from ..downloader import download_binary
 from ..extractor import extract_all
 from ..patch_workflow import apply_dashboard_tweaks_to_native, apply_patch_packages_to_native
-from ..providers import provider_default_variant_name
-from ..providers import fetch_provider_models
+from ..providers import fetch_provider_models, install_local_integration, provider_default_variant_name
 from ..variant_tweaks import CURATED_TWEAK_IDS, DASHBOARD_TWEAK_IDS, DEFAULT_TWEAK_IDS
 from ..variants import (
     apply_variant,
@@ -255,6 +254,7 @@ from .variant_actions import (
     reset_variant as _reset_variant,
     apply_variant_model_choice as _apply_variant_model_choice,
     set_variant_provider_defaults as _set_variant_provider_defaults,
+    toggle_variant_integration as _toggle_variant_integration,
     toggle_variant_mcp as _toggle_variant_mcp,
     cycle_variant_ccrouter_config as _cycle_variant_ccrouter_config,
     cycle_variant_ccrouter_mode as _cycle_variant_ccrouter_mode,
@@ -275,6 +275,7 @@ from .variant_actions import (
 from .busy import (
     _BUSY_TICK_MS,
     _busy_create_action,
+    _busy_integration_install_action,
     _busy_tweak_apply_action,
     _busy_upgrade_action,
     _clear_busy_state,
@@ -359,6 +360,7 @@ from .setup_actions import (
     _run_pending_setup,
     _run_setup_ccrouter_action,
     _run_setup_command_alias,
+    _run_variant_integration_install,
     _run_setup_delete,
     _run_setup_health,
     _run_setup_upgrade,

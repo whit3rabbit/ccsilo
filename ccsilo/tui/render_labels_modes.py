@@ -155,6 +155,7 @@ def create_preview_labels(state):
 
     alias = _create_preview_alias(state, setup_id)
     mcp_lines = _create_preview_mcp_lines(state, provider)
+    integration_lines = _create_preview_integration_lines(state)
     model_lines = _create_preview_model_lines(state, provider)
     tweak_lines = [f"  {tweak_id}" for tweak_id in state.selected_variant_tweaks] or ["  none"]
     return [
@@ -172,6 +173,7 @@ def create_preview_labels(state):
         f"Credential env: {_create_preview_credential(state, provider)}",
         f"API key storage: {_create_preview_api_key_storage(state)}",
         *mcp_lines,
+        *integration_lines,
         *model_lines,
         "Default tweaks:",
         *tweak_lines,
@@ -271,6 +273,15 @@ def _create_preview_mcp_lines(state, provider):
     if selected:
         lines.extend(f"  {mcp_id} (optional)" for mcp_id in selected)
     if not provider_mcp and not selected:
+        lines.append("  none")
+    return lines
+
+def _create_preview_integration_lines(state):
+    selected = list(state.selected_variant_integration_ids or [])
+    lines = ["Local integrations:"]
+    if selected:
+        lines.extend(f"  {integration_id}" for integration_id in selected)
+    else:
         lines.append("  none")
     return lines
 

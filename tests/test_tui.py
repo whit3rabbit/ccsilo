@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from ccsilo.providers import LocalIntegrationStatus
 from ccsilo import tui
 from ccsilo.workspace import (
     DashboardTweakProfile,
@@ -418,7 +419,7 @@ def test_footer_keys_match_variant_step():
     state.variant_step = 3
     footer = tui._footer_text(state)
     assert "MCP servers:" in footer
-    assert "Space MCP" in footer
+    assert "Space toggle" in footer
 
     state.variant_step = 4
     footer = tui._footer_text(state)
@@ -863,6 +864,10 @@ def test_variants_tab_lists_providers_and_progress():
             }
         ],
     )
+    state.variant_integration_status = {
+        "context7": LocalIntegrationStatus("context7", "Context7", True),
+        "rtk": LocalIntegrationStatus("rtk", "RTK", True, missing=("hook",)),
+    }
 
     screen = tui._screen_text(state)
 
@@ -1113,6 +1118,11 @@ def test_variants_wizard_selects_provider_toggles_tweak_and_creates(monkeypatch,
     tui._toggle_selected(state)
     assert state.selected_variant_mcp_ids == ["github"]
 
+    options = tui._variant_options(state)
+    state.selected_index = _option_index(options, "variant-integration", "context7")
+    tui._toggle_selected(state)
+    assert state.selected_variant_integration_ids == ["rtk", "context7"]
+
     state.selected_index = len(tui._variant_options(state)) - 1
     tui._activate_variants(state)
     assert state.variant_step == 5
@@ -1133,6 +1143,7 @@ def test_variants_wizard_selects_provider_toggles_tweak_and_creates(monkeypatch,
     preview = tui._screen_text(state)
     assert "Setup create preview" in preview
     assert "source binary" not in preview.lower()
+    assert "Local integrations:" in preview
 
     state.selected_index = 3
     start = time.monotonic()
@@ -1152,6 +1163,7 @@ def test_variants_wizard_selects_provider_toggles_tweak_and_creates(monkeypatch,
     assert "source_platform" not in calls[0]
     assert calls[0]["model_overrides"] == {}
     assert calls[0]["mcp_ids"] == ["github"]
+    assert calls[0]["integration_ids"] == ["rtk", "context7"]
     assert first_tweak not in calls[0]["tweaks"]
     assert state.mode == "health-result"
 
@@ -2120,6 +2132,49 @@ def test_variants_wizard_provider_mcp_copy_clarifies_auto_enabled():
 
     assert "[x] web-reader  auto-enabled for this provider env:Z_AI_API_KEY" in labels
     assert "web-reader (auto-enabled for this provider)" in preview
+
+
+def test_variants_wizard_local_integration_missing_rows_confirm_install():
+    state = tui.TuiState(mode="variants", variant_step=3)
+    state.variant_integration_status = {
+        "context7": LocalIntegrationStatus(
+            "context7",
+            "Context7",
+            False,
+            missing=("mcp", "rule", "skill"),
+        ),
+        "rtk": LocalIntegrationStatus("rtk", "RTK", False, missing=("binary", "hook")),
+    }
+
+    options = tui._variant_options(state)
+    labels = [option.label for option in options]
+    state.selected_index = _option_index(options, "variant-integration-install", "context7")
+    tui._activate_variants(state)
+
+    assert any("Local integrations" in label for label in labels)
+    assert any("Context7" in label and "missing mcp, rule, skill" in label for label in labels)
+    assert state.variant_integration_install_confirm == "context7"
+    assert "Press Enter again" in state.message
+
+
+def test_variants_wizard_rtk_integration_tracks_shell_prefix_tweak():
+    state = tui.TuiState(mode="variants", variant_step=3)
+    state.variant_integration_status = {
+        "context7": LocalIntegrationStatus("context7", "Context7", False, missing=("mcp", "rule", "skill")),
+        "rtk": LocalIntegrationStatus("rtk", "RTK", True, missing=("hook",)),
+    }
+
+    options = tui._variant_options(state)
+    state.selected_index = _option_index(options, "variant-integration", "rtk")
+    tui._toggle_selected(state)
+
+    assert "rtk" not in state.selected_variant_integration_ids
+    assert "rtk-shell-prefix" not in state.selected_variant_tweaks
+
+    tui._toggle_selected(state)
+
+    assert "rtk" in state.selected_variant_integration_ids
+    assert "rtk-shell-prefix" in state.selected_variant_tweaks
 
 
 def test_create_failure_summary_reports_verified_path_state(monkeypatch, tmp_path):

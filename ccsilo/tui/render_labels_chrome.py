@@ -359,7 +359,7 @@ def _dashboard_key_line(state):
 
 def _variant_key_line(state):
     if state.variant_step == 3:
-        action = "Space MCP"
+        action = "Space toggle"
     elif state.variant_step == 5:
         action = "Space tweak | V view"
     elif state.variant_step == 6:
