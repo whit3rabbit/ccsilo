@@ -1099,6 +1099,10 @@ def test_variants_wizard_selects_provider_toggles_tweak_and_creates(monkeypatch,
                 "defaultVariantName": "mirror",
             }
         ],
+        variant_integration_status={
+            "context7": LocalIntegrationStatus("context7", "Context7", True),
+            "rtk": LocalIntegrationStatus("rtk", "RTK", True),
+        },
     )
 
     state.selected_index = 0
