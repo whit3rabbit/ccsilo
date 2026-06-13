@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "key": "minimax",
   "label": "MiniMax Cloud",
-  "description": "MiniMax-M2.7 via MiniMax Cloud",
+  "description": "MiniMax-M3 via MiniMax Cloud",
   "displayOrder": 20,
   "baseUrl": "https://api.minimax.io/anthropic",
   "auth": {
@@ -11,17 +11,18 @@
     "credentialEnv": "MINIMAX_API_KEY"
   },
   "models": {
-    "default": "MiniMax-M2.7",
-    "smallFast": "MiniMax-M2.7",
-    "opus": "MiniMax-M2.7",
-    "sonnet": "MiniMax-M2.7",
-    "haiku": "MiniMax-M2.7",
+    "default": "MiniMax-M3",
+    "smallFast": "MiniMax-M3",
+    "opus": "MiniMax-M3",
+    "sonnet": "MiniMax-M3",
+    "haiku": "MiniMax-M3",
     "subagent": "",
     "requiresModelMapping": false
   },
   "env": {
     "API_TIMEOUT_MS": "3000000",
-    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "512000"
   },
   "variant": {
     "splashStyle": "minimax",
@@ -49,8 +50,8 @@
     },
     "promptOverlays": {
       "webfetch": "When provider-specific docs, search, web reading, or image tools are relevant, prefer configured MiniMax resources such as the MiniMax docs and MiniMax MCP server available in this isolated setup.",
-      "explore": "This Claude Code setup is configured for MiniMax Cloud using MiniMax-M2.7 through the MiniMax Anthropic-compatible endpoint. Keep model and provider assumptions consistent with that endpoint.",
-      "planEnhanced": "Plan with the active MiniMax Cloud provider and MiniMax-M2.7 model mapping in mind. Do not assume first-party Claude model names or Anthropic-only behavior unless this setup explicitly configures them."
+      "explore": "This Claude Code setup is configured for MiniMax Cloud using MiniMax-M3 through the MiniMax Anthropic-compatible endpoint. Keep model and provider assumptions consistent with that endpoint.",
+      "planEnhanced": "Plan with the active MiniMax Cloud provider and MiniMax-M3 model mapping in mind. Do not assume first-party Claude model names or Anthropic-only behavior unless this setup explicitly configures them."
     }
   },
   "claudeConfig": {
@@ -73,9 +74,9 @@
     }
   },
   "tui": {
-    "headline": "MiniMax M2.7",
+    "headline": "MiniMax M3",
     "features": [
-      "MiniMax-M2.7 defaults across all tiers",
+      "MiniMax-M3 defaults across all tiers",
       "Anthropic-compatible endpoint",
       "MiniMax MCP server registered for web and image tools"
     ],

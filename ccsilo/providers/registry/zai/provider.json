@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "key": "zai",
   "label": "Zai Cloud",
-  "description": "GLM-5.1 / 5-turbo / 4.5-Air via Z.ai Coding Plan",
+  "description": "GLM-5.2[1m] / 4.5-Air via Z.ai Coding Plan",
   "displayOrder": 30,
   "baseUrl": "https://api.z.ai/api/anthropic",
   "auth": {
@@ -13,14 +13,15 @@
   "models": {
     "default": "",
     "smallFast": "",
-    "opus": "glm-5.1",
-    "sonnet": "glm-5-turbo",
+    "opus": "glm-5.2[1m]",
+    "sonnet": "glm-5.2[1m]",
     "haiku": "glm-4.5-air",
     "subagent": "",
     "requiresModelMapping": false
   },
   "env": {
-    "API_TIMEOUT_MS": "3000000"
+    "API_TIMEOUT_MS": "3000000",
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "1000000"
   },
   "variant": {
     "splashStyle": "zai",
@@ -98,7 +99,7 @@
   "tui": {
     "headline": "Z.ai Coding Plan",
     "features": [
-      "GLM-5.1 Opus, GLM-5-turbo Sonnet, GLM-4.5-Air Haiku",
+      "GLM-5.2[1m] Opus/Sonnet, GLM-4.5-Air Haiku",
       "Official Z.ai MCP servers registered",
       "Server-injected MCP tools denied in settings.json"
     ],

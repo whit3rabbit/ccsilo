@@ -159,17 +159,19 @@ def test_missing_curated_anchor_is_failure():
 
 def test_env_backed_tweaks_emit_env_without_patching_js():
     env = env_for_tweaks(
-        ["context-limit", "file-read-limit", "subagent-model"],
+        ["context-limit", "file-read-limit", "subagent-model", "compact-window"],
         {
             "context_limit": "1000000",
             "file_read_limit": "90000",
             "subagent_model": "model-x",
+            "compact_window": "500000",
         },
     )
 
     assert env["CLAUDE_CODE_CONTEXT_LIMIT"] == "1000000"
     assert env["CLAUDE_CODE_FILE_READ_MAX_OUTPUT_TOKENS"] == "90000"
     assert env["CLAUDE_CODE_SUBAGENT_MODEL"] == "model-x"
+    assert env["CLAUDE_CODE_AUTO_COMPACT_WINDOW"] == "500000"
 
 
 def test_default_tweaks_include_mcp_startup_and_rtk_instruction():

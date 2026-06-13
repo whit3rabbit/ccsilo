@@ -28,7 +28,7 @@ NON_MIRROR_DEFAULT_TWEAK_IDS = [
     "disable-feedback-survey",
     "disable-prompt-caching",
 ]
-VALUE_ENV_TWEAK_IDS = ["context-limit", "file-read-limit", "subagent-model"]
+VALUE_ENV_TWEAK_IDS = ["context-limit", "file-read-limit", "subagent-model", "compact-window"]
 GATEWAY_MODEL_DISCOVERY_TWEAK_ID = "gateway-model-discovery"
 GATEWAY_MODEL_DISCOVERY_ENV = "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY"
 OPENCODE_GATEWAY_DISCOVERY_TWEAK_ID = "opencode-gateway-discovery"
@@ -222,6 +222,7 @@ MANAGED_TWEAK_ENV_KEYS = (
     "DISABLE_COMPACT",
     "CLAUDE_CODE_FILE_READ_MAX_OUTPUT_TOKENS",
     "CLAUDE_CODE_SUBAGENT_MODEL",
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW",
     MCP_BATCH_SIZE_ENV,
     *(str(meta["env"]) for meta in BOOLEAN_ENV_TWEAKS.values()),
 )
@@ -313,6 +314,8 @@ def env_for_tweaks(tweak_ids: Iterable[str], options: Optional[Dict[str, str]] =
         env["CLAUDE_CODE_FILE_READ_MAX_OUTPUT_TOKENS"] = str(options["file_read_limit"])
     if "subagent-model" in ids and options.get("subagent_model"):
         env["CLAUDE_CODE_SUBAGENT_MODEL"] = str(options["subagent_model"])
+    if "compact-window" in ids and options.get("compact_window"):
+        env["CLAUDE_CODE_AUTO_COMPACT_WINDOW"] = str(options["compact_window"])
     if "mcp-batch-size" in ids:
         env[MCP_BATCH_SIZE_ENV] = str(options.get("mcp_batch_size") or MCP_BATCH_SIZE_DEFAULT)
     for tweak_id, meta in BOOLEAN_ENV_TWEAKS.items():

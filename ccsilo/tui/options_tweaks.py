@@ -32,6 +32,11 @@ ENV_TWEAK_META = {
         "environment",
         "Sets CLAUDE_CODE_SUBAGENT_MODEL.",
     ),
+    "compact-window": (
+        "Auto compact window",
+        "environment",
+        "Sets CLAUDE_CODE_AUTO_COMPACT_WINDOW.",
+    ),
 }
 for _tweak_id, _meta in BOOLEAN_ENV_TWEAKS.items():
     ENV_TWEAK_META[_tweak_id] = (

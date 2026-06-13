@@ -127,9 +127,10 @@ def test_zai_defaults_to_env_ref_without_storing_secret():
     }
     assert result.secret_env == {}
     assert result.env["ANTHROPIC_BASE_URL"] == "https://api.z.ai/api/anthropic"
-    assert result.env["ANTHROPIC_DEFAULT_OPUS_MODEL"] == "glm-5.1"
-    assert result.env["ANTHROPIC_DEFAULT_SONNET_MODEL"] == "glm-5-turbo"
+    assert result.env["ANTHROPIC_DEFAULT_OPUS_MODEL"] == "glm-5.2[1m]"
+    assert result.env["ANTHROPIC_DEFAULT_SONNET_MODEL"] == "glm-5.2[1m]"
     assert result.env["ANTHROPIC_DEFAULT_HAIKU_MODEL"] == "glm-4.5-air"
+    assert result.env["CLAUDE_CODE_AUTO_COMPACT_WINDOW"] == "1000000"
     assert "ANTHROPIC_API_KEY" not in result.env
 
 
@@ -376,7 +377,7 @@ def test_provider_patch_assets_are_safe_and_prompt_pack_skips_mirror():
     assert "Do not assume first-party Claude model names" in zai_overlays["planEnhanced"]
     assert set(minimax_overlays) == {"webfetch", "explore", "planEnhanced"}
     assert "MiniMax MCP server" in minimax_overlays["webfetch"]
-    assert "MiniMax-M2.7" in minimax_overlays["explore"]
+    assert "MiniMax-M3" in minimax_overlays["explore"]
     assert "Do not assume first-party Claude model names" in minimax_overlays["planEnhanced"]
     assert set(minimax_cn_overlays) == {"webfetch", "explore", "planEnhanced"}
     assert "MiniMax China docs" in minimax_cn_overlays["webfetch"]
@@ -449,8 +450,9 @@ def test_zai_ascii_art_loads_from_text_file_and_keeps_palette():
 
 def test_ported_provider_defaults_match_cc_mirror_update():
     minimax = build_provider_env("minimax")
-    assert minimax.env["ANTHROPIC_MODEL"] == "MiniMax-M2.7"
-    assert minimax.env["ANTHROPIC_DEFAULT_SONNET_MODEL"] == "MiniMax-M2.7"
+    assert minimax.env["ANTHROPIC_MODEL"] == "MiniMax-M3"
+    assert minimax.env["ANTHROPIC_DEFAULT_SONNET_MODEL"] == "MiniMax-M3"
+    assert minimax.env["CLAUDE_CODE_AUTO_COMPACT_WINDOW"] == "512000"
 
     minimax_cn = build_provider_env("minimax-cn")
     assert minimax_cn.credential == {

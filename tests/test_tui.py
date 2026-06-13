@@ -990,7 +990,7 @@ def _provider_selector_fixture():
             "baseUrl": "https://api.z.ai/api/anthropic",
             "requiresModelMapping": False,
             "noPromptPack": False,
-            "models": {"sonnet": "glm-5-turbo", "opus": "glm-5.1"},
+            "models": {"sonnet": "glm-5.2[1m]", "opus": "glm-5.2[1m]", "haiku": "glm-4.5-air"},
             "mcpServers": ["web-reader"],
             "settingsPermissionsDeny": ["mcp__zai__web_search"],
             "envUnset": ["CLAUDE_CODE_USE_BEDROCK"],
@@ -2058,10 +2058,10 @@ def test_variants_wizard_architect_mode_toggle_uses_tweak_without_proxy():
         "baseUrl": "https://api.minimax.io/anthropic",
         "requiresModelMapping": False,
         "models": {
-            "default": "MiniMax-M2.7",
-            "opus": "MiniMax-M2.7",
-            "sonnet": "MiniMax-M2.7",
-            "haiku": "MiniMax-M2.7",
+            "default": "MiniMax-M3",
+            "opus": "MiniMax-M3",
+            "sonnet": "MiniMax-M3",
+            "haiku": "MiniMax-M3",
         },
         "defaultVariantName": "minimax",
     }

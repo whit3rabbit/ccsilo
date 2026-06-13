@@ -84,6 +84,7 @@ def tweak_options_from_args(args):
         "context_limit": getattr(args, "context_limit", None),
         "file_read_limit": getattr(args, "file_read_limit", None),
         "subagent_model": getattr(args, "subagent_model", None),
+        "compact_window": getattr(args, "compact_window", None),
     }
 
 
@@ -99,3 +100,4 @@ def add_variant_model_args(parser):
 def add_variant_tweak_option_args(parser):
     parser.add_argument("--context-limit", help="CLAUDE_CODE_CONTEXT_LIMIT value for context-limit tweak")
     parser.add_argument("--file-read-limit", help="CLAUDE_CODE_FILE_READ_MAX_OUTPUT_TOKENS value")
+    parser.add_argument("--compact-window", help="CLAUDE_CODE_AUTO_COMPACT_WINDOW value")
