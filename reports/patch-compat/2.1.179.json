@@ -3,7 +3,7 @@
     "entryBytes": 17117417,
     "entryModule": "src/entrypoints/cli.js"
   },
-  "generatedAt": "2026-06-17T12:31:08.798221Z",
+  "generatedAt": "2026-06-17T01:35:48.602186Z",
   "ok": true,
   "patches": [
     {
@@ -407,7 +407,7 @@
       "name": "Token count rounding",
       "notes": [],
       "ok": true,
-      "status": "skipped",
+      "status": "applied",
       "supported": true,
       "tested": false,
       "warnings": [
@@ -431,11 +431,11 @@
       "<patched-binary>",
       "--version"
     ],
-    "durationMs": 5725546,
+    "durationMs": 11704,
     "exitCode": 0,
     "expectedVersion": "2.1.179",
     "ok": true,
-    "outputSha256": "4761bfbdd2e7a8deca47b48d7a03e457cb84f21d28b892b94ae819743a701ef8",
+    "outputSha256": "aa21b32ce8577cc55bc1ffcecbe179417975e1f49fc6652f2ce017bef5ed9843",
     "patches": {
       "applied": [
         "agents-md",
@@ -462,7 +462,8 @@
         "suppress-prompt-caching-warning",
         "suppress-rate-limit-options",
         "themes",
-        "thinking-visibility"
+        "thinking-visibility",
+        "token-count-rounding"
       ],
       "attempted": [
         "agents-md",
@@ -497,8 +498,7 @@
       "missed": [],
       "skipped": [
         "mcp-non-blocking",
-        "suppress-model-launch-notice",
-        "token-count-rounding"
+        "suppress-model-launch-notice"
       ],
       "warnings": [
         "patch 'allow-custom-agent-models' not tested against version 2.1.179; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.172']",
@@ -537,10 +537,10 @@
     "versionMatched": true
   },
   "summary": {
-    "applied": 25,
+    "applied": 26,
     "failed": 0,
     "ok": 29,
-    "skipped": 3,
+    "skipped": 2,
     "total": 29,
     "unsupported": 1,
     "untested": 27

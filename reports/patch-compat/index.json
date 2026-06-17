@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-17T14:06:34.547076Z",
+  "generatedAt": "2026-06-17T01:36:00.719595Z",
   "reports": [
     {
       "ok": true,
@@ -11,10 +11,10 @@
         "status": "passed"
       },
       "summary": {
-        "applied": 25,
+        "applied": 26,
         "failed": 0,
         "ok": 29,
-        "skipped": 3,
+        "skipped": 2,
         "total": 29,
         "unsupported": 1,
         "untested": 27

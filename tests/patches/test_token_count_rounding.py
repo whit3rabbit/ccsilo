@@ -1,3 +1,5 @@
+import signal
+
 import pytest
 
 from ccsilo.patches import PatchContext
@@ -38,6 +40,56 @@ def test_statusline_template_applies_without_crossing_statements(parse_js):
     assert "RH=D9(Math.round((ZH)/1000)*1000),hH=" in outcome.js
     assert "Y$=sr.useRef(0)/1000" not in outcome.js
     parse_js(outcome.js)
+
+
+def test_arrow_statusline_template_applies_without_crossing_statements(parse_js):
+    js = (
+        'let jH=$?b:OH.current,DH=i7(S),fH=f8(DH),MH=_H,'
+        'YH=K_(MH),XH=`${eH.arrowDown} ${YH} tokens`,GH=f8(XH),'
+        'wH=R.kind==="thinking"?L5f(R.thinkingMs):"thinking",AH;'
+        'switch(R.kind){case"thinking":AH=`${wH}${X}`;break}'
+        'let D8=[...N$?[p5.createElement(B,{flexDirection:"row",key:"tokens"},'
+        'p5.createElement(Z5f,{mode:H}),p5.createElement(y,{dimColor:!0},YH," tokens"))]:[]];'
+    )
+
+    outcome = PATCH.apply(js, PatchContext(claude_version="2.1.179"))
+
+    assert outcome.status == "applied"
+    assert "YH=K_(Math.round((MH)/1000)*1000),XH=" in outcome.js
+    assert "AH;switch" not in outcome.js.split("Math.round(", 1)[1].split(")*1000", 1)[0]
+    parse_js(outcome.js)
+
+
+@pytest.mark.skipif(not hasattr(signal, "SIGALRM"), reason="requires SIGALRM")
+def test_no_match_token_windows_do_not_backtrack_catastrophically():
+    chunk = (
+        "aa=bb("
+        + ("x" * 40)
+        + "),"
+        + ("y" * 2100)
+        + 'key:"tokens"'
+        + ("z" * 220)
+        + ',cc," tokens";'
+    )
+    js = chunk * 120
+
+    class Timeout(BaseException):
+        pass
+
+    def fail_on_alarm(_signum, _frame):
+        raise Timeout()
+
+    previous_handler = signal.signal(signal.SIGALRM, fail_on_alarm)
+    signal.setitimer(signal.ITIMER_REAL, 3)
+    try:
+        outcome = PATCH.apply(js, PatchContext(claude_version="2.1.179"))
+    except Timeout:
+        pytest.fail("token-count-rounding did not finish on a bounded no-match input")
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous_handler)
+
+    assert outcome.status == "missed"
 
 
 def test_metadata():
