@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0] - 2026-06-17
+
+### Added
+- Added Claude Code prompt catalogs for 2.1.179 and 2.1.181.
+- Added latest Claude Code patch compatibility artifacts through 2.1.181.
+
+### Changed
+- Widened curated patch tested ranges through Claude Code 2.1.181 after Docker runtime smoke.
+
+### Fixed
+- Fixed `token-count-rounding` for Claude Code 2.1.179's arrow statusline token display.
+- Bounded token-count fallback matching to avoid runaway regex scans on no-match bundles.
+
 ## [0.6.6] - 2026-06-13
 
 ### Added

@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-06-17T01:36:00.719595Z",
+  "generatedAt": "2026-06-18T00:50:15.300407Z",
   "reports": [
     {
       "ok": true,
-      "path": "2.1.179.json",
+      "path": "2.1.181.json",
       "smoke": {
         "ok": true,
         "platformKey": "linux-x64",
@@ -17,9 +17,9 @@
         "skipped": 2,
         "total": 29,
         "unsupported": 1,
-        "untested": 27
+        "untested": 1
       },
-      "version": "2.1.179"
+      "version": "2.1.181"
     }
   ],
   "schemaVersion": 1
