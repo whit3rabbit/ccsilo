@@ -131,6 +131,7 @@ def test_zai_defaults_to_env_ref_without_storing_secret():
     assert result.env["ANTHROPIC_DEFAULT_SONNET_MODEL"] == "glm-5.2[1m]"
     assert result.env["ANTHROPIC_DEFAULT_HAIKU_MODEL"] == "glm-4.5-air"
     assert result.env["CLAUDE_CODE_AUTO_COMPACT_WINDOW"] == "1000000"
+    assert result.env["MCP_TOOL_TIMEOUT"] == "120000"
     assert "ANTHROPIC_API_KEY" not in result.env
 
 
@@ -453,6 +454,7 @@ def test_ported_provider_defaults_match_cc_mirror_update():
     assert minimax.env["ANTHROPIC_MODEL"] == "MiniMax-M3"
     assert minimax.env["ANTHROPIC_DEFAULT_SONNET_MODEL"] == "MiniMax-M3"
     assert minimax.env["CLAUDE_CODE_AUTO_COMPACT_WINDOW"] == "512000"
+    assert minimax.env["MCP_TOOL_TIMEOUT"] == "120000"
 
     minimax_cn = build_provider_env("minimax-cn")
     assert minimax_cn.credential == {
@@ -462,6 +464,7 @@ def test_ported_provider_defaults_match_cc_mirror_update():
     }
     assert minimax_cn.env["ANTHROPIC_BASE_URL"] == "https://api.minimaxi.com/anthropic"
     assert minimax_cn.env["ANTHROPIC_MODEL"] == "MiniMax-M2.7"
+    assert "MCP_TOOL_TIMEOUT" not in minimax_cn.env
 
     deepseek = build_provider_env("deepseek")
     assert deepseek.env["ANTHROPIC_BASE_URL"] == "https://api.deepseek.com/anthropic"

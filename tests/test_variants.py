@@ -430,6 +430,7 @@ def test_create_variant_writes_isolated_layout_wrapper_and_metadata(tmp_path):
     assert "CLAUDE_CONFIG_DIR" in wrapper
     assert "${Z_AI_API_KEY:?Set Z_AI_API_KEY for variant zai-test}" in wrapper
     assert "ANTHROPIC_API_KEY=\"${Z_AI_API_KEY}\"" in wrapper
+    assert "export MCP_TOOL_TIMEOUT=120000" in wrapper
     credential_export = 'export ANTHROPIC_API_KEY="${Z_AI_API_KEY}"'
     assert wrapper.index(credential_export) < wrapper.index("customApiKeyResponses") < wrapper.index("\nexec ")
     assert "++++++++" in wrapper
@@ -456,6 +457,7 @@ def test_create_variant_writes_isolated_layout_wrapper_and_metadata(tmp_path):
         "disable-prompt-caching",
     ]
     assert result.variant.manifest["env"]["MCP_SERVER_CONNECTION_BATCH_SIZE"] == "10"
+    assert result.variant.manifest["env"]["MCP_TOOL_TIMEOUT"] == "120000"
     assert result.variant.manifest["env"]["DISABLE_TELEMETRY"] == "1"
     assert result.variant.manifest["env"]["DISABLE_PROMPT_CACHING"] == "1"
     assert scan_variants(root)[0].variant_id == "zai-test"
@@ -468,6 +470,7 @@ def test_create_variant_writes_isolated_layout_wrapper_and_metadata(tmp_path):
     settings = json.loads((root / "variants" / "zai-test" / "config" / "settings.json").read_text(encoding="utf-8"))
     claude_config = json.loads((root / "variants" / "zai-test" / "config" / ".claude.json").read_text(encoding="utf-8"))
     assert settings["forceLoginMethod"] == "console"
+    assert settings["env"]["MCP_TOOL_TIMEOUT"] == "120000"
     assert "statusLine" not in settings
     assert "mcp__web_reader__webReader" in settings["permissions"]["deny"]
     assert claude_config["theme"] == "dark"
