@@ -3,6 +3,7 @@ import json
 import os
 import shlex
 import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -1573,6 +1574,39 @@ def test_create_opencode_defaults_to_openai_model_proxy(
     assert proxy_config["anthropicModels"] == []
     assert 'export ANTHROPIC_AUTH_TOKEN="${ANTHROPIC_AUTH_TOKEN:-unused}"' in wrapper
     assert "unset ANTHROPIC_API_KEY" in wrapper
+
+
+def test_update_model_proxy_variant_refreshes_stale_python_executable(tmp_path, monkeypatch):
+    import ccsilo.variants as variants_module
+
+    root = tmp_path / ".ccsilo"
+    artifact = write_source_artifact(tmp_path)
+
+    result = create_variant(
+        name="OpenCode Go",
+        provider_key="opencode-go",
+        credential_env="OPENCODE_API_KEY",
+        tweaks=["themes"],
+        root=root,
+        source_artifact=artifact,
+        force=True,
+    )
+    metadata_path = result.variant.path / "variant.json"
+    manifest = json.loads(metadata_path.read_text(encoding="utf-8"))
+    stale_python = str(tmp_path / "deleted-venv" / "bin" / "python")
+    manifest["modelProxy"]["pythonExecutable"] = stale_python
+    metadata_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    monkeypatch.setattr(variants_module, "_download_source_artifact", lambda version, root=None: artifact)
+    updated = update_variants("opencode-go", claude_version="2.1.123", root=root)[0]
+
+    model_proxy = updated.variant.manifest["modelProxy"]
+    wrapper = updated.wrapper_path.read_text(encoding="utf-8")
+    assert model_proxy["pythonExecutable"] == sys.executable
+    assert stale_python not in wrapper
+    assert sys.executable in wrapper
+    doctor_checks = {check["name"]: check for check in doctor_variant("opencode-go", root=root)[0]["checks"]}
+    assert doctor_checks["model-proxy-python"]["ok"] is True
 
 
 def test_model_proxy_doctor_fails_when_wrapper_lacks_nonce(tmp_path):

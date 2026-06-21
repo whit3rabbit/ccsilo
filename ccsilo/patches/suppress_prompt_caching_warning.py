@@ -48,7 +48,7 @@ PATCH = Patch(
     name="Suppress prompt caching warning",
     group="ui",
     versions_supported=">=2.1.0,<3",
-    versions_tested=(">=2.1.0,<=2.1.181",),
+    versions_tested=(">=2.1.0,<=2.1.185",),
     apply=_apply,
     on_miss="skip",
     description="Hide the startup warning shown when prompt caching is disabled by environment variables.",

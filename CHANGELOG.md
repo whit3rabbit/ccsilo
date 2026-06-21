@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.1] - 2026-06-21
+
+### Added
+- Added Claude Code 2.1.185 patch compatibility report with Docker runtime smoke evidence.
+
+### Changed
+- Widened curated patch tested ranges through Claude Code 2.1.185 after Docker runtime smoke.
+
+### Fixed
+- Fixed model proxy variants preserving stale Python interpreter paths across setup rebuilds.
+
 ## [0.7.0] - 2026-06-17
 
 ### Added

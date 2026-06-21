@@ -142,7 +142,7 @@ PATCH = Patch(
     name="Architect Mode",
     group="ui",
     versions_supported=">=2.1.0,<3",
-    versions_tested=(">=2.1.0,<=2.1.181",),
+    versions_tested=(">=2.1.0,<=2.1.185",),
     apply=_apply,
     description=(
         "Add an Architect Mode model alias that uses a planner model in plan mode and a worker model otherwise. "

@@ -233,7 +233,7 @@ def _build_variant_from_manifest(
         model_proxy.setdefault("runtimeConfigPath", str(config_dir / "model-proxy.json"))
         model_proxy.setdefault("logPath", str(tmp_dir / "model-proxy.log"))
         model_proxy.setdefault("portFilePath", str(tmp_dir / "model-proxy-port"))
-        model_proxy.setdefault("pythonExecutable", _sys.executable or "python3")
+        model_proxy["pythonExecutable"] = _sys.executable or "python3"
         manifest["modelProxy"] = model_proxy
     if entry_path:
         manifest["paths"]["entryPath"] = str(entry_path)

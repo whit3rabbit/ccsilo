@@ -59,7 +59,7 @@ PATCH = Patch(
     name="Suppress model launch notice",
     group="ui",
     versions_supported=">=2.1.0,<3",
-    versions_tested=(">=2.1.0,<=2.1.181",),
+    versions_tested=(">=2.1.0,<=2.1.185",),
     apply=_apply,
     on_miss="skip",
     description="Hide the startup notice announcing newly available Claude model launches.",
