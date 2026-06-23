@@ -67,7 +67,7 @@ PATCH = Patch(
     name="Statusline update throttling correction",
     group="ui",
     versions_supported=">=2.0.0,<3",
-    versions_tested=(">=2.0.20,<2.1", ">=2.1.0,<=2.1.185"),
+    versions_tested=(">=2.0.20,<2.1", ">=2.1.0,<=2.1.186"),
     apply=_apply,
     description="Replace flawed statusline debounce behavior with throttle pacing. Defaults to 300ms.",
 )

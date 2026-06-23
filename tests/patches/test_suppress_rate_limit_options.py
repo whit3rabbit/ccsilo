@@ -12,6 +12,20 @@ def test_synthetic_applies(cli_js_synthetic):
     assert "onOpenRateLimitOptions:()=>{}" in outcome.js
 
 
+def test_jsx_runtime_synthetic_applies():
+    js = (
+        "No.jsxs(No.Fragment,{children:["
+        "No.jsx(_We,{messages:Ip.messages,deferMessages:Ip.isMain&&!NH&&be,"
+        'placeholderElement:!T?No.jsx(w6e,{param:{text:"x",type:"text"}}):null,'
+        "commands:io,verbose:K,screen:ct,streamingToolUses:dr,"
+        "showAllInTranscript:zt,agentDefinitions:te,onOpenRateLimitOptions:TVe,"
+        "isLoading:be})]})"
+    )
+    outcome = PATCH.apply(js, PatchContext(claude_version="2.1.186"))
+    assert outcome.status == "applied"
+    assert "onOpenRateLimitOptions:()=>{}" in outcome.js
+
+
 def test_metadata():
     assert PATCH.id == "suppress-rate-limit-options"
     assert PATCH.group == "ui"

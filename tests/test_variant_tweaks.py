@@ -81,7 +81,12 @@ def test_curated_tweak_ports_patch_fixture_patterns():
                 'A=X8.createElement(B,{flexDirection:"row"},O,X8.createElement(B,{flexDirection:"column"},T,X8.createElement(v,{dimColor:!0},"We highly recommend disabling"," ",K.length===1?"this environment variable":"these environment variables"))),H[4]=A;'
                 'else A=H[4];return A}'
             ),
-            'R.createElement(X,{a:1}),showAllInTranscript:A,agentDefinitions:B,onOpenRateLimitOptions:C,other:true',
+            (
+                'R.createElement(X,{messages:ko.messages,deferMessages:ko.isMain&&!_a&&jo,'
+                'placeholderElement:!x?R.createElement(Y,{param:{text:"z",type:"text"}}):null,'
+                'tools:T,commands:N,screen:S,streamingToolUses:U,showAllInTranscript:A,'
+                'agentDefinitions:B,onOpenRateLimitOptions:C,other:true})'
+            ),
             'case"thinking":{if(!D&&!H)return null;let T=D&&H;isTranscriptMode:D,verbose:H,hideInTranscript:T}',
             'createElement(T,{color:V.bgColor},"\\u2500".repeat(W));borderColor:Y(),borderStyle:"round",borderLeft:!1,borderRight:!1,borderBottom:!0,width:"100%",borderText:Z();',
             '#!/usr/bin/env node\n// Version 2.1.123\nconsole.log("ready");',

@@ -108,8 +108,10 @@ SYNTHETIC = {
         'if(H.status===429)return!0;return!1}'
     ),
     "suppress-rate-limit-options": (
-        'R.createElement(X,{a:1}),showAllInTranscript:A,'
-        'agentDefinitions:B,onOpenRateLimitOptions:C,other:true'
+        'R.createElement(X,{messages:ko.messages,deferMessages:ko.isMain&&!_a&&jo,'
+        'placeholderElement:!x?R.createElement(Y,{param:{text:"z",type:"text"}}):null,'
+        'tools:T,commands:N,screen:S,streamingToolUses:U,showAllInTranscript:A,'
+        'agentDefinitions:B,onOpenRateLimitOptions:C,other:true})'
     ),
     "thinking-visibility": (
         'case"thinking":{if(!D&&!H)return null;'

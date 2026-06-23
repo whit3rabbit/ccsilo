@@ -8,7 +8,8 @@ from ._pinned_default import DEFAULT_VERSION_RANGES
 
 def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
     match = re.search(
-        r"\.createElement.{0,500},showAllInTranscript:[$\w]+,"
+        r"\.(?:createElement|jsx|jsxs)\([.$\w]+,\{messages:.{0,900},"
+        r"showAllInTranscript:[$\w]+,"
         r"agentDefinitions:[$\w]+,onOpenRateLimitOptions:([$\w]+)",
         js,
         re.DOTALL,
