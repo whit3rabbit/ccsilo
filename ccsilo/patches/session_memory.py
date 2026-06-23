@@ -112,7 +112,7 @@ PATCH = Patch(
     name="Session memory",
     group="prompts",
     versions_supported=">=2.1.0,<3",
-    versions_tested=(">=2.1.0,<=2.1.186",),
+    versions_tested=(">=2.1.0,<=2.1.187",),
     apply=_apply,
     description="Enable session memory extraction and past-session search with environment-configurable thresholds.",
 )
