@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.2] - 2026-06-23
+
+### Added
+- Added Claude Code prompt catalogs and patch compatibility reports for 2.1.186 and 2.1.187.
+- Added MCP tool timeout defaults.
+
+### Changed
+- Widened curated patch tested ranges through Claude Code 2.1.187 after Docker runtime smoke.
+
+### Fixed
+- Fixed `suppress-rate-limit-options` for Claude Code's JSX runtime render shape.
+
 ## [0.7.1] - 2026-06-21
 
 ### Added
