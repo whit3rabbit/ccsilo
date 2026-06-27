@@ -641,6 +641,29 @@ def _model_proxy_doctor_checks(manifest: Dict) -> List[Dict[str, object]]:
     python_path = Path(str(config.get("pythonExecutable") or ""))
     port = config.get("port", "auto")
     port_ok = port == "auto" or isinstance(port, int)
+    import_ok = False
+    import_detail = ""
+    if python_path.is_file() and os.access(python_path, os.X_OK):
+        # Run from a neutral cwd so an editable install whose source dir moved
+        # (e.g. a renamed repo) is caught instead of silently resolving via the
+        # repo root on sys.path. The wrapper launches the proxy with this python
+        # from the user's working directory, exactly this failure mode.
+        try:
+            proc = subprocess.run(
+                [str(python_path), "-c", "import ccsilo.model_proxy"],
+                cwd=str(Path(python_path.anchor or "/")),
+                capture_output=True,
+                text=True,
+                timeout=20,
+            )
+            import_ok = proc.returncode == 0
+            if not import_ok:
+                lines = (proc.stderr or proc.stdout or "").strip().splitlines()
+                import_detail = lines[-1] if lines else "import failed"
+        except (OSError, subprocess.SubprocessError) as exc:
+            import_detail = str(exc)
+    else:
+        import_detail = "python executable missing or not executable"
     nonce_wrapper_ok = False
     nonce_detail = ""
     try:
@@ -657,6 +680,7 @@ def _model_proxy_doctor_checks(manifest: Dict) -> List[Dict[str, object]]:
         {"name": "model-proxy-config", "ok": config_path.is_file(), "path": str(config_path)},
         {"name": "model-proxy-log-dir", "ok": bool(log_path.parent) and log_path.parent.is_dir(), "path": str(log_path.parent)},
         {"name": "model-proxy-python", "ok": python_path.is_file() and os.access(python_path, os.X_OK), "path": str(python_path)},
+        {"name": "model-proxy-import", "ok": import_ok, "path": str(python_path), "detail": import_detail},
         {"name": "model-proxy-port", "ok": port_ok, "path": str(config_path), "detail": str(port)},
         {"name": "model-proxy-nonce-wrapper", "ok": nonce_wrapper_ok, "path": str(wrapper_path), "detail": nonce_detail},
     ]

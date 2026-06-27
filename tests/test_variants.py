@@ -1612,6 +1612,56 @@ def test_update_model_proxy_variant_refreshes_stale_python_executable(tmp_path, 
     assert doctor_checks["model-proxy-python"]["ok"] is True
 
 
+def test_model_proxy_doctor_import_ok_for_current_python(tmp_path):
+    root = tmp_path / ".ccsilo"
+    artifact = write_source_artifact(tmp_path)
+
+    create_variant(
+        name="OpenCode Go",
+        provider_key="opencode-go",
+        credential_env="OPENCODE_API_KEY",
+        tweaks=["themes"],
+        root=root,
+        source_artifact=artifact,
+        force=True,
+    )
+
+    checks = {check["name"]: check for check in doctor_variant("opencode-go", root=root)[0]["checks"]}
+    assert checks["model-proxy-import"]["ok"] is True
+
+
+def test_model_proxy_doctor_import_fails_for_python_without_ccsilo(tmp_path):
+    import venv
+
+    root = tmp_path / ".ccsilo"
+    artifact = write_source_artifact(tmp_path)
+
+    result = create_variant(
+        name="OpenCode Go",
+        provider_key="opencode-go",
+        credential_env="OPENCODE_API_KEY",
+        tweaks=["themes"],
+        root=root,
+        source_artifact=artifact,
+        force=True,
+    )
+
+    # A bare interpreter that cannot import ccsilo, reproducing a moved/renamed
+    # editable checkout. The wrapper would die at `-m ccsilo.model_proxy`.
+    bare = tmp_path / "bare-venv"
+    venv.create(bare, with_pip=False)
+    bare_python = bare / "bin" / "python"
+
+    metadata_path = result.variant.path / "variant.json"
+    manifest = json.loads(metadata_path.read_text(encoding="utf-8"))
+    manifest["modelProxy"]["pythonExecutable"] = str(bare_python)
+    metadata_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    checks = {check["name"]: check for check in doctor_variant("opencode-go", root=root)[0]["checks"]}
+    assert checks["model-proxy-import"]["ok"] is False
+    assert checks["model-proxy-import"]["detail"]
+
+
 def test_model_proxy_doctor_fails_when_wrapper_lacks_nonce(tmp_path):
     root = tmp_path / ".ccsilo"
     artifact = write_source_artifact(tmp_path)

@@ -1048,7 +1048,7 @@ class _ModelProxyHandler(BaseHTTPRequestHandler):
             raw = normalize_json_body(raw)
         headers = _response_headers(response.getheaders(), content_length=len(raw))
         self._send_headers(response.status, response.reason, headers)
-        self.wfile.write(raw)
+        self._write_client(raw)
 
     def _relay_upstream_error(self, response: http.client.HTTPResponse) -> None:
         raw = response.read(MAX_RESPONSE_BYTES + 1)
@@ -1058,7 +1058,7 @@ class _ModelProxyHandler(BaseHTTPRequestHandler):
         headers = _response_headers(response.getheaders(), content_length=len(raw))
         _set_header(headers, "Content-Type", "application/json")
         self._send_headers(response.status, response.reason, headers)
-        self.wfile.write(raw)
+        self._write_client(raw)
 
     def _relay_stream(self, response: http.client.HTTPResponse, transformer) -> None:
         stream_start = time.monotonic()
@@ -1090,31 +1090,50 @@ class _ModelProxyHandler(BaseHTTPRequestHandler):
                 self.close_connection = True
                 return
             for fixed in fixed_chunks:
-                self.wfile.write(fixed)
-                self.wfile.flush()
+                if not self._write_client(fixed, flush=True):
+                    return
         try:
             fixed_chunks = tuple(transformer.flush())
         except ValueError:
             self.close_connection = True
             return
         for fixed in fixed_chunks:
-            self.wfile.write(fixed)
-            self.wfile.flush()
+            if not self._write_client(fixed, flush=True):
+                return
         self.close_connection = True
 
+    def _write_client(self, data: bytes, *, flush: bool = False) -> bool:
+        # Claude Code can drop the connection mid-response. A failed client
+        # write must not propagate: in ThreadingHTTPServer it only spams the
+        # proxy log with tracebacks (and double-faults the 502 error path).
+        try:
+            self.wfile.write(data)
+            if flush:
+                self.wfile.flush()
+            return True
+        except (BrokenPipeError, ConnectionResetError):
+            self.close_connection = True
+            return False
+
     def _send_headers(self, status: int, reason: str, headers: Dict[str, str]) -> None:
-        self.send_response(status, reason)
-        for key, value in headers.items():
-            self.send_header(key, value)
-        self.end_headers()
+        try:
+            self.send_response(status, reason)
+            for key, value in headers.items():
+                self.send_header(key, value)
+            self.end_headers()
+        except (BrokenPipeError, ConnectionResetError):
+            self.close_connection = True
 
     def _send_json(self, status: int, payload: Dict) -> None:
         data = json.dumps(payload, separators=(",", ":")).encode("utf-8")
-        self.send_response(status)
-        self.send_header("content-type", "application/json")
-        self.send_header("content-length", str(len(data)))
-        self.end_headers()
-        self.wfile.write(data)
+        try:
+            self.send_response(status)
+            self.send_header("content-type", "application/json")
+            self.send_header("content-length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+        except (BrokenPipeError, ConnectionResetError):
+            self.close_connection = True
 
 
 def _upstream_path(base_path: str, client_path: str) -> str:

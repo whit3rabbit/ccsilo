@@ -1150,3 +1150,78 @@ def test_sse_usage_normalizer_handles_crlf_multiline_data_and_comments():
     text = out.decode("utf-8")
     assert text.startswith(": keepalive\nevent: message\nid: 1\n")
     assert 'data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":0}}' in text
+
+
+class _FakeWfile:
+    def __init__(self, *, fail_write=False, fail_flush=False):
+        self.written = []
+        self.fail_write = fail_write
+        self.fail_flush = fail_flush
+
+    def write(self, data):
+        if self.fail_write:
+            raise BrokenPipeError(32, "broken pipe")
+        self.written.append(data)
+
+    def flush(self):
+        if self.fail_flush:
+            raise ConnectionResetError("connection reset")
+
+
+def _bare_handler(wfile):
+    from ccsilo.model_proxy import _ModelProxyHandler
+
+    handler = object.__new__(_ModelProxyHandler)
+    handler.close_connection = False
+    handler.wfile = wfile
+    return handler
+
+
+def test_write_client_swallows_disconnect_on_write():
+    handler = _bare_handler(_FakeWfile(fail_write=True))
+
+    assert handler._write_client(b"payload") is False
+    assert handler.close_connection is True
+
+
+def test_write_client_swallows_disconnect_on_flush():
+    handler = _bare_handler(_FakeWfile(fail_flush=True))
+
+    assert handler._write_client(b"payload", flush=True) is False
+    assert handler.close_connection is True
+
+
+def test_send_json_swallows_disconnect():
+    handler = _bare_handler(_FakeWfile(fail_write=True))
+    # Stub the header machinery so the failure surfaces at the body write,
+    # mirroring a client that closed before the response is flushed.
+    handler.send_response = lambda *a, **k: None
+    handler.send_header = lambda *a, **k: None
+    handler.end_headers = lambda: None
+
+    handler._send_json(502, {"error": {"message": "x"}})
+
+    assert handler.close_connection is True
+
+
+def test_relay_stream_stops_on_client_disconnect():
+    class _FakeResponse:
+        def __init__(self, chunks):
+            self._chunks = list(chunks)
+
+        def read(self, _size):
+            return self._chunks.pop(0) if self._chunks else b""
+
+    class _PassthroughTransformer:
+        def feed(self, chunk):
+            return [chunk]
+
+        def flush(self):
+            return []
+
+    handler = _bare_handler(_FakeWfile(fail_write=True))
+
+    # Must not raise even though the first client write fails.
+    handler._relay_stream(_FakeResponse([b"chunk"]), _PassthroughTransformer())
+
+    assert handler.close_connection is True

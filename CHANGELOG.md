@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.3] - 2026-06-27
+
+### Added
+- Added Claude Code prompt catalogs and patch compatibility reports for 2.1.190, 2.1.191, 2.1.193, and 2.1.195 (Docker smoke passed, 29/29 patches ok).
+- Added a `model-proxy-import` variant doctor check that verifies the variant's Python can import `ccsilo.model_proxy` from a neutral working directory, catching moved/renamed editable installs before the proxy fails at launch.
+
+### Changed
+- Bumped shared and patch-specific `versions_tested` ranges to 2.1.195.
+
+### Fixed
+- Model proxy now swallows client disconnect errors (`BrokenPipeError`/`ConnectionResetError`) when Claude Code drops mid-response, preventing log-flooding tracebacks and a double-fault on the 502 error path.
+
 ## [0.7.2] - 2026-06-23
 
 ### Added
