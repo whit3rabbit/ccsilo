@@ -3,7 +3,7 @@
     "entryBytes": 17207578,
     "entryModule": "src/entrypoints/cli.js"
   },
-  "generatedAt": "2026-06-23T11:42:37.613616Z",
+  "generatedAt": "2026-06-30T23:09:32.760272Z",
   "ok": true,
   "patches": [
     {
@@ -157,6 +157,18 @@
       "group": "ui",
       "id": "model-customizations",
       "name": "Custom Claude models in picker",
+      "notes": [],
+      "ok": true,
+      "status": "applied",
+      "supported": true,
+      "tested": true,
+      "warnings": []
+    },
+    {
+      "detail": "",
+      "group": "prompts",
+      "id": "no-prompt-steganography",
+      "name": "No prompt steganography",
       "notes": [],
       "ok": true,
       "status": "applied",
@@ -379,11 +391,11 @@
       "<patched-binary>",
       "--version"
     ],
-    "durationMs": 10513,
+    "durationMs": 10100,
     "exitCode": 0,
     "expectedVersion": "2.1.186",
     "ok": true,
-    "outputSha256": "7195b9629ea6026dd6228e92778e67c4ddbe444864a93069b8015a2d97c6e70e",
+    "outputSha256": "f53f1e9371ae78db5f30172996ac4d03d3a04a34a74fbc06f72824db152aed29",
     "patches": {
       "applied": [
         "agents-md",
@@ -398,6 +410,7 @@
         "mid-conversation-system-422-fallback",
         "mcp-batch-size",
         "model-customizations",
+        "no-prompt-steganography",
         "opencode-gateway-discovery",
         "opusplan1m",
         "patches-applied-indication",
@@ -427,6 +440,7 @@
         "mcp-non-blocking",
         "mcp-batch-size",
         "model-customizations",
+        "no-prompt-steganography",
         "opencode-gateway-discovery",
         "opusplan1m",
         "patches-applied-indication",
@@ -458,11 +472,11 @@
     "versionMatched": true
   },
   "summary": {
-    "applied": 26,
+    "applied": 27,
     "failed": 0,
-    "ok": 29,
+    "ok": 30,
     "skipped": 2,
-    "total": 29,
+    "total": 30,
     "unsupported": 1,
     "untested": 1
   },

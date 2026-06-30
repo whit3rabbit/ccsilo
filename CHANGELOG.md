@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.0] - 2026-06-30
+
+### Added
+- Added `no-prompt-steganography` curated tweak that removes invisible Unicode fingerprinting from the system date prompt.
+- Regenerated 2.1.186 patch compatibility report with the new patch passing (30/30 patches ok).
+
 ## [0.7.3] - 2026-06-27
 
 ### Added

@@ -215,4 +215,9 @@ SYNTHETIC = {
         '- For GitHub URLs, prefer using the gh CLI via Bash instead '
         '(e.g., gh pr view, gh issue view, gh api).`;'
     ),
+    "no-prompt-steganography": (
+        'function eca(e){let t=ddp(),n=pdp(t?.known??!1,t?.labKw??!1),'
+        'r=t?.cnTZ?e.replaceAll("-","/"):e;'
+        'return`Today${n}s date is ${r}.`}'
+    ),
 }

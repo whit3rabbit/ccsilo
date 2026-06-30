@@ -147,6 +147,7 @@ CURATED_TWEAK_IDS = [
     "prompt-overlays",
     "show-more-items-in-select-menus",
     "model-customizations",
+    "no-prompt-steganography",
     "hide-startup-banner",
     "hide-startup-clawd",
     "hide-ctrl-g-to-edit",
