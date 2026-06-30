@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-06-27T02:44:25.638804Z",
+  "generatedAt": "2026-06-30T11:24:25.125378Z",
   "reports": [
     {
       "ok": true,
-      "path": "2.1.195.json",
+      "path": "2.1.196.json",
       "smoke": {
         "ok": true,
-        "platformKey": "linux-x64",
+        "platformKey": "darwin-arm64",
         "stage": "run",
         "status": "passed"
       },
@@ -19,67 +19,7 @@
         "unsupported": 1,
         "untested": 27
       },
-      "version": "2.1.195"
-    },
-    {
-      "ok": true,
-      "path": "2.1.193.json",
-      "smoke": {
-        "ok": true,
-        "platformKey": "linux-x64",
-        "stage": "run",
-        "status": "passed"
-      },
-      "summary": {
-        "applied": 26,
-        "failed": 0,
-        "ok": 29,
-        "skipped": 2,
-        "total": 29,
-        "unsupported": 1,
-        "untested": 27
-      },
-      "version": "2.1.193"
-    },
-    {
-      "ok": true,
-      "path": "2.1.191.json",
-      "smoke": {
-        "ok": true,
-        "platformKey": "linux-x64",
-        "stage": "run",
-        "status": "passed"
-      },
-      "summary": {
-        "applied": 26,
-        "failed": 0,
-        "ok": 29,
-        "skipped": 2,
-        "total": 29,
-        "unsupported": 1,
-        "untested": 27
-      },
-      "version": "2.1.191"
-    },
-    {
-      "ok": true,
-      "path": "2.1.190.json",
-      "smoke": {
-        "ok": true,
-        "platformKey": "linux-x64",
-        "stage": "run",
-        "status": "passed"
-      },
-      "summary": {
-        "applied": 26,
-        "failed": 0,
-        "ok": 29,
-        "skipped": 2,
-        "total": 29,
-        "unsupported": 1,
-        "untested": 27
-      },
-      "version": "2.1.190"
+      "version": "2.1.196"
     }
   ],
   "schemaVersion": 1
