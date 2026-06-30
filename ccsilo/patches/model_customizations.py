@@ -25,7 +25,7 @@ CUSTOM_MODELS = [
 
 def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
     match = re.search(
-        r" ([$\w]+)\.push\(\{value:[$\w]+,label:[$\w]+,description:\"Custom model\"\}\)", js
+        r"(?:^|[^$\w])([$\w]+)\.push\(\{value:[$\w]+,label:[$\w]+,\s*description:\"Custom model\"\}\)", js
     )
     if not match:
         return PatchOutcome(js=js, status="missed")

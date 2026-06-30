@@ -118,10 +118,49 @@ def _apply_async_qn(js: str, alt_names) -> str:
     return js[:match.start()] + replacement + js[match.end():]
 
 
+def _apply_async_wn(js: str, alt_names) -> str:
+    """Match async readers using WN helper (2.1.197+).
+
+    Pattern: async function NAME(A,B,C){try{let X=Y(),Z=await WN(X,A,L);if(Z===null)return...,{info:null,includePaths:[]};return PROC(Z,A,B,C)}catch(E){return HANDLER(E,A),{info:null,includePaths:[]}}}
+    """
+    pattern = re.compile(
+        r'(async function ([$\w]+)\(([$\w]+),([$\w]+),([$\w]+))\)\{try\{'
+        r'let ([$\w]+)=([$\w]+)\(\),'
+        r'([$\w]+)=await WN\(\6,\3,([$\w]+)\);if\(\8===null\)'
+        r'return[^;]+;'
+        r'return ([$\w]+)\(\8,\3,\4,\5\)\}'
+        r'catch\(([$\w]+)\)\{return ([$\w]+)\(\11,\3\),\{info:null,includePaths:\[\]\}\}',
+        re.DOTALL,
+    )
+    match = pattern.search(js)
+    if not match:
+        raise ValueError("async reader (WN)")
+    func_sig, func_name = match.group(1), match.group(2)
+    path_param, type_param, third_param = match.group(3), match.group(4), match.group(5)
+    getter_var, getter_func = match.group(6), match.group(7)
+    content_var, limit_var = match.group(8), match.group(9)
+    processor_func = match.group(10)
+    catch_var, error_handler = match.group(11), match.group(12)
+    alt_json = json.dumps(alt_names, separators=(",", ":"))
+    replacement = (
+        f"{func_sig},didReroute){{try{{let {getter_var}={getter_func}(),"
+        f"{content_var}=await WN({getter_var},{path_param},{limit_var});"
+        f"if({content_var}===null){{"
+        f"if(!didReroute&&({path_param}.endsWith(\"/CLAUDE.md\")||{path_param}.endsWith(\"\\\\CLAUDE.md\"))){{"
+        f"for(let alt of {alt_json}){{let altPath={path_param}.slice(0,-9)+alt;"
+        f"try{{let r=await {func_name}(altPath,{type_param},{third_param},true);if(r.info)return r}}catch{{}}}}}}"
+        f"return C(`[CLAUDE.md] skipping ${{{path_param}}}: not a regular file or exceeds ${{{limit_var}}} byte limit`),{{info:null,includePaths:[]}}}}"
+        f"return {processor_func}({content_var},{path_param},{type_param},{third_param})"
+        f"}}}}catch({catch_var}){{{error_handler}({catch_var},{path_param});"
+        f"return{{info:null,includePaths:[]}}}}"
+    )
+    return js[:match.start()] + replacement + js[match.end():]
+
+
 def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
     alt_names = _alt_names(ctx)
     last_error: Optional[str] = None
-    for apply_fn in (_apply_async_qn, _apply_async, _apply_sync):
+    for apply_fn in (_apply_async_wn, _apply_async_qn, _apply_async, _apply_sync):
         try:
             return PatchOutcome(js=apply_fn(js, alt_names), status="applied")
         except ValueError as exc:

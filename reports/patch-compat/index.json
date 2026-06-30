@@ -1,15 +1,9 @@
 {
-  "generatedAt": "2026-06-30T11:24:25.125378Z",
+  "generatedAt": "2026-06-30T22:06:01.965537Z",
   "reports": [
     {
       "ok": true,
-      "path": "2.1.196.json",
-      "smoke": {
-        "ok": true,
-        "platformKey": "darwin-arm64",
-        "stage": "run",
-        "status": "passed"
-      },
+      "path": "2.1.197.json",
       "summary": {
         "applied": 26,
         "failed": 0,
@@ -17,9 +11,9 @@
         "skipped": 2,
         "total": 29,
         "unsupported": 1,
-        "untested": 27
+        "untested": 9
       },
-      "version": "2.1.196"
+      "version": "2.1.197"
     }
   ],
   "schemaVersion": 1
