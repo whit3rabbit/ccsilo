@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.1] - 2026-07-02
+
+### Added
+- Added prompt catalog and patch compatibility report for Claude Code 2.1.198.
+
+### Changed
+- Bumped shared tested version range to include 2.1.198.
+- Widen agents-md async WN regex to handle cross-platform minification differences (linux-x64 vs darwin-arm64).
+- no-prompt-steganography now gracefully returns `skipped` for >= 2.1.198 where Anthropic removed the steganography function upstream after detection.
+
 ## [0.8.0] - 2026-06-30
 
 ### Added
