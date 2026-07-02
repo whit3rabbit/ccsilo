@@ -119,17 +119,22 @@ def _apply_async_qn(js: str, alt_names) -> str:
 
 
 def _apply_async_wn(js: str, alt_names) -> str:
-    """Match async readers using WN helper (2.1.197+).
+    """Match async readers using a file-reading helper (2.1.197+).
 
-    Pattern: async function NAME(A,B,C){try{let X=Y(),Z=await WN(X,A,L);if(Z===null)return...,{info:null,includePaths:[]};return PROC(Z,A,B,C)}catch(E){return HANDLER(E,A),{info:null,includePaths:[]}}}
+    The helper name (WN, F1, VP, etc.) is platform-specific due to
+    per-build minification, so we match any word before (r,e,.
+    (zt() is always the filesystem getter, and the 3-param signature
+    with try/catch and {info:null,includePaths:[]} is the invariant.)
+
+    Pattern: async function NAME(A,B,C){try{let X=Y(),Z=await *HELPER*(X,A,L);if(Z===null)return...,{info:null,includePaths:[]};return PROC(Z,A,B,C)}catch(E){return HANDLER(E,A),{info:null,includePaths:[]}}}
     """
     pattern = re.compile(
         r'(async function ([$\w]+)\(([$\w]+),([$\w]+),([$\w]+))\)\{try\{'
-        r'let ([$\w]+)=([$\w]+)\(\),'
-        r'([$\w]+)=await WN\(\6,\3,([$\w]+)\);if\(\8===null\)'
-        r'return[^;]+;'
-        r'return ([$\w]+)\(\8,\3,\4,\5\)\}'
-        r'catch\(([$\w]+)\)\{return ([$\w]+)\(\11,\3\),\{info:null,includePaths:\[\]\}\}',
+        r'let ([$\w]+)=([$\w]+)\(\),'                                 # X=Y()
+        r'([$\w]+)=await ([$\w]+)\(\6,\3,([$\w]+)\);if\(\8===null\)'  # Z=await *HELPER*(X,A,L)
+        r'return[^;]+;'                                                # ...return
+        r'return ([$\w]+)\(\8,\3,\4,\5\)\}'                            # PROC(Z,A,B,C)
+        r'catch\(([$\w]+)\)\{return ([$\w]+)\(\12,\3\),\{info:null,includePaths:\[\]\}\}',  # HANDLER
         re.DOTALL,
     )
     match = pattern.search(js)
@@ -138,13 +143,13 @@ def _apply_async_wn(js: str, alt_names) -> str:
     func_sig, func_name = match.group(1), match.group(2)
     path_param, type_param, third_param = match.group(3), match.group(4), match.group(5)
     getter_var, getter_func = match.group(6), match.group(7)
-    content_var, limit_var = match.group(8), match.group(9)
-    processor_func = match.group(10)
-    catch_var, error_handler = match.group(11), match.group(12)
+    content_var, helper_func, limit_var = match.group(8), match.group(9), match.group(10)
+    processor_func = match.group(11)
+    catch_var, error_handler = match.group(12), match.group(13)
     alt_json = json.dumps(alt_names, separators=(",", ":"))
     replacement = (
         f"{func_sig},didReroute){{try{{let {getter_var}={getter_func}(),"
-        f"{content_var}=await WN({getter_var},{path_param},{limit_var});"
+        f"{content_var}=await {helper_func}({getter_var},{path_param},{limit_var});"
         f"if({content_var}===null){{"
         f"if(!didReroute&&({path_param}.endsWith(\"/CLAUDE.md\")||{path_param}.endsWith(\"\\\\CLAUDE.md\"))){{"
         f"for(let alt of {alt_json}){{let altPath={path_param}.slice(0,-9)+alt;"
