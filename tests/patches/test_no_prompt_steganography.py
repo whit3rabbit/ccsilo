@@ -4,7 +4,7 @@ import pytest
 
 from ccsilo.patches import PatchContext
 from ccsilo.patches._versions import version_in_range
-from ccsilo.patches.no_prompt_steganography import PATCH
+from ccsilo.patches.no_prompt_steganography import PATCH, _STEGO_REMOVED_RANGE
 from tests.patches.conftest import resolve_tested_versions
 
 _STEGO_SUPPORTED = ">=2.1.97,<3"
@@ -68,8 +68,13 @@ def test_real_l1(cli_js_real, version):
 
     outcome = PATCH.apply(cli_js_real(version), PatchContext(claude_version=version))
 
-    assert outcome.status == "applied"
-    assert "ccsilo:no-prompt-steganography" in outcome.js
+    if version_in_range(version, _STEGO_REMOVED_RANGE):
+        assert outcome.status == "skipped", (
+            f"stego was removed upstream in {version}, expected skip"
+        )
+    else:
+        assert outcome.status == "applied"
+        assert "ccsilo:no-prompt-steganography" in outcome.js
 
 
 @pytest.mark.parametrize("version", resolve_tested_versions(PATCH))
@@ -78,6 +83,14 @@ def test_real_l2(cli_js_real, version, parse_js):
         pytest.skip(f"{version} predates stego introduction ({_STEGO_SUPPORTED})")
 
     js = cli_js_real(version)
+
+    # L2 skip: stego removed upstream, no replacement to parse-validate
+    if version_in_range(version, _STEGO_REMOVED_RANGE):
+        pytest.skip(
+            f"stego was removed upstream in {version}; "
+            "no replacement function to parse-validate"
+        )
+
     try:
         parse_js(js)
     except AssertionError:

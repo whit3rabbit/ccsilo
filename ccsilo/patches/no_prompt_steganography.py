@@ -10,12 +10,17 @@ the date separator is flipped from "-" to "/".
 This patch replaces the stego function with a clean version that always emits
 a normal apostrophe and dash separator, removing the implicit fingerprint
 without affecting any other system behaviour.
+
+In 2.1.198 the stego function was removed upstream (Anthropic cleaned it out
+after detection).  The patch gracefully skips versions >= 2.1.198 where the
+function no longer exists.
 """
 
 import re
 
 from . import Patch, PatchContext, PatchOutcome
 from ._pinned_default import DEFAULT_VERSION_RANGES
+from ._versions import version_in_range
 
 _MARKER = "ccsilo:no-prompt-steganography"
 
@@ -35,6 +40,9 @@ _DISTILL_FUNC_RE = re.compile(
     r"\}"
 )
 
+# Versions where Anthropic removed the steganography function upstream.
+_STEGO_REMOVED_RANGE = ">=2.1.198"
+
 
 def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
     if _MARKER in js:
@@ -42,6 +50,16 @@ def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
 
     match = _DISTILL_FUNC_RE.search(js)
     if not match:
+        version = ctx.claude_version
+        if version and version_in_range(version, _STEGO_REMOVED_RANGE):
+            return PatchOutcome(
+                js=js,
+                status="skipped",
+                notes=(
+                    f"stego function not found in {version}; "
+                    "Anthropic removed it upstream (verified clean)",
+                ),
+            )
         return PatchOutcome(
             js=js,
             status="missed",
@@ -55,7 +73,7 @@ def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
     param = match.group(2)
 
     # Build a clean function that always produces the normal date string.
-    # Template literal markers: Python f-string escapes {{ → {, }} → }.
+    # Template literal markers: Python f-string escapes {{ -> {, }} -> }.
     clean_func = (
         f"function {func_name}({param})"
         f"{{return`Today's date is ${{{param}}}.`/*{_MARKER}*/}}"
@@ -75,6 +93,7 @@ PATCH = Patch(
     on_miss="warn",
     description=(
         "Remove invisible Unicode fingerprinting from the system date prompt "
-        "that silently encodes API endpoint classification."
+        "that silently encodes API endpoint classification. "
+        "No-op on >=2.1.198 (upstream removal)."
     ),
 )
