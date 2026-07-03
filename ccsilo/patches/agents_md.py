@@ -134,7 +134,7 @@ def _apply_async_wn(js: str, alt_names) -> str:
         r'([$\w]+)=await ([$\w]+)\(\6,\3,([$\w]+)\);if\(\8===null\)'  # Z=await *HELPER*(X,A,L)
         r'return[^;]+;'                                                # ...return
         r'return ([$\w]+)\(\8,\3,\4,\5\)\}'                            # PROC(Z,A,B,C)
-        r'catch\(([$\w]+)\)\{return ([$\w]+)\(\12,\3\),\{info:null,includePaths:\[\]\}\}',  # HANDLER
+        r'catch\(([$\w]+)\)\{return ([$\w]+)\(\12,\3\),\{info:null,includePaths:\[\]\}\}\}',  # HANDLER
         re.DOTALL,
     )
     match = pattern.search(js)
@@ -156,8 +156,8 @@ def _apply_async_wn(js: str, alt_names) -> str:
         f"try{{let r=await {func_name}(altPath,{type_param},{third_param},true);if(r.info)return r}}catch{{}}}}}}"
         f"return C(`[CLAUDE.md] skipping ${{{path_param}}}: not a regular file or exceeds ${{{limit_var}}} byte limit`),{{info:null,includePaths:[]}}}}"
         f"return {processor_func}({content_var},{path_param},{type_param},{third_param})"
-        f"}}}}catch({catch_var}){{{error_handler}({catch_var},{path_param});"
-        f"return{{info:null,includePaths:[]}}}}"
+        f"}}catch({catch_var}){{{error_handler}({catch_var},{path_param});"
+        f"return{{info:null,includePaths:[]}}}}}}"
     )
     return js[:match.start()] + replacement + js[match.end():]
 
