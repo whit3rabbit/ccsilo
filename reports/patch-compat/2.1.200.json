@@ -3,7 +3,7 @@
     "entryBytes": 18698041,
     "entryModule": "src/entrypoints/cli.js"
   },
-  "generatedAt": "2026-07-04T11:04:07.899906Z",
+  "generatedAt": "2026-07-04T14:12:29.057440Z",
   "ok": true,
   "patches": [
     {
@@ -407,7 +407,7 @@
       "<patched-binary>",
       "--version"
     ],
-    "durationMs": 12861,
+    "durationMs": 14337,
     "exitCode": 0,
     "expectedVersion": "2.1.200",
     "ok": true,

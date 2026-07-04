@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-04T11:04:46.189840Z",
+  "generatedAt": "2026-07-04T14:13:08.866463Z",
   "reports": [
     {
       "ok": true,
@@ -17,7 +17,7 @@
         "skipped": 2,
         "total": 30,
         "unsupported": 1,
-        "untested": 28
+        "untested": 9
       },
       "version": "2.1.201"
     },
