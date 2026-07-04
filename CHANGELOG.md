@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.2] - 2026-07-04
+
+### Added
+- Added Claude Code patch compatibility reports for 2.1.199, 2.1.200, and 2.1.201 (Docker smoke passed, 30/30 patches ok).
+
+### Changed
+- Bumped shared tested version range to include 2.1.201.
+
 ## [0.8.1] - 2026-07-02
 
 ### Added
