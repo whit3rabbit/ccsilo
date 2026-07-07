@@ -35,7 +35,29 @@ Do not add a PyPI API token or password to GitHub. The publish jobs request
 `id-token: write` and use `pypa/gh-action-pypi-publish`, which exchanges the
 GitHub OIDC token with PyPI or TestPyPI.
 
+## Prepare The Release
+
+Bump the version in every file that records it, in one commit, in this order,
+so the sources never drift. CI fails
+`tests/test_package.py::test_runtime_version_matches_pyproject` whenever
+`pyproject.toml` and `ccsilo/_version.py` disagree, and the release workflow
+rejects any tag that does not match `pyproject.toml`.
+
+1. Set the new version in `pyproject.toml` (`[project] version`).
+2. Set the same version in `ccsilo/_version.py` (`__version__`).
+3. Add a `## [<version>] - <YYYY-MM-DD>` section to the top of `CHANGELOG.md`.
+4. Commit all three together, push, and confirm CI is green before tagging.
+5. Confirm they agree:
+
+   ```bash
+   .venv/bin/python -c "import pathlib, tomllib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])"
+   .venv/bin/python -c "from ccsilo._version import __version__; print(__version__)"
+   ```
+
 ## Build And Validate
+
+The `pytest` step below enforces `pyproject.toml` == `ccsilo/_version.py`; a
+mismatch here means the Prepare step was incomplete.
 
 ```bash
 .venv/bin/python -m pip install -e '.[dev]'
