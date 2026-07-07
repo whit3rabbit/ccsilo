@@ -1,9 +1,9 @@
 {
   "binary": {
-    "entryBytes": 22091453,
+    "entryBytes": 19101904,
     "entryModule": "src/entrypoints/cli.js"
   },
-  "generatedAt": "2026-07-07T23:07:51.137809Z",
+  "generatedAt": "2026-07-07T23:07:24.251203Z",
   "ok": true,
   "patches": [
     {
@@ -168,7 +168,7 @@
       "id": "no-prompt-steganography",
       "name": "No prompt steganography",
       "notes": [
-        "stego function not found in 2.1.202; Anthropic removed it upstream (verified clean)"
+        "stego function not found in 2.1.203; Anthropic removed it upstream (verified clean)"
       ],
       "ok": true,
       "status": "skipped",
@@ -187,7 +187,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'opencode-gateway-discovery' not tested against version 2.1.202; tested ranges: ['==2.1.122 || ==2.1.158 || ==2.1.160 || ==2.1.161 || ==2.1.162 || ==2.1.163 || ==2.1.172 || ==2.1.181 || ==2.1.185 || ==2.1.186 || ==2.1.187 || ==2.1.190 || ==2.1.191 || ==2.1.193 || ==2.1.195']"
+        "patch 'opencode-gateway-discovery' not tested against version 2.1.203; tested ranges: ['==2.1.122 || ==2.1.158 || ==2.1.160 || ==2.1.161 || ==2.1.162 || ==2.1.163 || ==2.1.172 || ==2.1.181 || ==2.1.185 || ==2.1.186 || ==2.1.187 || ==2.1.190 || ==2.1.191 || ==2.1.193 || ==2.1.195']"
       ]
     },
     {
@@ -201,7 +201,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'opusplan1m' not tested against version 2.1.202; tested ranges: ['>=2.1.0,<=2.1.195']"
+        "patch 'opusplan1m' not tested against version 2.1.203; tested ranges: ['>=2.1.0,<=2.1.195']"
       ]
     },
     {
@@ -215,7 +215,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'patches-applied-indication' not tested against version 2.1.202; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']"
+        "patch 'patches-applied-indication' not tested against version 2.1.203; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']"
       ]
     },
     {
@@ -231,7 +231,7 @@
       "warnings": []
     },
     {
-      "detail": "remember-skill: version 2.1.202 not in supported range '>=2.1.0,<2.1.42'",
+      "detail": "remember-skill: version 2.1.203 not in supported range '>=2.1.0,<2.1.42'",
       "group": "prompts",
       "id": "remember-skill",
       "name": "Remember skill",
@@ -257,7 +257,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'session-memory' not tested against version 2.1.202; tested ranges: ['>=2.1.0,<=2.1.195']"
+        "patch 'session-memory' not tested against version 2.1.203; tested ranges: ['>=2.1.0,<=2.1.195']"
       ]
     },
     {
@@ -283,7 +283,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'statusline-update-throttle' not tested against version 2.1.202; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']"
+        "patch 'statusline-update-throttle' not tested against version 2.1.203; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']"
       ]
     },
     {
@@ -299,7 +299,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'suppress-model-launch-notice' not tested against version 2.1.202; tested ranges: ['>=2.1.0,<=2.1.195']"
+        "patch 'suppress-model-launch-notice' not tested against version 2.1.203; tested ranges: ['>=2.1.0,<=2.1.195']"
       ]
     },
     {
@@ -313,7 +313,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'suppress-line-numbers' not tested against version 2.1.202; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']"
+        "patch 'suppress-line-numbers' not tested against version 2.1.203; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']"
       ]
     },
     {
@@ -339,7 +339,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'suppress-prompt-caching-warning' not tested against version 2.1.202; tested ranges: ['>=2.1.0,<=2.1.195']"
+        "patch 'suppress-prompt-caching-warning' not tested against version 2.1.203; tested ranges: ['>=2.1.0,<=2.1.195']"
       ]
     },
     {
@@ -407,11 +407,11 @@
       "<patched-binary>",
       "--version"
     ],
-    "durationMs": 13732,
+    "durationMs": 13653,
     "exitCode": 0,
-    "expectedVersion": "2.1.202",
+    "expectedVersion": "2.1.203",
     "ok": true,
-    "outputSha256": "025a986fa4c78df0da0cb0fa9571b1c2136bc3a58358e2d3f82761038e7db210",
+    "outputSha256": "17e586d71bde2e6bbdcb2736689521919e290b18a694bc2f95b2abfb44c55ff6",
     "patches": {
       "applied": [
         "agents-md",
@@ -479,21 +479,21 @@
         "suppress-model-launch-notice"
       ],
       "warnings": [
-        "patch 'opencode-gateway-discovery' not tested against version 2.1.202; tested ranges: ['==2.1.122 || ==2.1.158 || ==2.1.160 || ==2.1.161 || ==2.1.162 || ==2.1.163 || ==2.1.172 || ==2.1.181 || ==2.1.185 || ==2.1.186 || ==2.1.187 || ==2.1.190 || ==2.1.191 || ==2.1.193 || ==2.1.195']",
-        "patch 'opusplan1m' not tested against version 2.1.202; tested ranges: ['>=2.1.0,<=2.1.195']",
-        "patch 'patches-applied-indication' not tested against version 2.1.202; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']",
-        "patch 'session-memory' not tested against version 2.1.202; tested ranges: ['>=2.1.0,<=2.1.195']",
-        "patch 'statusline-update-throttle' not tested against version 2.1.202; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']",
-        "patch 'suppress-model-launch-notice' not tested against version 2.1.202; tested ranges: ['>=2.1.0,<=2.1.195']",
-        "patch 'suppress-line-numbers' not tested against version 2.1.202; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']",
-        "patch 'suppress-prompt-caching-warning' not tested against version 2.1.202; tested ranges: ['>=2.1.0,<=2.1.195']"
+        "patch 'opencode-gateway-discovery' not tested against version 2.1.203; tested ranges: ['==2.1.122 || ==2.1.158 || ==2.1.160 || ==2.1.161 || ==2.1.162 || ==2.1.163 || ==2.1.172 || ==2.1.181 || ==2.1.185 || ==2.1.186 || ==2.1.187 || ==2.1.190 || ==2.1.191 || ==2.1.193 || ==2.1.195']",
+        "patch 'opusplan1m' not tested against version 2.1.203; tested ranges: ['>=2.1.0,<=2.1.195']",
+        "patch 'patches-applied-indication' not tested against version 2.1.203; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']",
+        "patch 'session-memory' not tested against version 2.1.203; tested ranges: ['>=2.1.0,<=2.1.195']",
+        "patch 'statusline-update-throttle' not tested against version 2.1.203; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']",
+        "patch 'suppress-model-launch-notice' not tested against version 2.1.203; tested ranges: ['>=2.1.0,<=2.1.195']",
+        "patch 'suppress-line-numbers' not tested against version 2.1.203; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']",
+        "patch 'suppress-prompt-caching-warning' not tested against version 2.1.203; tested ranges: ['>=2.1.0,<=2.1.195']"
       ]
     },
     "platformKey": "linux-x64",
     "stage": "run",
     "status": "passed",
     "stderr": "",
-    "stdout": "2.1.202 (Claude Code)\n",
+    "stdout": "2.1.203 (Claude Code)\n",
     "versionMatched": true
   },
   "summary": {
@@ -505,5 +505,5 @@
     "unsupported": 1,
     "untested": 9
   },
-  "version": "2.1.202"
+  "version": "2.1.203"
 }

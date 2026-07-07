@@ -1,6 +1,26 @@
 {
-  "generatedAt": "2026-07-07T12:10:14.269293Z",
+  "generatedAt": "2026-07-07T23:08:05.318681Z",
   "reports": [
+    {
+      "ok": true,
+      "path": "2.1.203.json",
+      "smoke": {
+        "ok": true,
+        "platformKey": "linux-x64",
+        "stage": "run",
+        "status": "passed"
+      },
+      "summary": {
+        "applied": 27,
+        "failed": 0,
+        "ok": 30,
+        "skipped": 2,
+        "total": 30,
+        "unsupported": 1,
+        "untested": 9
+      },
+      "version": "2.1.203"
+    },
     {
       "ok": true,
       "path": "2.1.202.json",
@@ -17,7 +37,7 @@
         "skipped": 2,
         "total": 30,
         "unsupported": 1,
-        "untested": 28
+        "untested": 9
       },
       "version": "2.1.202"
     }
