@@ -13,6 +13,20 @@ def test_synthetic_applies(cli_js_synthetic):
     assert "isTranscriptMode:true," in outcome.js
 
 
+def test_synthetic_applies_braced_gate():
+    # 2.1.203 minifier emits `if(C){return null}` (braces, no semicolon)
+    # instead of the older `if(C)return null;`. Both gates must anchor.
+    js = (
+        'case"thinking":{if(!lit&&!OY){return null}'
+        'let TU;if(rkt[0]!==n)TU=Kd.jsx(ker,{addMargin:n,param:r,'
+        'isTranscriptMode:lit,verbose:OY})}'
+    )
+    outcome = PATCH.apply(js, PatchContext(claude_version=None))
+    assert outcome.status == "applied"
+    assert "return null" not in outcome.js
+    assert "isTranscriptMode:true," in outcome.js
+
+
 def test_metadata():
     assert PATCH.id == "thinking-visibility"
     assert PATCH.group == "thinking"

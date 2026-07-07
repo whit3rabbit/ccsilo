@@ -8,7 +8,7 @@ from ._pinned_default import DEFAULT_VERSION_RANGES
 
 def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
     match = re.search(
-        r'(case"thinking":\{?)(if\(.+?\)return null;)(.{0,400}isTranscriptMode:).+?,',
+        r'(case"thinking":\{?)(if\(.+?\)\{?return null[;}])(.{0,400}isTranscriptMode:).+?,',
         js,
         re.DOTALL,
     )

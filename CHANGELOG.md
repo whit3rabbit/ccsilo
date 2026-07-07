@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.3] - 2026-07-07
+
+### Added
+- Added Claude Code patch compatibility reports for 2.1.202 and 2.1.203 (Docker smoke passed, 30/30 patches ok).
+
+### Changed
+- Bumped shared tested version range to include 2.1.203.
+
+### Fixed
+- Fixed `thinking-visibility` for Claude Code 2.1.203, whose minifier changed the thinking-render gate from `if(C)return null;` to `if(C){return null}`. The hard-coded `return null;` anchor caused a runaway regex match that spliced `isTranscriptMode:true,` into an unrelated function's parameter list, failing boot smoke with a `SyntaxError`.
+
 ## [0.8.2] - 2026-07-04
 
 ### Added
