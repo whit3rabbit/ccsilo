@@ -36,6 +36,26 @@ def test_react_compiler_underscore_cache_output_applies():
     assert 'else p_=_[89];p_("yes-accept-edits");return null;let d_;' in outcome.js
 
 
+def test_inline_void_handler_applies():
+    # 2.1.206+ shape: a review branch exposes a bare `onChange:<ident>` first,
+    # then the proceed branch inlines `onChange:(v)=>void <handler>(v)`, and the
+    # memoized component ends in a single terminal `return <ident>}`.
+    js = (
+        'function plan(){let card;if(x)card=create({title:"Ready to code?"});'
+        'let rev;rev=tjp==="review"?create(U8,{options:C,onChange:HFo,onCancel:D$}):'
+        'create(U8,{options:F,onChange:(eQR)=>void DMt(eQR),onCancel:D$,onImagePaste:I});'
+        'let box;box=create(A,{children:[rev]});return box}'
+    )
+    outcome = PATCH.apply(js, PatchContext(claude_version="2.1.206"))
+    assert outcome.status == "applied"
+    # Must call the underlying proceed handler (DMt), not the review handler HFo.
+    assert 'DMt("yes-accept-edits");return null;return box}' in outcome.js
+    assert 'HFo("yes-accept-edits")' not in outcome.js
+    # Idempotent.
+    again = PATCH.apply(outcome.js, PatchContext(claude_version="2.1.206"))
+    assert again.status == "skipped"
+
+
 def test_metadata():
     assert PATCH.id == "auto-accept-plan-mode"
     assert PATCH.group == "ui"

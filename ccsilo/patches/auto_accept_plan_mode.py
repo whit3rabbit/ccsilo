@@ -12,8 +12,31 @@ def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
         return PatchOutcome(js=js, status="missed")
     if re.search(r"[$\w]+(?:\.current)?\(\"yes-accept-edits\"\);return null;", js):
         return PatchOutcome(js=js, status="skipped")
+
+    # Legacy structure (<=2.1.205): the select's onChange is a bare/memoized
+    # wrapper handler sitting near the title, with either a `return` just before
+    # the title or an `else <handler>=<cache>[N];` memo assignment to inject
+    # after. Insert the auto-accept there.
+    legacy = _apply_legacy(js, ready_idx)
+    if legacy is not None:
+        return legacy
+
+    # 2.1.206+ structure: the proceed branch inlines the handler as
+    # `onChange:(v)=>void <handler>(v)` (the earlier bare `onChange:<ident>` now
+    # belongs to the review branch), and React-compiler memoization leaves the
+    # component with a single terminal `return <ident>}`. Call the underlying
+    # handler and short-circuit that return.
+    inline = _apply_inline(js, ready_idx)
+    if inline is not None:
+        return inline
+
+    return PatchOutcome(js=js, status="missed")
+
+
+def _apply_legacy(js: str, ready_idx: int):
     after = js[ready_idx:ready_idx + 3000]
     accept_func = None
+    match = None
     for pattern in (
         r"onChange:\([$\w]+\)=>([$\w]+)\([$\w]+\),onCancel",
         r"onChange:([$\w]+),onCancel",
@@ -26,7 +49,8 @@ def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
                 accept_func += ".current"
             break
     if not accept_func:
-        return PatchOutcome(js=js, status="missed")
+        return None
+    insertion = f'{accept_func}("yes-accept-edits");return null;'
     before_start = max(0, ready_idx - 500)
     before = js[before_start:ready_idx]
     return_idx = before.rfind("return ")
@@ -36,12 +60,30 @@ def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
             after[: match.start()],
         )
         if not fallback:
-            return PatchOutcome(js=js, status="missed")
+            return None
         insert_at = ready_idx + fallback.end()
-        insertion = f'{accept_func}("yes-accept-edits");return null;'
         new_js = js[:insert_at] + insertion + js[insert_at:]
         return PatchOutcome(js=new_js, status="applied")
     insert_at = before_start + return_idx
+    new_js = js[:insert_at] + insertion + js[insert_at:]
+    return PatchOutcome(js=new_js, status="applied")
+
+
+def _apply_inline(js: str, ready_idx: int):
+    after = js[ready_idx:ready_idx + 4000]
+    # Underlying handler from the proceed branch: onChange:(v)=>void FUNC(v)
+    handler = re.search(
+        r"onChange:\([$\w]+\)=>void ([$\w]+)\([$\w]+\),onCancel", after
+    )
+    if not handler:
+        return None
+    accept_func = handler.group(1)
+    # Component's terminal return; it is the first `return <ident>}` after the
+    # title in the memoized render output.
+    ret = re.search(r"return [$\w]+\}", after[handler.end():])
+    if not ret:
+        return None
+    insert_at = ready_idx + handler.end() + ret.start()
     insertion = f'{accept_func}("yes-accept-edits");return null;'
     new_js = js[:insert_at] + insertion + js[insert_at:]
     return PatchOutcome(js=new_js, status="applied")
