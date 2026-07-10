@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.0] - 2026-07-10
+
+### Added
+- Added Claude Code prompt catalogs for 2.1.203, 2.1.204, 2.1.205, and 2.1.206.
+- Added Claude Code patch compatibility reports for 2.1.204, 2.1.205, and 2.1.206 (Docker smoke passed, 30/30 patches ok).
+
+### Changed
+- Bumped shared tested version range to include 2.1.206.
+
+### Fixed
+- Fixed `auto-accept-plan-mode` for Claude Code 2.1.206. React-compiler memoization inlined the proceed handler as `onChange:(v)=>void <fn>(v)` and added a review branch whose bare `onChange:<ident>` was matched first, while the pre-title `return` used for injection was gone. Added an inline path that extracts the underlying handler and short-circuits the component's terminal `return`, keeping the legacy path unchanged for <=2.1.205.
+
 ## [0.8.3] - 2026-07-07
 
 ### Added
