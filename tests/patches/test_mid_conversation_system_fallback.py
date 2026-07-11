@@ -65,6 +65,26 @@ def test_synthetic_applies_without_feature_guard():
     assert "ccsilo:mid-conversation-system-422-fallback" in outcome.js
 
 
+def test_synthetic_tolerates_extra_400_clause():
+    # 2.1.207 inserted a `cache_control` clause between the "input message
+    # role" check and the final `not supported` return. The anchor must
+    # tolerate extra brace-free `if(...)return!0;` clauses and preserve them.
+    js = (
+        'class oq extends Error{}let Tr={header:"mid-conversation-system-2026-04-07"};let jhg=/x/;'
+        'function FW8(H){if(!(H instanceof oq)||H.status!==400)return!1;'
+        'let _=H.message;if(_.includes(Tr.header)&&_.includes("anthropic-beta"))return!0;'
+        'if(_.includes("Unexpected role")&&_.includes("input message role"))return!0;'
+        'if(_.includes("cache_control")&&jhg.test(_))return!0;'
+        'return _.includes("not supported")&&/role .{0,2}system/i.test(_)}'
+    )
+    outcome = PATCH.apply(js, PatchContext(claude_version="2.1.207"))
+
+    assert outcome.status == "applied"
+    assert "H.status!==400&&H.status!==422" in outcome.js
+    assert 'if(_.includes("cache_control")&&jhg.test(_))return!0;' in outcome.js
+    assert "ccsilo:mid-conversation-system-422-fallback" in outcome.js
+
+
 def test_idempotent(cli_js_synthetic):
     js = cli_js_synthetic("mid-conversation-system-422-fallback")
     once = PATCH.apply(js, PatchContext(claude_version=None))

@@ -13,7 +13,11 @@ _FALLBACK_RE = re.compile(
     r'if\(!\(\2 instanceof [$\w]+\)\|\|\2\.status!==400\)return!1;'
     r'let ([$\w]+)=\2\.message;'
     r'if\(\3\.includes\([$\w]+\.header\)&&\3\.includes\("anthropic-beta"\)\)return!0;'
-    r'if\(\3\.includes\("Unexpected role"\)&&\3\.includes\("input message role"\)\)return!0;)'
+    r'if\(\3\.includes\("Unexpected role"\)&&\3\.includes\("input message role"\)\)return!0;'
+    # Upstream can add further 400-class clauses before the final return
+    # (2.1.207 added a `cache_control` check). Tolerate any brace-free
+    # `if(...)return!0;` clauses so the anchor survives those additions.
+    r'(?:if\([^{}]*?\)return!0;)*)'
     r'return \3\.includes\("not supported"\)&&/role \.\{0,2\}system/i\.test\(\3\)'
     r'\}'
 )
