@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.1] - 2026-07-11
+
+### Added
+- Added Claude Code prompt catalog for 2.1.207.
+- Added Claude Code patch compatibility report for 2.1.207 (Docker smoke passed, 30/30 patches ok).
+
+### Changed
+- Bumped shared tested version range to include 2.1.207.
+
+### Fixed
+- Fixed `mid-conversation-system-422-fallback` for Claude Code 2.1.207. Upstream inserted a new `cache_control` clause between the "input message role" check and the final "not supported" return in the 400-class fallback predicate, so the anchor missed and the patch stopped applying (applied cleanly through 2.1.206). Widened the anchor to tolerate any brace-free `if(...)return!0;` clauses before the final return; older versions still match via zero-or-more.
+
 ## [0.9.0] - 2026-07-10
 
 ### Added
