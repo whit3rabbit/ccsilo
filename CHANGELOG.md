@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.0] - 2026-07-13
+
+### Fixed
+- Pinned managed ccrouter to `@musistudio/claude-code-router@1.0.73` instead of `@latest`. claude-code-router 3.x (published 2026-07) is a rewrite that tracks the running service in `service.json` rather than a `.claude-code-router.pid` file, picks its own gateway port and ignores `config.json` `PORT`, and stores config in sqlite. The managed integration's pid-file detection, PORT-in-config, and `ANTHROPIC_BASE_URL` wiring only work with the 1.x-2.x model, so `@latest` resolving to 3.x made new ccrouter variants fail to autostart (`CCR service is not running`, exit 127).
+
+### Added
+- Added a `ccrouter-version` doctor check that fails when an installed ccr major is `>= 3`, pointing users at the pinned package.
+
 ## [0.9.2] - 2026-07-13
 
 ### Added
