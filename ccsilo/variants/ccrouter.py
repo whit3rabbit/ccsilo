@@ -14,7 +14,15 @@ from .._utils import atomic_write_text_no_symlink
 CCR_PROVIDER_KEY = "ccrouter"
 CCR_OAUTH_PROVIDER_KEY = "ccr-oauth"
 CCR_PROVIDER_KEYS = {CCR_PROVIDER_KEY, CCR_OAUTH_PROVIDER_KEY}
-CCR_PACKAGE_DEFAULT = "@musistudio/claude-code-router@latest"
+# Pinned, not @latest: claude-code-router 3.x (2026-07) is a rewrite that
+# drops the .claude-code-router.pid file for service.json, ignores config.json
+# PORT in favor of its own gateway port, and stores config in sqlite. ccsilo's
+# managed integration (pid-file detection, PORT-in-config, ANTHROPIC_BASE_URL
+# from that port) only works with the 1.x-2.x model. Bump this deliberately
+# after adapting the integration; do not float to @latest.
+CCR_PACKAGE_DEFAULT = "@musistudio/claude-code-router@1.0.73"
+# claude-code-router 3.x is incompatible with the managed integration above.
+CCR_INCOMPATIBLE_MAJOR = 3
 CCR_MODE_MANAGED = "managed"
 CCR_MODE_EXTERNAL = "external"
 CCR_CONFIG_COPY_GLOBAL = "copy-global"
@@ -167,11 +175,32 @@ def ccrouter_doctor_checks(manifest: Dict) -> List[Dict[str, object]]:
     checks.append({"name": "ccrouter-config-valid", "ok": config_ok, "path": str(config_path), "detail": config_detail})
     checks.append({"name": "ccrouter-port", "ok": port_ok, "path": str(config_path)})
 
+    version_ok, version_detail = ccr_version_supported(config.get("installedVersion"))
+    checks.append({"name": "ccrouter-version", "ok": version_ok, "path": str(runtime_dir), "detail": version_detail})
+
     node_ok, node_detail = node_version_ok()
     checks.append({"name": "ccrouter-node", "ok": node_ok, "path": shutil.which("node") or "node", "detail": node_detail})
     running = ccrouter_is_running(config)
     checks.append({"name": "ccrouter-running", "ok": running, "path": str(home_dir), "detail": "warning: service is stopped" if not running else ""})
     return checks
+
+
+def ccr_version_supported(version: object) -> tuple:
+    # Unknown version does not block: external mode and old manifests omit it.
+    text = str(version or "").strip().lstrip("v")
+    if not text:
+        return True, ""
+    try:
+        major = int(text.split(".", 1)[0])
+    except (TypeError, ValueError):
+        return True, f"unrecognized ccr version: {text}"
+    if major >= CCR_INCOMPATIBLE_MAJOR:
+        return False, (
+            f"ccr {text} is unsupported: the {major}.x rewrite is incompatible. "
+            "Reapply this setup with --ccrouter-package "
+            "'@musistudio/claude-code-router@1.0.73'."
+        )
+    return True, f"ccr {text}"
 
 
 def node_version_ok() -> tuple:

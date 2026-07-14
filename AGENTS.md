@@ -11,6 +11,29 @@ Use this repository for research and controlled local patching only. Do not add 
 
 ## Versioned Compatibility Notes
 
+### Claude Code Router (CCR)
+
+The managed ccrouter integration targets claude-code-router 1.x-2.x. That model
+writes a `.claude-code-router.pid` file, reads `PORT` from `config.json`, and is
+reachable at `http://127.0.0.1:<PORT>`. ccsilo's wrapper autostart,
+`ccrouter_is_running`, doctor checks, and `ANTHROPIC_BASE_URL` all depend on that
+model.
+
+claude-code-router 3.x (published 2026-07) is a rewrite: it tracks the running
+service in `service.json` (`pid`, `url`, `serviceToken`), picks its own gateway
+port and ignores `config.json` `PORT`, and stores config in `config.sqlite` plus
+`gateway.config.json`. Under 3.x the wrapper's pid-file probe never matches, so
+autostart reports "CCR service is not running" and exits, doctor
+`ccrouter-running` stays false, and `ANTHROPIC_BASE_URL` points at the wrong
+port.
+
+`CCR_PACKAGE_DEFAULT` is therefore pinned to `@musistudio/claude-code-router@1.0.73`,
+not `@latest`. Do not float it back to `@latest`. The doctor `ccrouter-version`
+check fails when an installed ccr major is `>= CCR_INCOMPATIBLE_MAJOR` (3). To
+support 3.x, adapt detection (`service.json`), port discovery (`service.json.url`),
+and config writing (sqlite/gateway) first, then bump the pin and the guard
+deliberately.
+
 ### OpenCode Go / Zen
 
 OpenCode Go and OpenCode Zen should use the managed local `openai` model

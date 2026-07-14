@@ -2069,6 +2069,37 @@ def test_doctor_variant_reports_managed_ccrouter_stopped_and_bad_config(tmp_path
     assert checks["ccrouter-running"]["ok"] is False
 
 
+def test_ccr_version_supported_flags_3x_rewrite():
+    from ccsilo.variants.ccrouter import ccr_version_supported
+
+    ok, _ = ccr_version_supported("1.0.73")
+    assert ok is True
+    ok, _ = ccr_version_supported("2.0.0")
+    assert ok is True
+    ok, detail = ccr_version_supported("3.0.4")
+    assert ok is False
+    assert "1.0.73" in detail
+    # Unknown / missing version must not block external or legacy manifests.
+    assert ccr_version_supported("")[0] is True
+    assert ccr_version_supported(None)[0] is True
+
+
+def test_ccrouter_doctor_flags_incompatible_installed_version(tmp_path, monkeypatch):
+    import ccsilo.variants.ccrouter as ccrouter_module
+
+    monkeypatch.setattr(ccrouter_module, "node_version_ok", lambda: (True, "node 20.0.0"))
+    root = _write_managed_ccrouter_variant(tmp_path, pid=os.getpid())
+    manifest = json.loads((root / "variants" / "ccr-managed" / "variant.json").read_text())
+    manifest["ccrouter"]["installedVersion"] = "3.0.4"
+    (root / "variants" / "ccr-managed" / "variant.json").write_text(json.dumps(manifest))
+
+    report = doctor_variant("ccr-managed", root=root)[0]
+    checks = {check["name"]: check for check in report["checks"]}
+
+    assert checks["ccrouter-version"]["ok"] is False
+    assert report["ok"] is False
+
+
 def _write_node_variant(tmp_path, entry_js):
     root = tmp_path / ".ccsilo"
     variant_dir = root / "variants" / "node-compat"
