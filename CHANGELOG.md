@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.2] - 2026-07-13
+
+### Added
+- Added Claude Code prompt catalog for 2.1.208.
+- Added Claude Code patch compatibility report for 2.1.208 (Docker smoke passed, 30/30 patches ok).
+
+### Fixed
+- Fixed `agents-md` for Claude Code 2.1.208. Upstream rewrote the CLAUDE.md reader: it added a `dir` flag set from an `isDirectory()` callback passed to the read helper, and turned the `null` branch into a logging block instead of a bare return, so all four existing matchers missed and the patch (and full-set boot smoke) failed. Added an `_apply_async_dir` matcher for the new shape. Its fallback result variable is now chosen to avoid the reader's parameters, since 2.1.208 minifies the third parameter to `r`, which would collide with the hardcoded loop variable and throw a TDZ `ReferenceError` (silently swallowed by the surrounding try/catch, leaving the reroute dead).
+
 ## [0.9.1] - 2026-07-11
 
 ### Added

@@ -162,10 +162,54 @@ def _apply_async_wn(js: str, alt_names) -> str:
     return js[:match.start()] + replacement + js[match.end():]
 
 
+def _apply_async_dir(js: str, alt_names) -> str:
+    """Match async readers with a directory-detection callback (2.1.208+).
+
+    The reader gained a local `dir` flag set from an isDirectory() callback
+    passed to the read helper, and the null branch became a logging block
+    instead of a bare return:
+
+    async function NAME(A,B,C){try{let X=Y(),D=!1,Z=await HELPER(X,A,L,(s)=>{D=s.isDirectory()});
+    if(Z===null){<log-skip>return{info:null,includePaths:[]}}return PROC(Z,A,B,C)}
+    catch(E){return HANDLER(E,A),{info:null,includePaths:[]}}}
+    """
+    pattern = re.compile(
+        r'(async function ([$\w]+)\(([$\w]+),([$\w]+),([$\w]+))\)\{try\{'
+        r'(let [$\w]+=[$\w]+\(\),[$\w]+=!1,([$\w]+)=await [$\w]+\([^;]*?\);)'  # decl + content_var
+        r'if\(\7===null\)\{'
+        r'((?:.|\n)*?return\{info:null,includePaths:\[\]\})\}'                # null-branch tail
+        r'(return ([$\w]+)\(\7,\3,\4,\5\)\}catch\(([$\w]+)\)\{'               # verbatim tail + catch var
+        r'return [$\w]+\(\11,\3\),\{info:null,includePaths:\[\]\}\}\})',
+        re.DOTALL,
+    )
+    match = pattern.search(js)
+    if not match:
+        raise ValueError("async reader (dir)")
+    func_sig, func_name = match.group(1), match.group(2)
+    path_param, type_param, third_param = match.group(3), match.group(4), match.group(5)
+    decl, content_var, null_tail, tail = match.group(6), match.group(7), match.group(8), match.group(9)
+    alt_json = json.dumps(alt_names, separators=(",", ":"))
+    # third_param can be minified to `r`, which would collide with a hardcoded
+    # `let r=await ...` loop result and throw a TDZ ReferenceError. Pick a
+    # result var name that is not any of the reader's params.
+    params = {path_param, type_param, third_param}
+    res_var = next(name for name in ("altRes", "altR", "_altR", "__altR") if name not in params)
+    replacement = (
+        f"{func_sig},didReroute){{try{{{decl}"
+        f"if({content_var}===null){{"
+        f"if(!didReroute&&({path_param}.endsWith(\"/CLAUDE.md\")||{path_param}.endsWith(\"\\\\CLAUDE.md\"))){{"
+        f"for(let alt of {alt_json}){{let altPath={path_param}.slice(0,-9)+alt;"
+        f"try{{let {res_var}=await {func_name}(altPath,{type_param},{third_param},true);if({res_var}.info)return {res_var}}}catch{{}}}}}}"
+        f"{null_tail}}}"
+        f"{tail}"
+    )
+    return js[:match.start()] + replacement + js[match.end():]
+
+
 def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
     alt_names = _alt_names(ctx)
     last_error: Optional[str] = None
-    for apply_fn in (_apply_async_wn, _apply_async_qn, _apply_async, _apply_sync):
+    for apply_fn in (_apply_async_dir, _apply_async_wn, _apply_async_qn, _apply_async, _apply_sync):
         try:
             return PatchOutcome(js=apply_fn(js, alt_names), status="applied")
         except ValueError as exc:
