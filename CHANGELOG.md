@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.1] - 2026-07-14
+
+### Added
+- Added Claude Code prompt catalogs for 2.1.209 and 2.1.210.
+- Added Claude Code patch compatibility reports for 2.1.209 and 2.1.210 (Docker smoke passed, 30/30 patches ok).
+
+### Changed
+- Widened the shared tested version range to include 2.1.208 through 2.1.210, with the registry sentinel moved to 2.1.211.
+
+### Fixed
+- Synchronized `ccsilo/_version.py` with `pyproject.toml`. The 0.10.0 bump had left `__version__` at 0.9.2, failing `test_runtime_version_matches_pyproject`.
+
 ## [0.10.0] - 2026-07-13
 
 ### Fixed
