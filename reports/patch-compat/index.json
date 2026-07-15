@@ -1,6 +1,26 @@
 {
-  "generatedAt": "2026-07-14T10:56:52.549629Z",
+  "generatedAt": "2026-07-14T23:59:00.000000Z",
   "reports": [
+    {
+      "ok": true,
+      "path": "2.1.210.json",
+      "smoke": {
+        "ok": true,
+        "platformKey": "linux-x64",
+        "stage": "run",
+        "status": "passed"
+      },
+      "summary": {
+        "applied": 27,
+        "failed": 0,
+        "ok": 30,
+        "skipped": 2,
+        "total": 30,
+        "unsupported": 1,
+        "untested": 28
+      },
+      "version": "2.1.210"
+    },
     {
       "ok": true,
       "path": "2.1.209.json",
