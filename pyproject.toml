@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ccsilo"
-version = "0.10.1"
+version = "0.10.2"
 description = "Isolated Claude Code silos with provider-specific patching"
 readme = "README.md"
 requires-python = ">=3.8"

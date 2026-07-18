@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.2] - 2026-07-17
+
+### Added
+- Added Claude Code prompt catalogs for 2.1.211, 2.1.212, and 2.1.213.
+- Added Claude Code patch compatibility reports for 2.1.211, 2.1.212, and 2.1.213 (Docker smoke passed, 30/30 patches ok).
+
+### Changed
+- Widened the shared tested version range to include 2.1.211 through 2.1.213, with the registry sentinel moved to 2.1.214.
+
+### Fixed
+- Fixed `mcp-batch-size` for Claude Code 2.1.211+. Upstream routes the batch-size env value through a minified int helper (e.g. `zl(process.env.MCP_SERVER_CONNECTION_BATCH_SIZE)`) instead of inline `parseInt(...||"",10)`, so the anchor missed; `mcp-batch-size` defaults to fatal-on-miss and aborted smoke at the patch stage. The regex now matches both the inline radix and the helper-call shapes.
+- Fixed `opencode-gateway-discovery` for Claude Code 2.1.212+. Upstream reads env vars through a minified namespace (e.g. `Z.ANTHROPIC_BASE_URL`) instead of `process.env.`, so the base-URL lookback missed. The lookback now tolerates either accessor.
+- Fixed `mid-conversation-system-422-fallback` for Claude Code 2.1.212+. Upstream moved the anthropic-beta header probe into a minified helper call (e.g. `BQn(t,e3)`) instead of the inline `t.includes(X.header)&&t.includes("anthropic-beta")`, so the predicate anchor missed. The clause now matches either the inline probe or a bare helper call.
+
 ## [0.10.1] - 2026-07-14
 
 ### Added
