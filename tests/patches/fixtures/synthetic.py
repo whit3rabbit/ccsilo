@@ -27,6 +27,15 @@ SYNTHETIC = {
         'let Y=z.data.data.filter((j)=>/^(claude|anthropic)/i.test(j.id));'
         'if(Y.length===0)return}'
     ),
+    "opencode-gateway-discovery-v2": (
+        # 2.1.212+ reads env vars through a minified namespace (e.g. `Z.`)
+        # instead of `process.env.`. The base-URL lookback must match both.
+        'async function discover(){if(!Z.CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY)return;'
+        'let e=Z.ANTHROPIC_BASE_URL;if(!e)return;'
+        'let z={data:{data:[{id:"deepseek-v4-pro"}]}};'
+        'let Y=z.data.data.filter((j)=>/^(claude|anthropic)/i.test(j.id));'
+        'if(Y.length===0)return}'
+    ),
     "suppress-line-numbers": (
         'function fmt({content:C,startLine:S}){if(!C)return"";'
         'let L=C.split(/\\r?\\n/);return L.map(x=>x).join("\\n")}function next(){}'
@@ -136,6 +145,12 @@ SYNTHETIC = {
     "mcp-batch-size": (
         'let batch=parseInt(process.env.MCP_SERVER_CONNECTION_BATCH_SIZE||"",10)||3;'
         'return batch'
+    ),
+    "mcp-batch-size-v2": (
+        # 2.1.211+ routes the env value through a minified int helper instead
+        # of inline parseInt(...||"",10); the ternary default is what we rewrite.
+        'function tRt(){let e=zl(process.env.MCP_SERVER_CONNECTION_BATCH_SIZE);'
+        'return e>0?e:3}function V9r(){return 0}'
     ),
     "token-count-rounding": (
         'let overrideMessage:true,count=format(inputTokens+outputTokens),'

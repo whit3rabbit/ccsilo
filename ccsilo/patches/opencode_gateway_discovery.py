@@ -15,7 +15,12 @@ def _already_patched(js: str) -> bool:
 def _find_base_url_var(js: str, filter_start: int) -> str:
     chunk = js[max(0, filter_start - 3000):filter_start]
     last = None
-    for match in re.finditer(r"let\s+([$\w]+)\s*=\s*process\.env\.ANTHROPIC_BASE_URL\s*;", chunk):
+    # 2.1.212+ accesses env vars through a minified namespace (e.g.
+    # `Z.ANTHROPIC_BASE_URL`) instead of `process.env.ANTHROPIC_BASE_URL`.
+    for match in re.finditer(
+        r"let\s+([$\w]+)\s*=\s*(?:process\.env|[$\w]+)\.ANTHROPIC_BASE_URL\s*;",
+        chunk,
+    ):
         last = match
     return last.group(1) if last else ""
 
@@ -59,7 +64,7 @@ PATCH = Patch(
     name="OpenCode gateway discovery",
     group="ui",
     versions_supported=">=2.1.0,<3",
-    versions_tested=("==2.1.122 || ==2.1.158 || ==2.1.160 || ==2.1.161 || ==2.1.162 || ==2.1.163 || ==2.1.172 || ==2.1.181 || ==2.1.185 || ==2.1.186 || ==2.1.187 || ==2.1.190 || ==2.1.191 || ==2.1.193 || ==2.1.195",),
+    versions_tested=(">=2.1.0,<=2.1.213",),
     apply=_apply,
     description="Expose raw OpenCode Go, Zen, and ccsilo local proxy /v1/models entries in Claude Code gateway model discovery.",
 )

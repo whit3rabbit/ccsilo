@@ -85,6 +85,28 @@ def test_synthetic_tolerates_extra_400_clause():
     assert "ccsilo:mid-conversation-system-422-fallback" in outcome.js
 
 
+def test_synthetic_tolerates_anthropic_beta_helper_call():
+    # 2.1.212+ moved the anthropic-beta header probe into a minified helper
+    # (e.g. `BQn(t,e3)`) instead of the inline
+    # `t.includes(X.header)&&t.includes("anthropic-beta")`. The anchor must
+    # match either the inline probe or the bare helper call.
+    js = (
+        'class rq extends Error{}let Tr={header:"mid-conversation-system-2026-04-07"};'
+        'function UQn(H){if(!(H instanceof rq)||H.status!==400)return!1;'
+        'let t=H.message;if(BQn(t,e3))return!0;'
+        'if(t.includes("Unexpected role")&&t.includes("input message role"))return!0;'
+        'if(t.includes("cache_control")&&fhu.test(t))return!0;'
+        'return t.includes("not supported")&&/role .{0,2}system/i.test(t)}'
+    )
+    outcome = PATCH.apply(js, PatchContext(claude_version="2.1.213"))
+
+    assert outcome.status == "applied"
+    assert "H.status!==400&&H.status!==422" in outcome.js
+    assert "if(BQn(t,e3))return!0;" in outcome.js
+    assert "literal_error" in outcome.js
+    assert "ccsilo:mid-conversation-system-422-fallback" in outcome.js
+
+
 def test_idempotent(cli_js_synthetic):
     js = cli_js_synthetic("mid-conversation-system-422-fallback")
     once = PATCH.apply(js, PatchContext(claude_version=None))

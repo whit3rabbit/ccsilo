@@ -28,13 +28,17 @@ def _batch_size(js: str, ctx: PatchContext) -> PatchOutcome:
     if match:
         new_js = js[:match.start(1)] + batch_size + js[match.end(1):]
         return PatchOutcome(js=new_js, status="applied")
+    # 2.1.211+ routes the batch-size env value through a minified int helper
+    # (e.g. `zl(process.env.MCP_SERVER_CONNECTION_BATCH_SIZE)`) instead of the
+    # older inline `parseInt(...||"",10)`. Tolerate both radix forms and replace
+    # the default after the `return <var>>0?<var>:` ternary.
     match = re.search(
-        r'(parseInt\(process\.env\.MCP_SERVER_CONNECTION_BATCH_SIZE\|\|"",10\);return ([$\w]+)>0\?\2:)(\d+)',
+        r'process\.env\.MCP_SERVER_CONNECTION_BATCH_SIZE(?:\|\|"",10)?\)\s*;\s*return\s+([$\w]+)>0\?\1:(\d+)',
         js,
     )
     if not match:
         return PatchOutcome(js=js, status="missed")
-    new_js = js[:match.start(3)] + batch_size + js[match.end(3):]
+    new_js = js[:match.start(2)] + batch_size + js[match.end(2):]
     return PatchOutcome(js=new_js, status="applied")
 
 

@@ -31,6 +31,17 @@ def test_synthetic_is_idempotent(cli_js_synthetic):
     assert twice.js == once.js
 
 
+def test_synthetic_applies_namespace_base_url(cli_js_synthetic):
+    # 2.1.212+ reads env vars through a minified namespace (e.g. `Z.`)
+    # instead of `process.env.`. The base-URL lookback must match both.
+    js = cli_js_synthetic("opencode-gateway-discovery-v2")
+    outcome = PATCH.apply(js, PatchContext(claude_version=None))
+
+    assert outcome.status == "applied"
+    assert "ccsiloOpenCodeGatewayModels" in outcome.js
+    assert "Z.ANTHROPIC_BASE_URL" in outcome.js
+
+
 def test_skips_when_gateway_discovery_unavailable():
     outcome = PATCH.apply("function old(){return null}", PatchContext(claude_version=None))
 

@@ -12,7 +12,10 @@ _FALLBACK_RE = re.compile(
     r'(?:if\(![$\w]+\)return!1;)?'
     r'if\(!\(\2 instanceof [$\w]+\)\|\|\2\.status!==400\)return!1;'
     r'let ([$\w]+)=\2\.message;'
-    r'if\(\3\.includes\([$\w]+\.header\)&&\3\.includes\("anthropic-beta"\)\)return!0;'
+    # 2.1.212+ moved the anthropic-beta header probe into a minified helper
+    # (e.g. `BQn(t,e3)`) instead of the inline
+    # `t.includes(X.header)&&t.includes("anthropic-beta")`. Match either form.
+    r'if\((?:\3\.includes\([$\w]+\.header\)&&\3\.includes\("anthropic-beta"\)|[$\w]+\([^{}]*\))\)return!0;'
     r'if\(\3\.includes\("Unexpected role"\)&&\3\.includes\("input message role"\)\)return!0;'
     # Upstream can add further 400-class clauses before the final return
     # (2.1.207 added a `cache_control` check). Tolerate any brace-free
