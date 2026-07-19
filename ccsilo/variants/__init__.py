@@ -22,6 +22,18 @@ from .build import (
     _unpack_node_runtime_variant,
 )
 from .constants import VARIANT_METADATA
+from .anyllm import (
+    ANYLLM_PROVIDER_KEY,
+    anyllm_admin_url,
+    anyllm_doctor_checks,
+    anyllm_is_running,
+    anyllm_proxy_config,
+    anyllm_status,
+    resolve_admin_token,
+    restart_anyllm,
+    start_anyllm,
+    stop_anyllm,
+)
 from .ccrouter import (
     CCR_OAUTH_PROVIDER_KEY,
     CCR_PACKAGE_DEFAULT,
@@ -84,9 +96,19 @@ __all__ = [
     "DEFAULT_TWEAK_IDS",
     "SECRETS_FILE",
     "VARIANT_METADATA",
+    "ANYLLM_PROVIDER_KEY",
     "CCR_PACKAGE_DEFAULT",
     "CCR_OAUTH_PROVIDER_KEY",
     "CCR_PROVIDER_KEYS",
+    "anyllm_admin_url",
+    "anyllm_doctor_checks",
+    "anyllm_is_running",
+    "anyllm_proxy_config",
+    "anyllm_status",
+    "resolve_admin_token",
+    "restart_anyllm",
+    "start_anyllm",
+    "stop_anyllm",
     "Variant",
     "VariantBuildError",
     "VariantBuildResult",

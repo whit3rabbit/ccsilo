@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "key": "anyllm",
+  "label": "AnyLLM Proxy",
+  "description": "Local anyllm-proxy: talk to any OpenAI-compatible backend, local LLM, or provider through Claude Code",
+  "displayOrder": 95,
+  "baseUrl": "http://localhost:3000",
+  "auth": {
+    "mode": "authToken",
+    "apiKeyLabel": "AnyLLM proxy key (auto-generated)",
+    "credentialEnv": "ANYLLM_PROXY_KEY",
+    "credentialOptional": true,
+    "requiresEmptyApiKey": true
+  },
+  "models": {
+    "default": "",
+    "smallFast": "",
+    "opus": "",
+    "sonnet": "",
+    "haiku": "",
+    "subagent": "",
+    "requiresModelMapping": false
+  },
+  "env": {
+    "API_TIMEOUT_MS": "3000000",
+    "ANTHROPIC_API_KEY": "",
+    "DISABLE_TELEMETRY": "true",
+    "DISABLE_COST_WARNINGS": "true"
+  },
+  "variant": {
+    "defaultVariantName": "ccanyllm",
+    "splashStyle": "anyllm",
+    "noPromptPack": true,
+    "theme": {
+      "id": "dark",
+      "name": "AnyLLM Proxy",
+      "palette": {
+        "base": "#0c1410",
+        "surface": "#111d16",
+        "panel": "#16271c",
+        "border": "#2c4636",
+        "borderStrong": "#3d5e49",
+        "text": "#e6f0ea",
+        "textMuted": "#aec3b6",
+        "textDim": "#7d9488",
+        "accent": "#3ddc97",
+        "accentSoft": "#7ce8bd",
+        "accentDeep": "#1f9e6c",
+        "blue": "#5fd0e0",
+        "green": "#3ddc97",
+        "red": "#f06d6d",
+        "orange": "#e0a85f",
+        "purple": "#9c8bff"
+      }
+    },
+    "promptOverlays": {}
+  },
+  "claudeConfig": {
+    "settingsPermissionsDeny": [],
+    "mcpServers": {}
+  },
+  "tui": {
+    "headline": "AnyLLM Proxy",
+    "section": "local",
+    "modelDiscovery": {
+      "enabled": true
+    },
+    "features": [
+      "Local anyllm-proxy at http://localhost:3000 (Anthropic Messages compatible)",
+      "Admin web UI at http://127.0.0.1:3001/admin/ for upstream provider and key setup",
+      "Gateway model discovery: pick a proxy model from the admin UI at run time"
+    ],
+    "setupLinks": {
+      "install": "https://github.com/whit3rabbit/anyllm-proxy",
+      "releases": "https://github.com/whit3rabbit/anyllm-proxy/releases/tag/v0.16.0",
+      "docs": "https://github.com/whit3rabbit/anyllm-proxy#readme"
+    },
+    "setupNote": "Install anyllm-proxy (brew install whit3rabbit/tap/anyllm-proxy). ccsilo launches it and opens the admin UI at http://127.0.0.1:3001/admin/ where you add your backend and keys. Map Claude Code tiers to proxy model ids."
+  },
+  "localProxy": {
+    "binary": "anyllm-proxy",
+    "args": ["--webui"],
+    "port": 3000,
+    "adminUrl": "http://127.0.0.1:3001/admin/",
+    "credentialEnv": "ANYLLM_PROXY_KEY"
+  }
+}

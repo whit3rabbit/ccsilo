@@ -1,6 +1,7 @@
 """Variant public lifecycle workflows."""
 
 import os
+import secrets
 import shutil
 import subprocess
 from pathlib import Path
@@ -10,6 +11,7 @@ from ..binary_patcher.bun_compat import has_bun_node_compat
 from .._utils import require_env_name, safe_read_json as _safe_read_json, utc_now as _utc_now
 from ..providers import (
     build_provider_env,
+    find_anyllm_proxy_binary,
     get_provider,
     normalize_integration_ids,
     normalize_mcp_ids,
@@ -20,6 +22,7 @@ from ..providers.proxy import gateway_model_id
 from ..workspace import NativeArtifact, SEMVER_RE, import_local_native_binary, read_json, workspace_root
 from .builder import patch_refs_for_profile as _patch_refs_for_profile
 from .constants import VARIANT_METADATA
+from .anyllm import anyllm_doctor_checks
 from .ccrouter import (
     ccrouter_doctor_checks,
     ccrouter_manifest_for_create,
@@ -160,6 +163,7 @@ def create_variant(
         api_key=api_key,
         model_overrides=model_overrides or {},
     )
+    local_proxy_payload = _local_proxy_for_create(provider)
     tweak_ids = normalize_tweak_ids(tweaks or default_tweak_ids_for_provider(provider.key))
     if model_proxy_payload is not None:
         tweak_ids = _model_proxy_tweak_ids(tweak_ids)
@@ -210,6 +214,8 @@ def create_variant(
         manifest["ccrouter"] = ccrouter_config_payload
     if model_proxy_payload is not None:
         manifest["modelProxy"] = model_proxy_payload
+    if local_proxy_payload is not None:
+        manifest["localProxy"] = local_proxy_payload
     validate_variant_manifest(manifest)
 
     path.mkdir(parents=True, exist_ok=True)
@@ -286,6 +292,30 @@ def _model_proxy_for_create(
 def _provider_model_discovery_enabled(provider) -> bool:
     discovery = (provider.tui or {}).get("modelDiscovery") or {}
     return isinstance(discovery, dict) and bool(discovery.get("enabled"))
+
+
+def _local_proxy_for_create(provider) -> Optional[Dict[str, object]]:
+    provider_proxy = dict(getattr(provider, "local_proxy", {}) or {})
+    if not provider_proxy:
+        return None
+    binary = str(provider_proxy.get("binary") or "").strip()
+    if not binary:
+        raise ValueError(f"{provider.label} localProxy is missing a binary")
+    if find_anyllm_proxy_binary() is None:
+        raise ValueError(
+            f"{provider.label} requires the {binary} binary, but it is not installed. "
+            "Install it with: brew install whit3rabbit/tap/anyllm-proxy "
+            "(or see https://github.com/whit3rabbit/anyllm-proxy/releases)."
+        )
+    key = "sk-" + secrets.token_hex(16)
+    return {
+        "binary": binary,
+        "args": list(provider_proxy.get("args") or []),
+        "port": int(provider_proxy.get("port") or 0),
+        "adminUrl": str(provider_proxy.get("adminUrl") or ""),
+        "credentialEnv": str(provider_proxy.get("credentialEnv") or ""),
+        "key": key,
+    }
 
 
 def _model_proxy_credential_source(provider, provider_env) -> str:
@@ -603,6 +633,8 @@ def doctor_variant(name: Optional[str] = None, *, all_variants: bool = False, ro
             checks.append({"name": "binary", "ok": binary.is_file(), "path": str(binary)})
         checks.extend(ccrouter_doctor_checks(variant.manifest))
         checks.extend(_model_proxy_doctor_checks(variant.manifest))
+        checks.extend(_local_proxy_doctor_checks(variant.manifest))
+        checks.extend(anyllm_doctor_checks(variant.manifest))
         credential = variant.manifest.get("credential", {})
         if credential.get("mode") == "stored":
             secrets_path = Path(credential.get("secretsPath") or secrets_path)
@@ -683,6 +715,25 @@ def _model_proxy_doctor_checks(manifest: Dict) -> List[Dict[str, object]]:
         {"name": "model-proxy-import", "ok": import_ok, "path": str(python_path), "detail": import_detail},
         {"name": "model-proxy-port", "ok": port_ok, "path": str(config_path), "detail": str(port)},
         {"name": "model-proxy-nonce-wrapper", "ok": nonce_wrapper_ok, "path": str(wrapper_path), "detail": nonce_detail},
+    ]
+
+
+def _local_proxy_doctor_checks(manifest: Dict) -> List[Dict[str, object]]:
+    config = manifest.get("localProxy")
+    if not isinstance(config, dict):
+        return []
+    binary = str(config.get("binary") or "")
+    binary_present = bool(binary) and find_anyllm_proxy_binary() is not None
+    port = config.get("port")
+    port_ok = isinstance(port, int) and 1 <= port <= 65535
+    return [
+        {
+            "name": "local-proxy-binary",
+            "ok": binary_present,
+            "path": find_anyllm_proxy_binary() or binary,
+            "detail": "" if binary_present else "anyllm-proxy is not installed (brew install whit3rabbit/tap/anyllm-proxy)",
+        },
+        {"name": "local-proxy-port", "ok": port_ok, "path": str(config.get("logPath") or ""), "detail": str(port)},
     ]
 
 def run_variant(name: str, args: Optional[List[str]] = None, root=None) -> int:

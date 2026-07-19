@@ -15,7 +15,14 @@ from shutil import which
 
 from .cli import build_parser, inspect_binary  # noqa: F401, re-exported for test imports
 from .cli import handlers as _handlers
-from .providers import get_provider, list_mcp_catalog, provider_default_variant_name
+from .providers import (
+    ANYLLM_PROXY_ID,
+    find_anyllm_proxy_binary,
+    get_provider,
+    install_local_integration,
+    list_mcp_catalog,
+    provider_default_variant_name,
+)
 from .cli.payloads import (
     install_result_payload,
     model_overrides_from_args,
@@ -222,6 +229,14 @@ def cmd_provider_install(args):
     if not provider_key:
         raise ValueError("Pass --provider for the provider shortcut install command")
     provider = get_provider(provider_key)
+    if provider.local_proxy and find_anyllm_proxy_binary() is None:
+        print(f"[*] {provider.label} needs {provider.local_proxy.get('binary')}; installing it...")
+        try:
+            install_local_integration(ANYLLM_PROXY_ID)
+        except ValueError as exc:
+            print(f"[!] Could not install AnyLLM proxy automatically: {exc}")
+            print("    Install it manually, then re-run this command:")
+            print("    brew install whit3rabbit/tap/anyllm-proxy")
     variant = _resolve_provider_variant(provider.key, required=False)
     created = False
     if variant is None:

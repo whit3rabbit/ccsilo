@@ -2,6 +2,7 @@
 
 import os
 
+from ..providers import find_anyllm_proxy_binary, get_provider
 from .setup_actions_common import (  # noqa: F401
     _active_setup_status,
     _append_backend_stages,
@@ -62,6 +63,14 @@ def _run_variant_create(state):
     provider = _tui()._selected_variant_provider(state)
     if provider is None:
         state.message = "Select a provider first."
+        return
+    local_proxy = get_provider(provider["key"]).local_proxy
+    if local_proxy and find_anyllm_proxy_binary() is None:
+        binary = local_proxy.get("binary")
+        state.message = (
+            f"{provider['label']} needs the {binary} binary. Install it first: "
+            "brew install whit3rabbit/tap/anyllm-proxy (or use the Integrations screen), then retry."
+        )
         return
     name = state.variant_name.strip() or provider_default_variant_name(provider["key"])
     credential_env = _tui()._variant_credential_env_for_create(state, provider)

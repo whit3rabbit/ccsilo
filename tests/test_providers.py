@@ -88,6 +88,7 @@ def test_provider_list_includes_cc_mirror_parity_presets():
         "litellm",
         "vercel",
         "ollama",
+        "anyllm",
         "nanogpt",
         "9router",
         "ccrouter",
@@ -290,6 +291,7 @@ def test_model_discovery_providers_export_gateway_env():
         "litellm",
         "opencode-go",
         "opencode-zen",
+        "anyllm",
     }
     assert all(
         provider.env["CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY"] == "1"

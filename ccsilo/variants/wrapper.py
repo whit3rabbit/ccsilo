@@ -16,6 +16,7 @@ from .._utils import (
 from ..providers import (
     apply_provider_claude_config,
     ensure_onboarding_state,
+    find_anyllm_proxy_binary,
     get_provider,
     provider_auth_bootstrap_enabled,
     provider_patch_config,
@@ -274,6 +275,7 @@ def write_wrapper(manifest: Dict) -> Path:
     ]
     managed_ccrouter = _managed_ccrouter_config(manifest)
     model_proxy = _model_proxy_config(manifest)
+    local_proxy = _local_proxy_config(manifest)
     if managed_ccrouter:
         lines.extend(_ccrouter_home_lines(manifest, managed_ccrouter))
     for key, value in sorted(_runtime_env_for_manifest(manifest).items()):
@@ -313,12 +315,14 @@ def write_wrapper(manifest: Dict) -> Path:
         if not model_proxy:
             for target in targets:
                 lines.append(f"export {target}=\"${{{source}}}\"")
-    if provider_auth_bootstrap_enabled(manifest["provider"]["key"]) and not model_proxy:
+    if provider_auth_bootstrap_enabled(manifest["provider"]["key"]) and not model_proxy and not local_proxy:
         lines.extend(_api_key_approval_bootstrap_lines())
     if managed_ccrouter:
         lines.extend(_ccrouter_runtime_lines(manifest, managed_ccrouter))
     if model_proxy:
         lines.extend(_model_proxy_runtime_lines(manifest, model_proxy))
+    if local_proxy:
+        lines.extend(_local_proxy_runtime_lines(manifest, local_proxy))
     lines.extend(shell_splash_lines())
     launch_args = _launch_args(manifest)
     if manifest.get("runtime", "native") == "node":
@@ -352,14 +356,16 @@ def write_wrapper(manifest: Dict) -> Path:
                 'if [ ! -f "$ENTRY_PATH" ]; then echo "Variant entry is missing: $ENTRY_PATH" >&2; exit 127; fi',
             ]
         )
-        if model_proxy:
-            lines.extend(_preserve_exit_launch_lines(f'"$NODE_BIN" "$ENTRY_PATH"{launch_args} "$@"'))
+        if model_proxy or local_proxy:
+            cleanup_fn = "cleanup_local_proxy" if local_proxy else "cleanup_model_proxy"
+            lines.extend(_preserve_exit_launch_lines(f'"$NODE_BIN" "$ENTRY_PATH"{launch_args} "$@"', cleanup_fn))
         else:
             lines.append(f'exec "$NODE_BIN" "$ENTRY_PATH"{launch_args} "$@"')
     else:
         command = f"{shlex.quote(paths['binary'])}{launch_args} \"$@\""
-        if model_proxy:
-            lines.extend(_preserve_exit_launch_lines(command))
+        if model_proxy or local_proxy:
+            cleanup_fn = "cleanup_local_proxy" if local_proxy else "cleanup_model_proxy"
+            lines.extend(_preserve_exit_launch_lines(command, cleanup_fn))
         else:
             lines.append(f"exec {command}")
     atomic_write_text_no_symlink(wrapper_path, "\n".join(lines) + "\n", mode=0o755)
@@ -416,6 +422,17 @@ def _managed_ccrouter_config(manifest: Dict) -> Optional[Dict]:
 def _model_proxy_config(manifest: Dict) -> Optional[Dict]:
     config = manifest.get("modelProxy")
     if not isinstance(config, dict) or config.get("mode") not in {"architect", "openai"}:
+        return None
+    return config
+
+
+def _local_proxy_config(manifest: Dict) -> Optional[Dict]:
+    config = manifest.get("localProxy")
+    if not isinstance(config, dict):
+        return None
+    if not str(config.get("binary") or "").strip():
+        return None
+    if not isinstance(config.get("port"), int) or config["port"] < 1:
         return None
     return config
 
@@ -615,13 +632,68 @@ def _model_proxy_runtime_lines(manifest: Dict, config: Dict) -> list:
     ]
 
 
-def _preserve_exit_launch_lines(command: str) -> list:
+def _local_proxy_runtime_lines(manifest: Dict, config: Dict) -> list:
+    binary = str(config.get("binary") or "").strip()
+    resolved = find_anyllm_proxy_binary() or binary
+    port = int(config.get("port") or 0)
+    key = str(config.get("key") or "").strip()
+    args = [str(a) for a in (config.get("args") or [])]
+    log_path = str(config.get("logPath") or "").strip()
+    # If the proxy is already listening on the port, reuse it instead of launching a second copy.
+    port_probe = (
+        "python3 -c "
+        '"import socket,sys; s=socket.socket(); s.settimeout(0.3); '
+        f"s.connect(('127.0.0.1', {port})); s.close(); sys.exit(0)\" 2>/dev/null"
+    )
+    proxy_args = " ".join(shlex.quote(a) for a in args)
+    launch = (
+        f"{shlex.quote(resolved)} {proxy_args} "
+        f'>>"{shlex.quote(log_path)}" 2>&1 &' if log_path else f"{shlex.quote(resolved)} {proxy_args} &"
+    )
+    lines = [
+        'LOCAL_PROXY_PID=""',
+        "cleanup_local_proxy() {",
+        '  if [ -n "${LOCAL_PROXY_PID:-}" ] && kill -0 "$LOCAL_PROXY_PID" 2>/dev/null; then',
+        '    kill "$LOCAL_PROXY_PID" 2>/dev/null || true',
+        '    wait "$LOCAL_PROXY_PID" 2>/dev/null || true',
+        "  fi",
+        "}",
+        "trap cleanup_local_proxy EXIT INT TERM",
+        f"export PROXY_API_KEYS={shlex.quote(key)}",
+        f"export ANTHROPIC_AUTH_TOKEN={shlex.quote(key)}",
+        f"case \"{key}\" in \"\") echo \"AnyLLM proxy key is missing from the variant manifest.\" >&2; exit 127 ;; esac",
+    ]
+    if log_path:
+        lines.append(f"mkdir -p \"$(dirname {shlex.quote(log_path)})\"")
+    lines += [
+        f"if {port_probe}; then",
+        '  echo "AnyLLM proxy already listening on 127.0.0.1:' + str(port) + '; reusing it."',
+        "else",
+        '  echo "Starting AnyLLM proxy (admin UI: ' + str(config.get("adminUrl") or "http://127.0.0.1:3001/admin/") + ')..."',
+        "  " + launch,
+        "  LOCAL_PROXY_PID=$!",
+        "  _local_proxy_wait=0",
+        '  while [ "$_local_proxy_wait" -lt 50 ]; do',
+        f"    {port_probe} && break",
+        '    if ! kill -0 "$LOCAL_PROXY_PID" 2>/dev/null; then echo "AnyLLM proxy exited early. See ' + shlex.quote(log_path) + '" >&2; exit 127; fi',
+        '    _local_proxy_wait=$((_local_proxy_wait + 1))',
+        "    sleep 0.2",
+        "  done",
+        '  if ! ' + port_probe + "; then echo \"AnyLLM proxy did not start on 127.0.0.1:" + str(port) + '. See ' + shlex.quote(log_path) + '" >&2; exit 127; fi',
+        "fi",
+        f"export ANTHROPIC_BASE_URL={shlex.quote(f'http://127.0.0.1:{port}')}",
+        'case "${NO_PROXY:-}" in *127.0.0.1*) ;; "") export NO_PROXY=127.0.0.1,localhost ;; *) export NO_PROXY="127.0.0.1,localhost,$NO_PROXY" ;; esac',
+    ]
+    return lines
+
+
+def _preserve_exit_launch_lines(command: str, cleanup_fn: str = "cleanup_model_proxy") -> list:
     return [
         "set +e",
         command,
         "_cc_status=$?",
         "set -e",
-        "cleanup_model_proxy",
+        cleanup_fn,
         'exit "$_cc_status"',
     ]
 

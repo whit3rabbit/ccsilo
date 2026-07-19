@@ -32,12 +32,16 @@ from .mcp_catalog import (
     optional_mcp_servers,
 )
 from .local_integrations import (
+    ANYLLM_PROXY_ID,
     CONTEXT7_ID,
     KNOWN_LOCAL_INTEGRATION_IDS,
     RTK_ID,
     LocalIntegrationInstallResult,
     LocalIntegrationStatus,
+    detect_anyllm_proxy,
     detect_local_integrations,
+    find_anyllm_proxy_binary,
+    install_anyllm_proxy,
     install_local_integration,
     normalize_integration_ids,
     sync_local_integrations,
@@ -45,6 +49,7 @@ from .local_integrations import (
 from .schema import DEFAULT_TIMEOUT_MS, MODEL_ENV_KEYS, ProviderEnv, ProviderSchemaError, ProviderTemplate
 
 __all__ = [
+    "ANYLLM_PROXY_ID",
     "CONTEXT7_ID",
     "DEFAULT_TIMEOUT_MS",
     "KNOWN_LOCAL_INTEGRATION_IDS",
@@ -61,9 +66,12 @@ __all__ = [
     "ProviderTemplate",
     "apply_provider_claude_config",
     "build_provider_env",
+    "detect_anyllm_proxy",
     "detect_local_integrations",
     "ensure_onboarding_state",
+    "find_anyllm_proxy_binary",
     "get_provider",
+    "install_anyllm_proxy",
     "install_local_integration",
     "list_mcp_catalog",
     "list_optional_mcp_entries",

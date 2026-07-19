@@ -560,6 +560,9 @@ def _activate_setup_detail(state):
     elif option.kind.startswith("setup-action-ccrouter-") and setup_id:
         action = option.kind.replace("setup-action-ccrouter-", "")
         _tui()._run_setup_ccrouter_action(state, setup_id, action)
+    elif option.kind.startswith("setup-action-anyllm-") and setup_id:
+        action = option.kind.replace("setup-action-anyllm-", "")
+        _tui()._run_setup_anyllm_action(state, setup_id, action)
 
 def _current_setup_id_for_action(state):
     option = _tui()._selected_setup_option(state)

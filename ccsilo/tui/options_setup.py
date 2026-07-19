@@ -169,6 +169,17 @@ def setup_detail_options(state):
                 MenuOption("setup-action-ccrouter-copy-config", "Copy CCR config path", setup_id),
             ]
         )
+    if _managed_anyllm(variant):
+        options.extend(
+            [
+                MenuOption("setup-action-anyllm-status", "AnyLLM status", setup_id),
+                MenuOption("setup-action-anyllm-start", "Start AnyLLM", setup_id),
+                MenuOption("setup-action-anyllm-stop", "Stop AnyLLM", setup_id),
+                MenuOption("setup-action-anyllm-restart", "Restart AnyLLM", setup_id),
+                MenuOption("setup-action-anyllm-ui", "Open AnyLLM UI", setup_id),
+                MenuOption("setup-action-anyllm-copy-token", "Copy admin token", setup_id),
+            ]
+        )
     options.extend([
         MenuOption("setup-action-delete", "Delete setup", setup_id),
         MenuOption("setup-action-new", "Create new setup"),
@@ -299,3 +310,9 @@ def _managed_ccrouter(variant):
     manifest = variant.manifest if variant is not None else {}
     ccrouter = manifest.get("ccrouter") if isinstance(manifest, dict) else None
     return isinstance(ccrouter, dict) and ccrouter.get("mode") == "managed"
+
+
+def _managed_anyllm(variant):
+    manifest = variant.manifest if variant is not None else {}
+    local_proxy = manifest.get("localProxy") if isinstance(manifest, dict) else None
+    return isinstance(local_proxy, dict) and bool(str(local_proxy.get("binary") or "").strip())

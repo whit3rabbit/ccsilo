@@ -220,6 +220,30 @@ def validate_variant_manifest(manifest: Dict) -> None:
             value = model_proxy.get(field)
             if value is not None and not isinstance(value, str):
                 raise ValueError(f"variant modelProxy.{field} must be a string")
+    local_proxy = manifest.get("localProxy")
+    if local_proxy is not None:
+        if not isinstance(local_proxy, dict):
+            raise ValueError("variant localProxy must be an object")
+        if not isinstance(local_proxy.get("binary"), str) or not local_proxy["binary"].strip():
+            raise ValueError("variant localProxy.binary must be a non-empty string")
+        port = local_proxy.get("port")
+        if not isinstance(port, int) or isinstance(port, bool) or port < 1 or port > 65535:
+            raise ValueError("variant localProxy.port must be an integer between 1 and 65535")
+        if not isinstance(local_proxy.get("key"), str) or not local_proxy["key"].strip():
+            raise ValueError("variant localProxy.key must be a non-empty string")
+        cred_env = local_proxy.get("credentialEnv")
+        if cred_env is not None:
+            if not isinstance(cred_env, str) or not cred_env.strip():
+                raise ValueError("variant localProxy.credentialEnv must be a non-empty string")
+            require_env_name(cred_env, label="variant localProxy.credentialEnv")
+        for field in ("args",):
+            value = local_proxy.get(field)
+            if value is not None and not isinstance(value, list):
+                raise ValueError(f"variant localProxy.{field} must be a list of strings")
+        for field in ("adminUrl", "logPath", "portFilePath", "pidFilePath"):
+            value = local_proxy.get(field)
+            if value is not None and not isinstance(value, str):
+                raise ValueError(f"variant localProxy.{field} must be a string")
     env_unset = manifest.get("envUnset", [])
     if env_unset is None:
         env_unset = []

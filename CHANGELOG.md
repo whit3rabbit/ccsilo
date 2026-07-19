@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.11.0] - 2026-07-19
+
+### Added
+- AnyLLM proxy provider (`anyllm`): a local `anyllm-proxy` gateway that bridges Claude Code to any OpenAI-compatible backend, local LLM, or provider, with runtime gateway model discovery.
+- Full managed AnyLLM integration in the setup TUI (parallel to CCR): AnyLLM status, Start, Stop, Restart, Open AnyLLM UI, and Copy admin token. Because `anyllm-proxy` is foreground-only with no daemon/pid/CLI, ccsilo supervises the process itself (detached launch, own pid file, `/health` detection, reuse of an already-running proxy). The admin web UI token is read from `~/.anyllm/.admin_token` (honors `ADMIN_TOKEN`/`ANYLLM_HOME`/`ADMIN_TOKEN_PATH`) and surfaced in the Open UI / Copy token actions.
+- `anyllm-running` and `anyllm-admin-token` doctor checks (informational; the proxy is on-demand and the token is created on first run).
+
+### Changed
+- Pinned `anyllm-proxy` to 0.16.0 and use the hyphenated installed binary name `anyllm-proxy` (the crate stays `anyllm_proxy`; Homebrew/deb/release archives ship the hyphenated executable since 0.12.0).
+- AnyLLM provider env now matches ccrouter for the common Claude Code toggles (`DISABLE_TELEMETRY`, `DISABLE_COST_WARNINGS`) alongside its longer `API_TIMEOUT_MS`.
+
 ## [0.10.3] - 2026-07-19
 
 ### Added

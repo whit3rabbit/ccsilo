@@ -54,6 +54,7 @@ class ProviderTemplate:
     mcp_servers: Dict[str, object] = field(default_factory=dict)
     tui: Dict[str, object] = field(default_factory=dict)
     model_proxy: Dict[str, object] = field(default_factory=dict)
+    local_proxy: Dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -83,6 +84,7 @@ TOP_LEVEL_KEYS = {
     "claudeConfig",
     "tui",
     "modelProxy",
+    "localProxy",
 }
 
 AUTH_KEYS = {
@@ -101,6 +103,7 @@ CLAUDE_CONFIG_KEYS = {"settingsPermissionsDeny", "mcpServers"}
 TUI_KEYS = {"headline", "features", "setupLinks", "setupNote", "section", "modelDiscovery"}
 MODEL_DISCOVERY_KEYS = {"enabled"}
 MODEL_PROXY_KEYS = {"mode", "backendFormat", "backendAuth"}
+LOCAL_PROXY_KEYS = {"binary", "args", "port", "adminUrl", "credentialEnv", "env"}
 MCP_SERVER_KEYS = {"type", "command", "args", "env", "url", "headers", "headersHelper", "oauth"}
 MCP_SERVER_TYPES = {"http", "stdio", "sse"}
 
@@ -178,6 +181,25 @@ def provider_from_json(payload: Dict[str, object]) -> ProviderTemplate:
         if backend_auth and backend_auth not in {"x-api-key", "bearer"}:
             raise ProviderSchemaError(f"{key}.modelProxy.backendAuth must be x-api-key or bearer")
 
+    local_proxy = _object(payload, "localProxy")
+    _require_keys(local_proxy, LOCAL_PROXY_KEYS, f"{key}.localProxy")
+    if local_proxy:
+        binary = _string(local_proxy, "binary", required=True)
+        if not binary.strip():
+            raise ProviderSchemaError(f"{key}.localProxy.binary must be a non-empty string")
+        if "args" in local_proxy and not _is_string_list(local_proxy["args"]):
+            raise ProviderSchemaError(f"{key}.localProxy.args must be a list of strings")
+        if "env" in local_proxy:
+            _string_map(_object(local_proxy, "env"), f"{key}.localProxy.env")
+        port = local_proxy.get("port")
+        if port is None:
+            raise ProviderSchemaError(f"{key}.localProxy.port is required")
+        if not isinstance(port, int) or isinstance(port, bool) or port < 1 or port > 65535:
+            raise ProviderSchemaError(f"{key}.localProxy.port must be an integer between 1 and 65535")
+        cred_env = _optional_string(local_proxy, "credentialEnv")
+        if cred_env:
+            _env_name(cred_env, f"{key}.localProxy.credentialEnv")
+
     credential_env = _optional_string(auth, "credentialEnv")
     if credential_env:
         _env_name(credential_env, f"{key}.auth.credentialEnv")
@@ -207,6 +229,7 @@ def provider_from_json(payload: Dict[str, object]) -> ProviderTemplate:
         mcp_servers=copy.deepcopy(_object(claude_config, "mcpServers")),
         tui=copy.deepcopy(tui),
         model_proxy=copy.deepcopy(model_proxy),
+        local_proxy=copy.deepcopy(local_proxy),
     )
 
 

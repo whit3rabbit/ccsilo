@@ -1,6 +1,18 @@
 """Setup lifecycle, command, delete, and log actions for the TUI."""
 
+import webbrowser
 from pathlib import Path
+
+from ..variants import (
+    anyllm_admin_url,
+    anyllm_is_running,
+    anyllm_proxy_config,
+    anyllm_status,
+    resolve_admin_token,
+    restart_anyllm,
+    start_anyllm,
+    stop_anyllm,
+)
 
 from .setup_actions_common import (  # noqa: F401
     _active_setup_status,
@@ -57,6 +69,7 @@ from .setup_actions_common import (  # noqa: F401
 __all__ = [
     "_run_setup_health",
     "_run_setup_ccrouter_action",
+    "_run_setup_anyllm_action",
     "_run_setup_command_alias",
     "_run_setup_upgrade",
     "_inspect_delete_artifact",
@@ -155,6 +168,83 @@ def _run_setup_ccrouter_action(state, setup_id, action):
         state.message = f"CCR {action} completed for setup {setup_id}."
     else:
         state.message = f"CCR {action} exited {getattr(result, 'returncode', '?')} for setup {setup_id}."
+    _tui()._set_mode(state, "health-result")
+
+def _run_setup_anyllm_action(state, setup_id, action):
+    variant = next((item for item in state.variants if item.variant_id == setup_id), None)
+    if variant is None:
+        state.message = f"Setup {setup_id} not found."
+        return
+    config = anyllm_proxy_config(variant.manifest or {})
+    if config is None:
+        state.message = f"Setup {setup_id} is not an AnyLLM proxy setup."
+        return
+
+    if action == "copy-token":
+        token, source = resolve_admin_token()
+        if not token:
+            state.message = "AnyLLM admin token not found. Start the proxy once to generate it."
+            return
+        try:
+            _tui()._copy_text_to_clipboard(token)
+        except Exception as exc:
+            state.message = f"Copy failed: {exc}"
+            return
+        state.last_action_log = [f"Copied AnyLLM admin token from {source}"]
+        state.message = f"Copied AnyLLM admin token for setup {setup_id}."
+        return
+
+    if action == "ui":
+        token, source = resolve_admin_token()
+        url = anyllm_admin_url(config, token)
+        try:
+            opened = bool(webbrowser.open(url))
+        except Exception:
+            opened = False
+        lines = [f"AnyLLM admin UI: {setup_id}", f"URL: {url}"]
+        if token:
+            lines.append(f"Admin token: {token}")
+            lines.append(f"Token source: {source}")
+        else:
+            lines.append("Admin token: not found yet (created on first run at ~/.anyllm/.admin_token).")
+        lines.append(f"Browser opened: {'yes' if opened else 'no (open the URL manually)'}")
+        if not anyllm_is_running(config):
+            lines.append("Note: the proxy is not running. Start AnyLLM (or run Claude) first.")
+        state.last_action_summary = lines
+        state.last_action_log = _stage_log_lines("AnyLLM UI", "\n".join(lines))
+        state.message = f"AnyLLM UI for setup {setup_id}."
+        _tui()._set_mode(state, "health-result")
+        return
+
+    handler = {
+        "status": anyllm_status,
+        "start": start_anyllm,
+        "stop": stop_anyllm,
+        "restart": restart_anyllm,
+    }.get(action)
+    if handler is None:
+        state.message = f"Unknown AnyLLM action: {action}"
+        return
+    try:
+        result, output = _run_quiet(handler, config)
+    except Exception as exc:
+        state.last_action_log = _stage_log_lines("AnyLLM action failure", str(exc))
+        state.message = f"AnyLLM {action} failed: {exc}"
+        return
+    combined = "\n".join(part for part in (output, getattr(result, "detail", "")) if str(part).strip())
+    state.last_action_log = _stage_log_lines(f"AnyLLM {action}", combined)
+    state.last_action_summary = [
+        f"AnyLLM {action}.",
+        f"Setup: {setup_id}",
+        f"Running: {'yes' if getattr(result, 'running', False) else 'no'}",
+        f"PID: {getattr(result, 'pid', None) or '(none)'}",
+        "",
+        getattr(result, "detail", "") or "No output captured.",
+    ]
+    if getattr(result, "ok", False):
+        state.message = f"AnyLLM {action} completed for setup {setup_id}."
+    else:
+        state.message = f"AnyLLM {action} failed for setup {setup_id}."
     _tui()._set_mode(state, "health-result")
 
 def _run_setup_command_alias(state):

@@ -3,9 +3,13 @@
 import copy
 import json
 import os
+import platform
 import shutil
 import subprocess
 import sys
+import tarfile
+import tempfile
+import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
@@ -15,10 +19,25 @@ from .._utils import atomic_write_text_no_symlink
 
 CONTEXT7_ID = "context7"
 RTK_ID = "rtk"
-KNOWN_LOCAL_INTEGRATION_IDS = (CONTEXT7_ID, RTK_ID)
+ANYLLM_PROXY_ID = "anyllm-proxy"
+KNOWN_LOCAL_INTEGRATION_IDS = (CONTEXT7_ID, RTK_ID, ANYLLM_PROXY_ID)
 RTK_HOOK_COMMAND = "rtk hook claude"
 CONTEXT7_MCP_URL = "https://mcp.context7.com/mcp"
 CONTEXT7_PLUGIN_SPEC = "context7@claude-plugins-official"
+
+# anyllm-proxy release metadata (bump when publishing a new proxy version).
+ANYLLM_PROXY_VERSION = "0.16.0"
+ANYLLM_PROXY_RELEASE_BASE = (
+    "https://github.com/whit3rabbit/anyllm-proxy/releases/download/"
+    f"v{ANYLLM_PROXY_VERSION}/"
+)
+ANYLLM_PROXY_TAP = "whit3rabbit/tap/anyllm-proxy"
+# Installed binary is anyllm-proxy (hyphen) since 0.12.0; the crate/package name
+# stays anyllm_proxy (cargo install), but Homebrew/deb/release archives all ship
+# the hyphenated executable.
+ANYLLM_PROXY_BIN = "anyllm-proxy"
+ANYLLM_PROXY_HOMEBREW_DIRS = "/opt/homebrew:/usr/local"
+ANYLLM_PROXY_LOCAL_BIN = ".local/bin"
 
 
 @dataclass(frozen=True)
@@ -56,6 +75,7 @@ def detect_local_integrations(*, home: Optional[os.PathLike] = None, env: Option
     return {
         CONTEXT7_ID: detect_context7(home=home, env=env),
         RTK_ID: detect_rtk(home=home, env=env),
+        ANYLLM_PROXY_ID: detect_anyllm_proxy(home=home, env=env),
     }
 
 
@@ -159,6 +179,41 @@ def sync_local_integrations(
     return changed
 
 
+def find_anyllm_proxy_binary(*, env: Optional[Dict[str, str]] = None) -> Optional[str]:
+    env = os.environ if env is None else env
+    override = str(env.get("CCSILO_ANYLLM_PROXY_BIN") or "").strip()
+    if override and _is_executable(Path(override)):
+        return override
+    path_value = env.get("PATH")
+    found = shutil.which(ANYLLM_PROXY_BIN, path=path_value)
+    if found:
+        return found
+    for prefix in [item for item in ANYLLM_PROXY_HOMEBREW_DIRS.split(os.pathsep) if item]:
+        candidate = Path(prefix) / "opt" / "anyllm-proxy" / "bin" / ANYLLM_PROXY_BIN
+        if _is_executable(candidate):
+            return str(candidate)
+    home_local = Path(env.get("HOME") or "~").expanduser() / ANYLLM_PROXY_LOCAL_BIN / ANYLLM_PROXY_BIN
+    if _is_executable(home_local):
+        return str(home_local)
+    return None
+
+
+def detect_anyllm_proxy(*, home: Optional[os.PathLike] = None, env: Optional[Dict[str, str]] = None) -> LocalIntegrationStatus:
+    env = os.environ if env is None else env
+    bin_path = find_anyllm_proxy_binary(env=env)
+    missing = () if bin_path else ("binary",)
+    details = (f"Binary: {bin_path}",) if bin_path else ()
+    paths = {"binary": bin_path} if bin_path else {}
+    return LocalIntegrationStatus(
+        id=ANYLLM_PROXY_ID,
+        name="AnyLLM Proxy",
+        available=bin_path is not None,
+        missing=tuple(missing),
+        details=tuple(details),
+        paths=paths,
+    )
+
+
 def install_local_integration(
     integration_id: str,
     *,
@@ -169,6 +224,8 @@ def install_local_integration(
     env = dict(os.environ if env is None else env)
     if integration_id == CONTEXT7_ID:
         return _install_context7(env=env)
+    if integration_id == ANYLLM_PROXY_ID:
+        return install_anyllm_proxy(env=env)
     return _install_rtk(home=home, env=env)
 
 
@@ -349,6 +406,124 @@ def _install_rtk(*, home: Optional[os.PathLike], env: Dict[str, str]) -> LocalIn
             output,
         )
     return LocalIntegrationInstallResult(RTK_ID, False, ("RTK binary and Claude hook are already detected.",), "")
+
+
+def install_anyllm_proxy(*, env: Dict[str, str]) -> LocalIntegrationInstallResult:
+    if find_anyllm_proxy_binary(env=env) is not None:
+        return LocalIntegrationInstallResult(
+            ANYLLM_PROXY_ID, False, ("AnyLLM proxy binary is already installed.",), ""
+        )
+    is_mac = sys.platform == "darwin"
+    output: List[str] = []
+    if is_mac:
+        brew = shutil.which("brew", path=env.get("PATH"))
+        if brew:
+            output.append(_run_command([brew, "install", ANYLLM_PROXY_TAP], env=env))
+            return LocalIntegrationInstallResult(
+                ANYLLM_PROXY_ID, True, ("AnyLLM proxy Homebrew install completed.",), "\n".join(output)
+            )
+        output.append(_install_anyllm_proxy_tarball(env=env))
+        return LocalIntegrationInstallResult(
+            ANYLLM_PROXY_ID, True, ("AnyLLM proxy installed from the macOS tarball.",), "\n".join(output)
+        )
+    # Linux
+    dpkg = shutil.which("dpkg", path=env.get("PATH"))
+    if dpkg:
+        deb_url = _anyllm_proxy_deb_url()
+        deb_path = _download_to_temp(deb_url, "anyllm-proxy.deb")
+        output.append(_run_command(["sudo", dpkg, "-i", str(deb_path)], env=env))
+        return LocalIntegrationInstallResult(
+            ANYLLM_PROXY_ID, True, ("AnyLLM proxy installed via dpkg.",), "\n".join(output)
+        )
+    dpkg_deb = shutil.which("dpkg-deb", path=env.get("PATH"))
+    if dpkg_deb:
+        output.append(_install_anyllm_proxy_from_deb(db_extract=dpkg_deb, env=env))
+        return LocalIntegrationInstallResult(
+            ANYLLM_PROXY_ID, True, ("AnyLLM proxy extracted from the .deb (no root required).",), "\n".join(output)
+        )
+    raise ValueError(
+        "AnyLLM proxy install requires dpkg (Debian/Ubuntu) or dpkg-deb. "
+        "Install dpkg, or download the .deb from "
+        f"{ANYLLM_PROXY_RELEASE_BASE} and extract usr/bin/{ANYLLM_PROXY_BIN} to your PATH."
+    )
+
+
+def _anyllm_proxy_deb_url() -> str:
+    arch = "arm64" if _host_arch() in ("arm64", "aarch64") else "amd64"
+    return f"{ANYLLM_PROXY_RELEASE_BASE}anyllm-proxy_{ANYLLM_PROXY_VERSION}-1_{arch}.deb"
+
+
+def _install_anyllm_proxy_from_deb(*, db_extract: str, env: Dict[str, str]) -> str:
+    deb_url = _anyllm_proxy_deb_url()
+    deb_path = _download_to_temp(deb_url, "anyllm-proxy.deb")
+    with tempfile.TemporaryDirectory() as extract_dir:
+        _run_command([db_extract, "-x", str(deb_path), extract_dir], env=env)
+        extracted = Path(extract_dir) / "usr" / "bin" / ANYLLM_PROXY_BIN
+        if not extracted.is_file():
+            raise ValueError(f"{ANYLLM_PROXY_BIN} not found in .deb extraction at {extracted}")
+        return _place_anyllm_proxy_binary(extracted, env=env)
+
+
+def _install_anyllm_proxy_tarball(*, env: Dict[str, str]) -> str:
+    if _host_arch() in ("arm64", "aarch64"):
+        asset = f"anyllm-proxy-{ANYLLM_PROXY_VERSION}-macos-arm64.tar.gz"
+    else:
+        asset = f"anyllm-proxy-{ANYLLM_PROXY_VERSION}-macos-x86_64.tar.gz"
+    url = f"{ANYLLM_PROXY_RELEASE_BASE}{asset}"
+    tarball = _download_to_temp(url, asset)
+    with tempfile.TemporaryDirectory() as extract_dir:
+        with tarfile.open(tarball, "r:gz") as tf:
+            member = _tarball_member_named(tf, ANYLLM_PROXY_BIN)
+            tf.extract(member, path=extract_dir)
+        extracted = Path(extract_dir) / member.name.lstrip("./")
+        return _place_anyllm_proxy_binary(extracted, env=env)
+
+
+def _tarball_member_named(tf: "tarfile.TarFile", name: str) -> "tarfile.TarInfo":
+    for member in tf.getmembers():
+        if member.name.rstrip("/").split("/")[-1] == name and member.isfile():
+            return member
+    raise ValueError(f"{name} not found in release tarball")
+
+
+def _place_anyllm_proxy_binary(source: Path, *, env: Dict[str, str]) -> str:
+    if not source.is_file():
+        raise ValueError(f"{ANYLLM_PROXY_BIN} binary missing after extraction: {source}")
+    home = Path(env.get("HOME") or "~").expanduser()
+    local_bin = home / ANYLLM_PROXY_LOCAL_BIN
+    local_bin.mkdir(parents=True, mode=0o755, exist_ok=True)
+    dest = local_bin / ANYLLM_PROXY_BIN
+    shutil.copyfile(source, dest)
+    dest.chmod(0o755)
+    path_value = env.get("PATH", "")
+    on_path = str(local_bin) in path_value.split(os.pathsep)
+    if on_path or find_anyllm_proxy_binary(env={**env, "PATH": path_value}):
+        return f"Installed {dest}"
+    return (
+        f"Installed {dest}. Add {local_bin} to your PATH "
+        f"(e.g. export PATH={local_bin}:$PATH) to use it."
+    )
+
+
+def _download_to_temp(url: str, filename: str) -> Path:
+    dest = Path(tempfile.gettempdir()) / filename
+    req = urllib.request.Request(url, headers={"User-Agent": "ccsilo"})
+    with urllib.request.urlopen(req, timeout=120) as resp, open(dest, "wb") as out:
+        while True:
+            chunk = resp.read(65536)
+            if not chunk:
+                break
+            out.write(chunk)
+    if not dest.is_file() or dest.stat().st_size == 0:
+        raise ValueError(f"Download failed or empty: {url}")
+    return dest
+
+
+def _host_arch() -> str:
+    machine = platform.machine().lower()
+    if machine in ("arm64", "aarch64"):
+        return "arm64"
+    return "amd64"
 
 
 def _run_command(args: List[str], *, env: Dict[str, str], redactions: Optional[List[str]] = None) -> str:

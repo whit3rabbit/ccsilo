@@ -235,6 +235,12 @@ def _build_variant_from_manifest(
         model_proxy.setdefault("portFilePath", str(tmp_dir / "model-proxy-port"))
         model_proxy["pythonExecutable"] = _sys.executable or "python3"
         manifest["modelProxy"] = model_proxy
+    if isinstance(manifest.get("localProxy"), dict):
+        local_proxy = dict(manifest["localProxy"])
+        local_proxy.setdefault("logPath", str(tmp_dir / "anyllm-proxy.log"))
+        local_proxy.setdefault("portFilePath", str(tmp_dir / "anyllm-proxy-port"))
+        local_proxy.setdefault("pidFilePath", str(tmp_dir / "anyllm-proxy.pid"))
+        manifest["localProxy"] = local_proxy
     if entry_path:
         manifest["paths"]["entryPath"] = str(entry_path)
         manifest["entrySha256"] = file_sha256(Path(entry_path))
