@@ -64,7 +64,7 @@ PATCH = Patch(
     name="OpenCode gateway discovery",
     group="ui",
     versions_supported=">=2.1.0,<3",
-    versions_tested=(">=2.1.0,<=2.1.213",),
+    versions_tested=(">=2.1.0,<=2.1.215",),
     apply=_apply,
     description="Expose raw OpenCode Go, Zen, and ccsilo local proxy /v1/models entries in Claude Code gateway model discovery.",
 )
