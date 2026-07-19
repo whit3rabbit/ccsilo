@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.3] - 2026-07-19
+
+### Added
+- Added Claude Code patch compatibility reports for 2.1.214 and 2.1.215 (Docker smoke passed, 30/30 patches ok).
+
+### Changed
+- Widened the shared tested version range to include 2.1.214 and 2.1.215, with the registry sentinel moved to 2.1.216.
+
 ## [0.10.2] - 2026-07-17
 
 ### Added
