@@ -14,7 +14,11 @@ from ccsilo.providers.local_integrations import (
     _anyllm_proxy_deb_url,
 )
 from ccsilo.providers.schema import ProviderSchemaError, provider_from_json
-from ccsilo.variants.wrapper import _local_proxy_config, _local_proxy_runtime_lines
+from ccsilo.variants.wrapper import (
+    _local_proxy_config,
+    _local_proxy_runtime_lines,
+    write_wrapper,
+)
 
 
 def _make_executable(path: Path) -> None:
@@ -136,13 +140,54 @@ def test_local_proxy_runtime_lines_emit_key_and_launch():
     # Generated inbound key is set as both the proxy's PROXY_API_KEYS and Claude's auth token.
     assert "export PROXY_API_KEYS=sk-test-key" in text
     assert "export ANTHROPIC_AUTH_TOKEN=sk-test-key" in text
-    assert "export ANTHROPIC_BASE_URL=http://127.0.0.1:3000" in text
+    # Port is overridable at launch and passed to the proxy via LISTEN_PORT; base URL follows it.
+    assert '_ANYLLM_PORT="${ANYLLM_PROXY_PORT:-${LISTEN_PORT:-3000}}"' in text
+    assert 'export LISTEN_PORT="$_ANYLLM_PORT"' in text
+    assert 'export ANTHROPIC_BASE_URL="http://127.0.0.1:$_ANYLLM_PORT"' in text
     # Launch + cleanup scoping.
     assert "anyllm-proxy --webui" in text
     assert "cleanup_local_proxy()" in text
     assert "trap cleanup_local_proxy EXIT INT TERM" in text
     # Skips launching when the port is already bound.
     assert "AnyLLM proxy already listening" in text
+
+
+def test_local_proxy_wrapper_skips_credential_env_guard(tmp_path):
+    # The proxy generates localProxy.key, so the wrapper must not force the user to set
+    # ANYLLM_PROXY_KEY (regression: `: ${ANYLLM_PROXY_KEY:?...}` blocked startup).
+    root = tmp_path / "ccanyllm"
+    root.mkdir()
+    manifest = {
+        "id": "ccanyllm",
+        "runtime": "native",
+        "provider": {"key": "anyllm", "label": "AnyLLM Proxy"},
+        "credential": {"mode": "env", "source": "ANYLLM_PROXY_KEY", "targets": ["ANTHROPIC_AUTH_TOKEN"]},
+        "localProxy": {
+            "binary": "anyllm-proxy",
+            "args": ["--webui"],
+            "port": 3000,
+            "adminUrl": "http://127.0.0.1:3001/admin/",
+            "credentialEnv": "ANYLLM_PROXY_KEY",
+            "key": "sk-generated-key",
+            "logPath": str(root / "tmp" / "anyllm-proxy.log"),
+        },
+        "env": {},
+        "envUnset": [],
+        "tweaks": [],
+        "paths": {
+            "wrapper": str(root / "wrapper"),
+            "root": str(root),
+            "configDir": str(root / "config"),
+            "tweakccDir": str(root / "tweakcc"),
+            "tmpDir": str(root / "tmp"),
+            "binary": str(root / "native" / "claude"),
+        },
+    }
+    wrapper = write_wrapper(manifest)
+    text = wrapper.read_text()
+    assert ":?Set ANYLLM_PROXY_KEY" not in text
+    # The generated key still flows through the local proxy runtime lines.
+    assert "export ANTHROPIC_AUTH_TOKEN=sk-generated-key" in text
 
 
 def test_anyllm_proxy_deb_url():

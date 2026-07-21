@@ -311,8 +311,11 @@ def write_wrapper(manifest: Dict) -> Path:
     elif credential.get("mode") == "env":
         source = require_env_name(credential.get("source"), label="credential source")
         targets = [require_env_name(target, label="credential target") for target in credential.get("targets", [])]
-        lines.append(f": ${{{source}:?Set {source} for variant {manifest['id']}}}")
-        if not model_proxy:
+        # A local proxy generates its own inbound key (localProxy.key) and exports the auth token
+        # itself, so the user does not supply the credential env; skip the require-env guard for it.
+        if not local_proxy:
+            lines.append(f": ${{{source}:?Set {source} for variant {manifest['id']}}}")
+        if not model_proxy and not local_proxy:
             for target in targets:
                 lines.append(f"export {target}=\"${{{source}}}\"")
     if provider_auth_bootstrap_enabled(manifest["provider"]["key"]) and not model_proxy and not local_proxy:
@@ -635,15 +638,19 @@ def _model_proxy_runtime_lines(manifest: Dict, config: Dict) -> list:
 def _local_proxy_runtime_lines(manifest: Dict, config: Dict) -> list:
     binary = str(config.get("binary") or "").strip()
     resolved = find_anyllm_proxy_binary() or binary
-    port = int(config.get("port") or 0)
+    port = int(config.get("port") or 0) or 3000
     key = str(config.get("key") or "").strip()
     args = [str(a) for a in (config.get("args") or [])]
     log_path = str(config.get("logPath") or "").strip()
+    # Port is overridable at launch via ANYLLM_PROXY_PORT (or LISTEN_PORT), defaulting to the manifest
+    # port. Persist a different default with `variant create ... --extra-env ANYLLM_PROXY_PORT=3010`.
+    # LISTEN_PORT is what anyllm-proxy reads to bind, so it must match the port we probe/connect to.
+    # Host stays loopback by design (CLAUDE.md: the local proxy is loopback-only and key-gated).
     # If the proxy is already listening on the port, reuse it instead of launching a second copy.
     port_probe = (
         "python3 -c "
         '"import socket,sys; s=socket.socket(); s.settimeout(0.3); '
-        f"s.connect(('127.0.0.1', {port})); s.close(); sys.exit(0)\" 2>/dev/null"
+        "s.connect(('127.0.0.1', $_ANYLLM_PORT)); s.close(); sys.exit(0)\" 2>/dev/null"
     )
     proxy_args = " ".join(shlex.quote(a) for a in args)
     launch = (
@@ -651,6 +658,8 @@ def _local_proxy_runtime_lines(manifest: Dict, config: Dict) -> list:
         f'>>"{shlex.quote(log_path)}" 2>&1 &' if log_path else f"{shlex.quote(resolved)} {proxy_args} &"
     )
     lines = [
+        f'_ANYLLM_PORT="${{ANYLLM_PROXY_PORT:-${{LISTEN_PORT:-{port}}}}}"',
+        'export LISTEN_PORT="$_ANYLLM_PORT"',
         'LOCAL_PROXY_PID=""',
         "cleanup_local_proxy() {",
         '  if [ -n "${LOCAL_PROXY_PID:-}" ] && kill -0 "$LOCAL_PROXY_PID" 2>/dev/null; then',
@@ -667,7 +676,7 @@ def _local_proxy_runtime_lines(manifest: Dict, config: Dict) -> list:
         lines.append(f"mkdir -p \"$(dirname {shlex.quote(log_path)})\"")
     lines += [
         f"if {port_probe}; then",
-        '  echo "AnyLLM proxy already listening on 127.0.0.1:' + str(port) + '; reusing it."',
+        '  echo "AnyLLM proxy already listening on 127.0.0.1:$_ANYLLM_PORT; reusing it."',
         "else",
         '  echo "Starting AnyLLM proxy (admin UI: ' + str(config.get("adminUrl") or "http://127.0.0.1:3001/admin/") + ')..."',
         "  " + launch,
@@ -679,9 +688,9 @@ def _local_proxy_runtime_lines(manifest: Dict, config: Dict) -> list:
         '    _local_proxy_wait=$((_local_proxy_wait + 1))',
         "    sleep 0.2",
         "  done",
-        '  if ! ' + port_probe + "; then echo \"AnyLLM proxy did not start on 127.0.0.1:" + str(port) + '. See ' + shlex.quote(log_path) + '" >&2; exit 127; fi',
+        '  if ! ' + port_probe + '; then echo "AnyLLM proxy did not start on 127.0.0.1:$_ANYLLM_PORT. See ' + shlex.quote(log_path) + '" >&2; exit 127; fi',
         "fi",
-        f"export ANTHROPIC_BASE_URL={shlex.quote(f'http://127.0.0.1:{port}')}",
+        'export ANTHROPIC_BASE_URL="http://127.0.0.1:$_ANYLLM_PORT"',
         'case "${NO_PROXY:-}" in *127.0.0.1*) ;; "") export NO_PROXY=127.0.0.1,localhost ;; *) export NO_PROXY="127.0.0.1,localhost,$NO_PROXY" ;; esac',
     ]
     return lines
