@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.11.1] - 2026-07-20
+
+### Added
+- Added Claude Code prompt catalog and patch compatibility report for 2.1.216 (Docker smoke passed, 30/30 patches ok).
+
+### Fixed
+- AnyLLM local proxy: skip the credential-env require guard when a local proxy is configured. The proxy generates its own inbound key (`localProxy.key`) and exports the auth token itself, so `: ${ANYLLM_PROXY_KEY:?...}` wrongly blocked wrapper startup.
+- AnyLLM local proxy: make the listen port overridable at launch via `ANYLLM_PROXY_PORT` (or `LISTEN_PORT`), defaulting to the manifest port. Export `LISTEN_PORT` so `anyllm-proxy` binds to the port the wrapper probes and points `ANTHROPIC_BASE_URL` at. Host stays loopback-only.
+
 ## [0.11.0] - 2026-07-19
 
 ### Added
