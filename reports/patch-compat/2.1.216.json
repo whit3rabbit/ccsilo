@@ -3,7 +3,7 @@
     "entryBytes": 20452542,
     "entryModule": "src/entrypoints/cli.js"
   },
-  "generatedAt": "2026-07-21T01:24:29.659249Z",
+  "generatedAt": "2026-07-22T21:33:09.923648Z",
   "ok": true,
   "patches": [
     {
@@ -283,10 +283,8 @@
       "ok": true,
       "status": "applied",
       "supported": true,
-      "tested": false,
-      "warnings": [
-        "patch 'session-memory' not tested against version 2.1.216; tested ranges: ['>=2.1.0,<=2.1.195']"
-      ]
+      "tested": true,
+      "warnings": []
     },
     {
       "detail": "",
@@ -445,7 +443,7 @@
       "<patched-binary>",
       "--version"
     ],
-    "durationMs": 12496,
+    "durationMs": 11849,
     "exitCode": 0,
     "expectedVersion": "2.1.216",
     "ok": true,
@@ -534,7 +532,6 @@
         "patch 'opusplan1m' not tested against version 2.1.216; tested ranges: ['>=2.1.0,<=2.1.195']",
         "patch 'patches-applied-indication' not tested against version 2.1.216; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']",
         "patch 'prompt-overlays' not tested against version 2.1.216; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
-        "patch 'session-memory' not tested against version 2.1.216; tested ranges: ['>=2.1.0,<=2.1.195']",
         "patch 'show-more-items-in-select-menus' not tested against version 2.1.216; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
         "patch 'statusline-update-throttle' not tested against version 2.1.216; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']",
         "patch 'suppress-model-launch-notice' not tested against version 2.1.216; tested ranges: ['>=2.1.0,<=2.1.195']",
@@ -560,7 +557,7 @@
     "skipped": 2,
     "total": 30,
     "unsupported": 1,
-    "untested": 28
+    "untested": 27
   },
   "version": "2.1.216"
 }
