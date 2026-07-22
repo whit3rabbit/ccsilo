@@ -6,10 +6,18 @@ from . import Patch, PatchContext, PatchOutcome
 
 
 def _is_new_file_memory_system(js: str) -> bool:
+    # Detect the file-based memory rewrite by the ABSENCE of the old
+    # `tengu_session_memory` experiment gate, not a bare substring. 2.1.217+
+    # reintroduced `tengu_session_memory_*` telemetry event names (rated,
+    # deleted, viewer_opened, ...) which collide with the substring and made
+    # this return False, so the obsolete-gate skip path stopped firing and the
+    # past-sessions/token-limit/threshold sub-patches hard-failed. The gate is
+    # always read as `("tengu_session_memory",!1)`; telemetry names never carry
+    # the trailing comma, so match that exact call form instead.
     return (
         "CLAUDE_COWORK_MEMORY_GUIDELINES" in js
         and "CLAUDE_CODE_DISABLE_AUTO_MEMORY" in js
-        and "tengu_session_memory" not in js
+        and '"tengu_session_memory",' not in js
     )
 
 
@@ -112,7 +120,7 @@ PATCH = Patch(
     name="Session memory",
     group="prompts",
     versions_supported=">=2.1.0,<3",
-    versions_tested=(">=2.1.0,<=2.1.195",),
+    versions_tested=(">=2.1.0,<=2.1.195", ">=2.1.216,<=2.1.218"),
     apply=_apply,
     description="Enable session memory extraction and past-session search with environment-configurable thresholds.",
 )

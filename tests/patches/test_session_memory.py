@@ -46,6 +46,25 @@ def test_new_file_memory_with_multiple_pre_gates_applies():
     assert "skipped obsolete past sessions gate" in outcome.notes
 
 
+def test_new_file_memory_ignores_session_memory_telemetry_names():
+    # Regression: 2.1.217+ reintroduced `tengu_session_memory_*` telemetry
+    # event names. A bare-substring detector saw them, decided this was the old
+    # experiment, and let the obsolete past-sessions/token/threshold gates hard
+    # fail. Only the `("tengu_session_memory",!1)` gate-call form should count.
+    js = (
+        "function enabled(){if(one())return!1;"
+        "let flag=process.env.CLAUDE_CODE_DISABLE_AUTO_MEMORY;return!0}"
+        'const marker="CLAUDE_COWORK_MEMORY_GUIDELINES";'
+        'O("tengu_session_memory_rated",{});O("tengu_session_memory_deleted",{});'
+    )
+
+    outcome = PATCH.apply(js, PatchContext(claude_version="2.1.218"))
+
+    assert outcome.status == "applied"
+    assert "function enabled(){return true;if(one())return!1;" in outcome.js
+    assert "skipped obsolete past sessions gate" in outcome.notes
+
+
 def test_metadata():
     assert PATCH.id == "session-memory"
     assert PATCH.group == "prompts"
