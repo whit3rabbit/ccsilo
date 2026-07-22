@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.11.2] - 2026-07-22
+
+### Added
+- Added Claude Code prompt catalogs for 2.1.217 and 2.1.218.
+- Added Claude Code patch compatibility reports for 2.1.217 and 2.1.218 (Docker smoke passed, 30/30 patches ok).
+
+### Changed
+- Widened `session-memory` `versions_tested` to cover the new file-memory era (`>=2.1.216,<=2.1.218`), proven by Docker runtime smoke.
+
+### Fixed
+- Fixed `session-memory` for Claude Code 2.1.217+. Upstream reintroduced `tengu_session_memory_*` telemetry event names (rated, deleted, viewer_opened, ...). The new-file-memory-system detector keyed on a bare `tengu_session_memory` substring, so the telemetry names made it return False, the obsolete-gate skip path stopped firing, and the past-sessions/token-limit/threshold sub-patches hard-failed (`status=missed`, smoke error at the patch stage). The detector now matches the `("tengu_session_memory",!1)` gate-call form, which telemetry names never carry.
+
 ## [0.11.1] - 2026-07-20
 
 ### Added
