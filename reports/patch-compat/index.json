@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-07-22T21:33:44.952704Z",
+  "generatedAt": "2026-07-25T10:47:51.158865Z",
   "reports": [
     {
       "ok": true,
-      "path": "2.1.218.json",
+      "path": "2.1.220.json",
       "smoke": {
         "ok": true,
         "platformKey": "linux-x64",
@@ -17,13 +17,13 @@
         "skipped": 2,
         "total": 30,
         "unsupported": 1,
-        "untested": 27
+        "untested": 28
       },
-      "version": "2.1.218"
+      "version": "2.1.220"
     },
     {
       "ok": true,
-      "path": "2.1.217.json",
+      "path": "2.1.219.json",
       "smoke": {
         "ok": true,
         "platformKey": "linux-x64",
@@ -37,49 +37,9 @@
         "skipped": 2,
         "total": 30,
         "unsupported": 1,
-        "untested": 27
+        "untested": 28
       },
-      "version": "2.1.217"
-    },
-    {
-      "ok": true,
-      "path": "2.1.216.json",
-      "smoke": {
-        "ok": true,
-        "platformKey": "linux-x64",
-        "stage": "run",
-        "status": "passed"
-      },
-      "summary": {
-        "applied": 27,
-        "failed": 0,
-        "ok": 30,
-        "skipped": 2,
-        "total": 30,
-        "unsupported": 1,
-        "untested": 27
-      },
-      "version": "2.1.216"
-    },
-    {
-      "ok": true,
-      "path": "2.1.215.json",
-      "smoke": {
-        "ok": true,
-        "platformKey": "linux-x64",
-        "stage": "run",
-        "status": "passed"
-      },
-      "summary": {
-        "applied": 27,
-        "failed": 0,
-        "ok": 30,
-        "skipped": 2,
-        "total": 30,
-        "unsupported": 1,
-        "untested": 8
-      },
-      "version": "2.1.215"
+      "version": "2.1.219"
     }
   ],
   "schemaVersion": 1
