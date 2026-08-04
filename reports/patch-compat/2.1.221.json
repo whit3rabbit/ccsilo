@@ -1,9 +1,9 @@
 {
   "binary": {
-    "entryBytes": 21633085,
+    "entryBytes": 22876551,
     "entryModule": "src/entrypoints/cli.js"
   },
-  "generatedAt": "2026-08-04T11:09:16.405312Z",
+  "generatedAt": "2026-08-04T11:08:48.066127Z",
   "ok": true,
   "patches": [
     {
@@ -29,7 +29,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'allow-custom-agent-models' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
+        "patch 'allow-custom-agent-models' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
       ]
     },
     {
@@ -43,7 +43,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'anthropic-sse-error-surfacing' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
+        "patch 'anthropic-sse-error-surfacing' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
       ]
     },
     {
@@ -57,7 +57,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'auto-accept-plan-mode' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
+        "patch 'auto-accept-plan-mode' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
       ]
     },
     {
@@ -71,7 +71,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'filter-scroll-escape-sequences' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
+        "patch 'filter-scroll-escape-sequences' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
       ]
     },
     {
@@ -85,7 +85,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'hide-ctrl-g-to-edit' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
+        "patch 'hide-ctrl-g-to-edit' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
       ]
     },
     {
@@ -99,7 +99,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'hide-startup-banner' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215', '==2.1.167']"
+        "patch 'hide-startup-banner' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215', '==2.1.167']"
       ]
     },
     {
@@ -113,7 +113,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'hide-startup-clawd' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
+        "patch 'hide-startup-clawd' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
       ]
     },
     {
@@ -127,7 +127,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'input-box-border' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215', '==2.1.167']"
+        "patch 'input-box-border' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215', '==2.1.167']"
       ]
     },
     {
@@ -141,7 +141,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'mid-conversation-system-422-fallback' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
+        "patch 'mid-conversation-system-422-fallback' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
       ]
     },
     {
@@ -155,7 +155,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'mcp-non-blocking' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
+        "patch 'mcp-non-blocking' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
       ]
     },
     {
@@ -169,7 +169,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'mcp-batch-size' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
+        "patch 'mcp-batch-size' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
       ]
     },
     {
@@ -183,7 +183,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'model-customizations' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
+        "patch 'model-customizations' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
       ]
     },
     {
@@ -192,14 +192,14 @@
       "id": "no-prompt-steganography",
       "name": "No prompt steganography",
       "notes": [
-        "stego function not found in 2.1.220; Anthropic removed it upstream (verified clean)"
+        "stego function not found in 2.1.221; Anthropic removed it upstream (verified clean)"
       ],
       "ok": true,
       "status": "skipped",
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'no-prompt-steganography' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
+        "patch 'no-prompt-steganography' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
       ]
     },
     {
@@ -213,7 +213,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'opencode-gateway-discovery' not tested against version 2.1.220; tested ranges: ['>=2.1.0,<=2.1.215']"
+        "patch 'opencode-gateway-discovery' not tested against version 2.1.221; tested ranges: ['>=2.1.0,<=2.1.215']"
       ]
     },
     {
@@ -227,7 +227,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'opusplan1m' not tested against version 2.1.220; tested ranges: ['>=2.1.0,<=2.1.195']"
+        "patch 'opusplan1m' not tested against version 2.1.221; tested ranges: ['>=2.1.0,<=2.1.195']"
       ]
     },
     {
@@ -241,7 +241,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'patches-applied-indication' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']"
+        "patch 'patches-applied-indication' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']"
       ]
     },
     {
@@ -255,11 +255,11 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'prompt-overlays' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
+        "patch 'prompt-overlays' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
       ]
     },
     {
-      "detail": "remember-skill: version 2.1.220 not in supported range '>=2.1.0,<2.1.42'",
+      "detail": "remember-skill: version 2.1.221 not in supported range '>=2.1.0,<2.1.42'",
       "group": "prompts",
       "id": "remember-skill",
       "name": "Remember skill",
@@ -285,7 +285,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'session-memory' not tested against version 2.1.220; tested ranges: ['>=2.1.0,<=2.1.195', '>=2.1.216,<=2.1.218']"
+        "patch 'session-memory' not tested against version 2.1.221; tested ranges: ['>=2.1.0,<=2.1.195', '>=2.1.216,<=2.1.218']"
       ]
     },
     {
@@ -299,7 +299,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'show-more-items-in-select-menus' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
+        "patch 'show-more-items-in-select-menus' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
       ]
     },
     {
@@ -313,7 +313,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'statusline-update-throttle' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']"
+        "patch 'statusline-update-throttle' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']"
       ]
     },
     {
@@ -329,7 +329,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'suppress-model-launch-notice' not tested against version 2.1.220; tested ranges: ['>=2.1.0,<=2.1.195']"
+        "patch 'suppress-model-launch-notice' not tested against version 2.1.221; tested ranges: ['>=2.1.0,<=2.1.195']"
       ]
     },
     {
@@ -343,7 +343,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'suppress-line-numbers' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']"
+        "patch 'suppress-line-numbers' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']"
       ]
     },
     {
@@ -369,7 +369,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'suppress-prompt-caching-warning' not tested against version 2.1.220; tested ranges: ['>=2.1.0,<=2.1.195']"
+        "patch 'suppress-prompt-caching-warning' not tested against version 2.1.221; tested ranges: ['>=2.1.0,<=2.1.195']"
       ]
     },
     {
@@ -383,7 +383,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'suppress-rate-limit-options' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
+        "patch 'suppress-rate-limit-options' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
       ]
     },
     {
@@ -397,7 +397,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'themes' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
+        "patch 'themes' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
       ]
     },
     {
@@ -411,7 +411,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'thinking-visibility' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
+        "patch 'thinking-visibility' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
       ]
     },
     {
@@ -425,7 +425,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'token-count-rounding' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
+        "patch 'token-count-rounding' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
       ]
     }
   ],
@@ -445,11 +445,11 @@
       "<patched-binary>",
       "--version"
     ],
-    "durationMs": 11735,
+    "durationMs": 12298,
     "exitCode": 0,
-    "expectedVersion": "2.1.220",
+    "expectedVersion": "2.1.221",
     "ok": true,
-    "outputSha256": "b38c34a9e0f2b9b65a043d40f00147dbb7b451c6935ff31d94ad642b3324b7dd",
+    "outputSha256": "0c916d7fe6823cfcc9ba6182bfd20b0ce939ae75adb00cb6b764d1be34ba40c6",
     "patches": {
       "applied": [
         "agents-md",
@@ -517,40 +517,40 @@
         "suppress-model-launch-notice"
       ],
       "warnings": [
-        "patch 'allow-custom-agent-models' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
-        "patch 'anthropic-sse-error-surfacing' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
-        "patch 'auto-accept-plan-mode' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
-        "patch 'filter-scroll-escape-sequences' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
-        "patch 'hide-ctrl-g-to-edit' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
-        "patch 'hide-startup-banner' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215', '==2.1.167']",
-        "patch 'hide-startup-clawd' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
-        "patch 'input-box-border' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215', '==2.1.167']",
-        "patch 'mid-conversation-system-422-fallback' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
-        "patch 'mcp-non-blocking' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
-        "patch 'mcp-batch-size' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
-        "patch 'model-customizations' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
-        "patch 'no-prompt-steganography' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
-        "patch 'opencode-gateway-discovery' not tested against version 2.1.220; tested ranges: ['>=2.1.0,<=2.1.215']",
-        "patch 'opusplan1m' not tested against version 2.1.220; tested ranges: ['>=2.1.0,<=2.1.195']",
-        "patch 'patches-applied-indication' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']",
-        "patch 'prompt-overlays' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
-        "patch 'session-memory' not tested against version 2.1.220; tested ranges: ['>=2.1.0,<=2.1.195', '>=2.1.216,<=2.1.218']",
-        "patch 'show-more-items-in-select-menus' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
-        "patch 'statusline-update-throttle' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']",
-        "patch 'suppress-model-launch-notice' not tested against version 2.1.220; tested ranges: ['>=2.1.0,<=2.1.195']",
-        "patch 'suppress-line-numbers' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']",
-        "patch 'suppress-prompt-caching-warning' not tested against version 2.1.220; tested ranges: ['>=2.1.0,<=2.1.195']",
-        "patch 'suppress-rate-limit-options' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
-        "patch 'themes' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
-        "patch 'thinking-visibility' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
-        "patch 'token-count-rounding' not tested against version 2.1.220; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
+        "patch 'allow-custom-agent-models' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
+        "patch 'anthropic-sse-error-surfacing' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
+        "patch 'auto-accept-plan-mode' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
+        "patch 'filter-scroll-escape-sequences' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
+        "patch 'hide-ctrl-g-to-edit' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
+        "patch 'hide-startup-banner' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215', '==2.1.167']",
+        "patch 'hide-startup-clawd' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
+        "patch 'input-box-border' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215', '==2.1.167']",
+        "patch 'mid-conversation-system-422-fallback' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
+        "patch 'mcp-non-blocking' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
+        "patch 'mcp-batch-size' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
+        "patch 'model-customizations' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
+        "patch 'no-prompt-steganography' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
+        "patch 'opencode-gateway-discovery' not tested against version 2.1.221; tested ranges: ['>=2.1.0,<=2.1.215']",
+        "patch 'opusplan1m' not tested against version 2.1.221; tested ranges: ['>=2.1.0,<=2.1.195']",
+        "patch 'patches-applied-indication' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']",
+        "patch 'prompt-overlays' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
+        "patch 'session-memory' not tested against version 2.1.221; tested ranges: ['>=2.1.0,<=2.1.195', '>=2.1.216,<=2.1.218']",
+        "patch 'show-more-items-in-select-menus' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
+        "patch 'statusline-update-throttle' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']",
+        "patch 'suppress-model-launch-notice' not tested against version 2.1.221; tested ranges: ['>=2.1.0,<=2.1.195']",
+        "patch 'suppress-line-numbers' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']",
+        "patch 'suppress-prompt-caching-warning' not tested against version 2.1.221; tested ranges: ['>=2.1.0,<=2.1.195']",
+        "patch 'suppress-rate-limit-options' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
+        "patch 'themes' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
+        "patch 'thinking-visibility' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']",
+        "patch 'token-count-rounding' not tested against version 2.1.221; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.215']"
       ]
     },
     "platformKey": "linux-x64",
     "stage": "run",
     "status": "passed",
     "stderr": "",
-    "stdout": "2.1.220 (Claude Code)\n",
+    "stdout": "2.1.221 (Claude Code)\n",
     "versionMatched": true
   },
   "summary": {
@@ -562,5 +562,5 @@
     "unsupported": 1,
     "untested": 28
   },
-  "version": "2.1.220"
+  "version": "2.1.221"
 }
