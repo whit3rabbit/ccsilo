@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.11.3] - 2026-08-04
+
+### Added
+- Added Claude Code prompt catalogs for 2.1.219, 2.1.220, and 2.1.221.
+- Added Claude Code patch compatibility reports for 2.1.219, 2.1.220, and 2.1.221 (Docker smoke passed, 30/30 patches ok).
+
 ## [0.11.2] - 2026-07-22
 
 ### Added
