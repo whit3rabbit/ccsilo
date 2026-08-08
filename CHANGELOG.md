@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.11.4] - 2026-08-08
+
+### Added
+- Added Claude Code prompt catalogs for 2.1.223, 2.1.224, 2.1.225, and 2.1.226, and backfilled the missing 2.1.176 catalog.
+- Added Claude Code patch compatibility reports for 2.1.223, 2.1.224, 2.1.225, and 2.1.226 (Docker smoke passed, 30/30 patches ok).
+
+### Changed
+- Widened the shared tested version range and the `opencode-gateway-discovery` range to 2.1.226, with the registry sentinel moved to 2.1.227.
+- Regenerated the 2.1.222 patch compatibility report against the widened ranges (untested 28 -> 8).
+
+### Fixed
+- Fixed `opencode-gateway-discovery` for Claude Code 2.1.223+. Upstream dropped the leading `^` from the gateway model filter (`/^(claude|anthropic)/i` -> `/(claude|anthropic)/i`), so the anchor missed and aborted smoke at the patch stage. The anchor now accepts both shapes and reuses the matched regex literal in the non-gateway fallback branch.
+- Fixed `allow-custom-agent-models` for Claude Code 2.1.224+. Upstream moved the Task tool schema to zod-mini helper calls, emitting `z.enum([...])` as a bare `Nr(["sonnet","opus","haiku","fable"])` and `z.string()` as `N()`, so all three existing matchers missed. A new branch recovers the string helper from a sibling field in the same schema literal instead of guessing the minified name.
+
 ## [0.11.3] - 2026-08-04
 
 ### Added
