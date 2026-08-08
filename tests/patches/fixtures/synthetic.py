@@ -36,6 +36,14 @@ SYNTHETIC = {
         'let Y=z.data.data.filter((j)=>/^(claude|anthropic)/i.test(j.id));'
         'if(Y.length===0)return}'
     ),
+    "opencode-gateway-discovery-v3": (
+        # 2.1.223+ dropped the leading `^` anchor from the upstream filter.
+        'async function discover(){if(!Z.CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY)return;'
+        'let e=Z.ANTHROPIC_BASE_URL;if(!e)return;'
+        'let z={data:{data:[{id:"deepseek-v4-pro"}]}};'
+        'let Y=z.data.data.filter((j)=>/(claude|anthropic)/i.test(j.id));'
+        'if(Y.length===0)return}'
+    ),
     "suppress-line-numbers": (
         'function fmt({content:C,startLine:S}){if(!C)return"";'
         'let L=C.split(/\\r?\\n/);return L.map(x=>x).join("\\n")}function next(){}'
@@ -216,6 +224,13 @@ SYNTHETIC = {
     "allow-custom-agent-models": (
         ',model:z.enum(MODELS).optional();'
         'let ok=K&&typeof K==="string"&&MODELS.includes(K)'
+    ),
+    "allow-custom-agent-models-mini": (
+        # 2.1.224+ emits zod-mini helper calls (`N()` for string, `Nr([...])`
+        # for enum) instead of `z.string()` / `z.enum([...])`.
+        'let S=ve(()=>Se({description:N().describe("A short description"),'
+        'subagent_type:N().optional().describe("The type of specialized agent"),'
+        'model:Nr(["sonnet","opus","haiku","fable"]).optional().describe("Model override")}))'
     ),
     "patches-applied-indication": 'const version=`${pkg.VERSION} (Claude Code)`;',
     "themes": "\n".join([

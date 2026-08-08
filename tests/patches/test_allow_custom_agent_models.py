@@ -12,6 +12,14 @@ def test_synthetic_applies(cli_js_synthetic):
     assert ",model:z.string().optional()" in outcome.js
 
 
+def test_synthetic_zod_mini_applies(cli_js_synthetic):
+    js = cli_js_synthetic("allow-custom-agent-models-mini")
+    outcome = PATCH.apply(js, PatchContext(claude_version=None))
+    assert outcome.status == "applied"
+    assert "model:N().optional().describe(" in outcome.js
+    assert "Nr([" not in outcome.js
+
+
 def test_metadata():
     assert PATCH.id == "allow-custom-agent-models"
     assert PATCH.group == "ui"

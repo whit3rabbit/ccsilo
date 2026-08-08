@@ -42,6 +42,18 @@ def test_synthetic_applies_namespace_base_url(cli_js_synthetic):
     assert "Z.ANTHROPIC_BASE_URL" in outcome.js
 
 
+def test_synthetic_applies_unanchored_filter(cli_js_synthetic):
+    # 2.1.223+ dropped the leading `^` from the upstream model filter; the
+    # fallback branch must reuse whichever regex literal upstream shipped.
+    js = cli_js_synthetic("opencode-gateway-discovery-v3")
+    outcome = PATCH.apply(js, PatchContext(claude_version=None))
+
+    assert outcome.status == "applied"
+    assert "ccsiloOpenCodeGatewayModels" in outcome.js
+    assert "filter((j)=>/(claude|anthropic)/i.test(j.id))" in outcome.js
+    assert "/^(claude|anthropic)/i" not in outcome.js
+
+
 def test_skips_when_gateway_discovery_unavailable():
     outcome = PATCH.apply("function old(){return null}", PatchContext(claude_version=None))
 

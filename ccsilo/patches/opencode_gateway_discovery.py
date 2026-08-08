@@ -31,15 +31,17 @@ def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
     if "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY" not in js:
         return PatchOutcome(js=js, status="skipped", notes=("gateway discovery unavailable",))
 
+    # 2.1.223+ dropped the leading `^` anchor from the upstream model filter.
     pattern = re.compile(
         r"let\s+([$\w]+)\s*=\s*([$\w]+)\.data\.data\.filter"
-        r"\(\s*\(?\s*([$\w]+)\s*\)?\s*=>\s*/\^\(claude\|anthropic\)/i\.test\(\3\.id\)\s*\)\s*;"
+        r"\(\s*\(?\s*([$\w]+)\s*\)?\s*=>\s*(/\^?\(claude\|anthropic\)/i)\.test\(\3\.id\)\s*\)\s*;"
     )
     match = pattern.search(js)
     if not match:
         return PatchOutcome(js=js, status="missed", notes=("missing gateway discovery model filter",))
 
     model_var, parsed_var, item_var = match.group(1), match.group(2), match.group(3)
+    filter_regex = match.group(4)
     base_var = _find_base_url_var(js, match.start())
     if not base_var:
         return PatchOutcome(js=js, status="missed", notes=("missing gateway discovery base URL",))
@@ -53,7 +55,7 @@ def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
         f"return ccsiloOpenCodeGateway||ccsiloLocalModelProxy?{parsed_var}.data.data.map(({item_var})=>"
         f'({{...{item_var},id:{item_var}.id,'
         f"display_name:{item_var}.display_name||{item_var}.id}})):"
-        f"{parsed_var}.data.data.filter(({item_var})=>/^(claude|anthropic)/i.test({item_var}.id));"
+        f"{parsed_var}.data.data.filter(({item_var})=>{filter_regex}.test({item_var}.id));"
         f"}})({base_var});"
     )
     return PatchOutcome(js=js[:match.start()] + replacement + js[match.end():], status="applied")
@@ -64,7 +66,7 @@ PATCH = Patch(
     name="OpenCode gateway discovery",
     group="ui",
     versions_supported=">=2.1.0,<3",
-    versions_tested=(">=2.1.0,<=2.1.215",),
+    versions_tested=(">=2.1.0,<=2.1.226",),
     apply=_apply,
     description="Expose raw OpenCode Go, Zen, and ccsilo local proxy /v1/models entries in Claude Code gateway model discovery.",
 )

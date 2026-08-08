@@ -40,7 +40,28 @@ def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
         new_js = js[:inline_zod.start()] + replacement + js[inline_zod.end():]
         return PatchOutcome(js=new_js, status="applied")
 
-    # Third try: the loose (non-zod) pattern
+    # Third try: zod-mini function style (2.1.224+), where `z.enum([...])` is
+    # emitted as a bare helper call such as `Nr(["sonnet","opus",...])` and
+    # `z.string()` as `N()`. Recover the string helper from a sibling field in
+    # the same schema literal instead of guessing its minified name.
+    mini = re.search(
+        r",model:([$\w]+)\(\[(?:\"[\w.\[\]-]+\",?)+\]\)\.optional\(\)\.describe\(",
+        js,
+    )
+    if mini:
+        window = js[max(0, mini.start() - 600):mini.start()]
+        string_fn = None
+        for sibling in re.finditer(r"[,{(]\w+:([$\w]+)\(\)(?:\.optional\(\))?\.describe\(", window):
+            string_fn = sibling.group(1)
+        if string_fn:
+            enum_end = js.index(".optional()", mini.start())
+            replacement = f",model:{string_fn}()"
+            return PatchOutcome(
+                js=js[:mini.start()] + replacement + js[enum_end:],
+                status="applied",
+            )
+
+    # Fourth try: the loose (non-zod) pattern
     loose = re.sub(
         r"(let\s+[$\w]+\s*=\s*([$\w]+)\s*&&\s*typeof\s+\2\s*===\"string\")"
         r"\s*&&\s*[$\w]+\.includes\(\2\)",
