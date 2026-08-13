@@ -66,21 +66,31 @@ def _patch_selector_options(js: str) -> str:
 
 
 def _patch_selected_option_fallback(js: str) -> str:
+    # 2.1.227+ passes extra arguments to the option-list wrapper
+    # (`return W([...opts,factory()],ctx);`), so tolerate and replay any
+    # trailing identifier arguments instead of assuming a single argument.
     match = re.search(
-        r'(else if\(([$\w]+)==="opusplan"\)return ([$\w]+)\(\[\.\.\.([$\w]+),([$\w]+)\(\)\]\);)',
+        r'(else if\(([$\w]+)==="opusplan"\)return ([$\w]+)\(\[\.\.\.([$\w]+),([$\w]+)\(\)\]((?:,[$\w]+)*)\);)',
         js,
     )
     if not match:
         raise ValueError("selector options")
     full_match, var_name, wrapper, list_var = match.group(1), match.group(2), match.group(3), match.group(4)
+    extra_args = match.group(6)
     new_entry = '{value:"opusplan[1m]",label:"Architect Mode",description:"Use planner model in plan mode, worker model otherwise"}'
-    replacement = full_match + f'else if({var_name}==="opusplan[1m]")return {wrapper}([...{list_var},{new_entry}]);'
+    replacement = full_match + (
+        f'else if({var_name}==="opusplan[1m]")return {wrapper}([...{list_var},{new_entry}]{extra_args});'
+    )
     return js[:match.start()] + replacement + js[match.end():]
 
 
 def _patch_always_show(js: str) -> str:
     match = re.search(
-        r'(if\s*\(\s*[$\w]+\s*===\s*null\s*\|\|\s*([$\w]+)\.some\s*\(\s*\(\s*[$\w]+\s*\)\s*=>\s*[$\w]+\.value\s*===\s*[$\w]+\s*\)\s*\)\s*return\s*(?:[$\w]+\()?[$\w]+\)?\s*;)',
+        # The wrapper call gained trailing arguments in 2.1.227
+        # (`return W(opts,ctx);`); only the match start is used, so the regex
+        # just has to keep recognizing the guard.
+        r'(if\s*\(\s*[$\w]+\s*===\s*null\s*\|\|\s*([$\w]+)\.some\s*\(\s*\(\s*[$\w]+\s*\)\s*=>\s*[$\w]+\.value\s*===\s*[$\w]+\s*\)\s*\)'
+        r'\s*return\s*(?:[$\w]+\()?[$\w]+(?:\s*,\s*[$\w]+)*\)?\s*;)',
         js,
     )
     if not match:
@@ -142,7 +152,9 @@ PATCH = Patch(
     name="Architect Mode",
     group="ui",
     versions_supported=">=2.1.0,<3",
-    versions_tested=(">=2.1.0,<=2.1.195",),
+    # 2.1.196-2.1.226 were never proven for this patch; 2.1.227+ is covered
+    # after the selector-wrapper argument fix.
+    versions_tested=(">=2.1.0,<=2.1.195", ">=2.1.227,<=2.1.231"),
     apply=_apply,
     description=(
         "Add an Architect Mode model alias that uses a planner model in plan mode and a worker model otherwise. "

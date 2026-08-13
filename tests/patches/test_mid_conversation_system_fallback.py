@@ -107,6 +107,57 @@ def test_synthetic_tolerates_anthropic_beta_helper_call():
     assert "ccsilo:mid-conversation-system-422-fallback" in outcome.js
 
 
+def test_synthetic_split_predicate_applies(cli_js_synthetic):
+    js = cli_js_synthetic("mid-conversation-system-422-fallback-split")
+    outcome = PATCH.apply(js, PatchContext(claude_version=None))
+
+    assert outcome.status == "applied"
+    assert "H.status!==400&&H.status!==422" in outcome.js
+    assert "literal_error" in outcome.js
+    assert "ccsilo:mid-conversation-system-422-fallback" in outcome.js
+    # The identically shaped cache_control sibling must be left alone.
+    assert 'function isCacheCtl(H){if(!(H instanceof rq)||H.status!==400)return!1;' in outcome.js
+    assert outcome.js.count("status!==422") == 1
+    # The original predicate body is preserved.
+    assert 'return midConvMsg(H.message)||recorded(H.message,"mid_conv_system")' in outcome.js
+
+
+def test_synthetic_split_zai_422_rejection_falls_back(cli_js_synthetic, tmp_path):
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node not on PATH; skipping runtime predicate check")
+
+    js = cli_js_synthetic("mid-conversation-system-422-fallback-split")
+    outcome = PATCH.apply(js, PatchContext(claude_version=None))
+    body = {
+        "detail": [
+            {
+                "type": "literal_error",
+                "loc": ["body", "messages", 1, "role"],
+                "msg": "Input should be 'user' or 'assistant'",
+                "input": "system",
+            }
+        ]
+    }
+    probe = (
+        "function hasBeta(){return false}function recorded(){return false}\n"
+        + outcome.js
+        + "\nconst err = new rq(" + json.dumps(json.dumps(body)) + ");"
+        + "\nerr.status = 422;"
+        + "\nif (!pP8(err)) process.exit(17);"
+        # An ordinary 422 that is not a role validation failure stays untouched.
+        + "\nconst other = new rq('some unrelated validation error');"
+        + "\nother.status = 422;"
+        + "\nif (pP8(other)) process.exit(18);"
+    )
+    path = tmp_path / "probe_split.js"
+    path.write_text(probe, encoding="utf-8")
+
+    result = subprocess.run([node, str(path)], capture_output=True, text=True, timeout=30)
+
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
 def test_idempotent(cli_js_synthetic):
     js = cli_js_synthetic("mid-conversation-system-422-fallback")
     once = PATCH.apply(js, PatchContext(claude_version=None))

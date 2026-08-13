@@ -94,6 +94,21 @@ SYNTHETIC = {
         'if(_.includes("Unexpected role")&&_.includes("input message role"))return!0;'
         'return _.includes("not supported")&&/role .{0,2}system/i.test(_)}'
     ),
+    # 2.1.228+ split the predicate into a message-only matcher plus a status
+    # wrapper that also consults the recorded-classification cache. The
+    # cache_control sibling shares the wrapper shape and must not be matched.
+    "mid-conversation-system-422-fallback-split": (
+        'class rq extends Error{}let Yy={header:"mid-conversation-system-2026-04-07"};'
+        'function midConvMsg(_){if(hasBeta(_,Yy.header))return!0;'
+        'if(_.includes("Unexpected role")&&_.includes("input message role"))return!0;'
+        'return _.includes("not supported")&&/role .{0,2}system/i.test(_)}'
+        'function cacheCtlMsg(_){return _.includes("cache_control")}'
+        'function isCacheCtl(H){if(!(H instanceof rq)||H.status!==400)return!1;'
+        'return cacheCtlMsg(H.message)||recorded(H.message,"cache_control_field")}'
+        'function pP8(H){if(!(H instanceof rq)||H.status!==400)return!1;'
+        'return midConvMsg(H.message)||recorded(H.message,"mid_conv_system")||'
+        'recorded(H.message,`beta_header:${Yy.header}`)}'
+    ),
     "anthropic-sse-error-surfacing": (
         'function s0_(H){try{return JSON.parse(H)}catch(_){return}}'
         'class mq extends Error{constructor(H,_,q,K,O){super(JSON.stringify(_));'
@@ -190,6 +205,21 @@ SYNTHETIC = {
         'return processClaude(z,A,q,K)}catch(_){return handleReadError(_,A),'
         '{info:null,includePaths:[]}}}'
     ),
+    # 2.1.227+ reader: 4th `{backend,key}` parameter and a backend/fs fork.
+    "agents-md-backend": (
+        'async function readClaude(A,q,K,S){try{let z,D=!1;'
+        'if(S){let p=await probeBackend(S);switch(p.kind){'
+        'case"absent":return{info:null,includePaths:[]};'
+        'case"error":return handleReadError(p.code,A),{info:null,includePaths:[]};'
+        'case"skipped":D=p.isDirectory,z=null;break;'
+        'case"content":z=p.content;break}}'
+        'else{let f=fs();z=await readLimited(f,A,LIMIT,(s)=>{D=s.isDirectory()})}'
+        'if(z===null){if(log(`[CLAUDE.md] skipping ${A}`),!warned&&!D)warned=!0,'
+        'tel("context_claude_md_load","file_skipped_special_or_oversize");'
+        'return{info:null,includePaths:[]}}'
+        'return processClaude(z,A,q,K)}'
+        'catch(_){return handleReadError(_,A),{info:null,includePaths:[]}}}'
+    ),
     "opusplan1m": (
         'if(currentModel()==="opusplan"&&mode==="plan"&&!overLimit)return opusModel();'
         'let aliases=["sonnet","opus","haiku","sonnet[1m]","opusplan"];'
@@ -216,6 +246,17 @@ SYNTHETIC = {
         'function label(A){if(A==="opusplan")return"Opus Plan";return""}'
         'function fallback(selected,opts){if(selected===null||opts.some((Z)=>Z.value===selected))return wrap(opts);'
         'else if(selected==="opusplan")return wrap([...opts,opusPlanOption()]);return wrap(opts)}'
+    ),
+    # 2.1.227+ passes a second argument to the option-list wrapper.
+    "opusplan1m-v4": (
+        'let aliases=["sonnet","opus","haiku","fable","best","sonnet[1m]","opus[1m]","fable[1m]","opusplan"];'
+        'function select(ctx){let{permissionMode:mode,mainLoopModel:model,exceeds200kTokens:overLimit=!1}=ctx,current=currentModel();'
+        'if((current==="opusplan"||current==="opusplan[1m]")&&mode==="plan"&&!overLimit){let plan=current==="opusplan[1m]"?oneM(opusModel()):opusModel();'
+        'if(!allowed(plan))return normalize(current);return plan}return model}'
+        'function desc(A){if(A==="opusplan")return"Opus in plan mode, else Sonnet";return""}'
+        'function label(A){if(A==="opusplan")return"Opus Plan";return""}'
+        'function fallback(selected,opts,ctx){if(selected===null||opts.some((Z)=>Z.value===selected))return wrap(opts,ctx);'
+        'else if(selected==="opusplan")return wrap([...opts,opusPlanOption()],ctx);return wrap(opts,ctx)}'
     ),
     "auto-accept-plan-mode": (
         'function plan(){return R.createElement(Box,'

@@ -54,6 +54,18 @@ def test_synthetic_v3_applies_when_supported_mode_switch_uses_block(cli_js_synth
     assert outcome.js.count('value:"opusplan[1m]"') == 2
 
 
+def test_synthetic_v4_applies_when_wrapper_takes_extra_arg(cli_js_synthetic):
+    # 2.1.227 changed the option-list wrapper call from `wrap([...opts,f()])`
+    # to `wrap([...opts,f()],ctx)`; the extra arguments must be replayed.
+    js = cli_js_synthetic("opusplan1m-v4")
+    outcome = PATCH.apply(js, PatchContext(claude_version=None))
+
+    assert outcome.status == "applied"
+    assert 'else if(selected==="opusplan[1m]")return wrap([...opts,{value:"opusplan[1m]"' in outcome.js
+    assert '}],ctx);' in outcome.js
+    assert outcome.js.count('value:"opusplan[1m]"') == 2
+
+
 def test_miss_when_anchor_absent():
     outcome = PATCH.apply("function unrelated(){return null}", PatchContext(claude_version=None))
     assert outcome.status == "missed"

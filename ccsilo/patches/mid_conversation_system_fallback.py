@@ -25,6 +25,62 @@ _FALLBACK_RE = re.compile(
     r'\}'
 )
 
+# 2.1.228+ split the predicate in two: a message-only matcher
+# (`function Njs(e){if(m2o(e,bz.header))return!0;...}`) plus a thin wrapper that
+# owns the `instanceof` and status gate and also consults a recorded
+# classification cache:
+#   function NYo(e){if(!(e instanceof ps)||e.status!==400)return!1;
+#     return Njs(e.message)||o4(e.message,"mid_conv_system")||o4(e.message,`beta_header:${bz.header}`)}
+# The wrapper is the retry-predicate entry point, so 422 relaxation belongs
+# there. `"mid_conv_system"` keys the anchor to this wrapper and not to its
+# identically shaped cache_control / thinking_signature siblings.
+_SPLIT_FALLBACK_RE = re.compile(
+    r'(function\s+[$\w]+\(([$\w]+)\)\{'
+    r'if\(!\(\2 instanceof [$\w]+\)\|\|\2\.status!==400\)return!1;)'
+    r'(return [$\w]+\(\2\.message\)\|\|[$\w]+\(\2\.message,"mid_conv_system"\)'
+    r'(?:[^{}]|\$\{[^{}]*\})*)'
+    r'\}'
+)
+
+
+def _fallback_clause(request_var: str, message_var: str) -> str:
+    """422 literal-role validation clause shared by both anchor shapes."""
+    return (
+        f"if({request_var}.status===422&&"
+        f"(({message_var}.includes(\"Input should be 'user' or 'assistant'\")&&"
+        f"{message_var}.includes('\"system\"'))||"
+        f"({message_var}.includes(\"literal_error\")&&"
+        f"{message_var}.includes(\"role\")&&"
+        f"{message_var}.includes(\"system\"))))return!0;"
+    )
+
+
+def _apply_split(js: str) -> PatchOutcome:
+    match = _SPLIT_FALLBACK_RE.search(js)
+    if not match:
+        return PatchOutcome(
+            js=js,
+            status="missed",
+            notes=("missing mid-conversation system fallback predicate",),
+        )
+
+    request_var = match.group(2)
+    message_var = f"{request_var}.message"
+    prefix = match.group(1).replace(
+        f"{request_var}.status!==400",
+        f"({request_var}.status!==400&&{request_var}.status!==422)",
+        1,
+    )
+    replacement = (
+        f"{prefix}"
+        f"{_fallback_clause(request_var, message_var)}"
+        f"{match.group(3)}/*{_MARKER}*/}}"
+    )
+    new_js = js[:match.start()] + replacement + js[match.end():]
+    if new_js == js:
+        return PatchOutcome(js=js, status="skipped")
+    return PatchOutcome(js=new_js, status="applied")
+
 
 def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
     if _MARKER in js:
@@ -32,11 +88,7 @@ def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
 
     match = _FALLBACK_RE.search(js)
     if not match:
-        return PatchOutcome(
-            js=js,
-            status="missed",
-            notes=("missing mid-conversation system fallback predicate",),
-        )
+        return _apply_split(js)
 
     request_var = match.group(2)
     message_var = match.group(3)
@@ -54,12 +106,7 @@ def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
     # https://docs.z.ai/devpack/tool/others
     replacement = (
         f"{prefix}"
-        f"if({request_var}.status===422&&"
-        f"(({message_var}.includes(\"Input should be 'user' or 'assistant'\")&&"
-        f"{message_var}.includes('\"system\"'))||"
-        f"({message_var}.includes(\"literal_error\")&&"
-        f"{message_var}.includes(\"role\")&&"
-        f"{message_var}.includes(\"system\"))))return!0;"
+        f"{_fallback_clause(request_var, message_var)}"
         f"return {message_var}.includes(\"not supported\")&&"
         f"/role .{{0,2}}system/i.test({message_var})/*{_MARKER}*/}}"
     )
