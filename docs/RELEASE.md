@@ -119,8 +119,9 @@ VERSION="$(.venv/bin/python -c 'import pathlib, tomllib; print(tomllib.loads(pat
 TAG="v${VERSION}"
 git tag -a "$TAG" -m "ccsilo ${VERSION}"
 git push upstream "$TAG"
-# The push of the tag or publishing a release on GitHub will trigger the automated workflow.
-# Alternatively, run the workflow manually:
+# Pushing the tag does NOT publish. release.yml triggers only on
+# `release: published` and `workflow_dispatch`, so publish the GitHub Release
+# for the tag, or dispatch the workflow manually:
 gh workflow run release.yml --ref "$TAG" -f repository=pypi
 gh run list --workflow release.yml --limit 1
 gh run watch
