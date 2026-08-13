@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.11.5] - 2026-08-13
+
+### Added
+- Added Claude Code prompt catalogs for 2.1.227, 2.1.228, 2.1.229, and 2.1.231.
+- Added Claude Code patch compatibility reports for 2.1.227, 2.1.228, 2.1.229, and 2.1.231 (Docker smoke passed, 30/30 patches ok), and regenerated 2.1.226.
+
+### Changed
+- Widened the shared tested version range and the `opencode-gateway-discovery` range to 2.1.231, with the registry sentinel moved to 2.1.232.
+- Widened the `opusplan1m` tested range to cover 2.1.227-2.1.231.
+
+### Fixed
+- Fixed `agents-md` for Claude Code 2.1.227+. Upstream gave the CLAUDE.md reader a fourth `{backend,key}` storage parameter and split the read into a backend switch and a filesystem branch, so every existing matcher missed. A new reader variant handles that shape.
+- Fixed `mid-conversation-system-422-fallback` for Claude Code 2.1.228+. Upstream split the predicate into a message-only matcher plus a wrapper owning the `instanceof` and status gate. The 422 relaxation now anchors on the wrapper, keyed to `mid_conv_system` so the identically shaped `cache_control` and `thinking_signature` siblings are left untouched.
+- Fixed `opusplan1m` for Claude Code 2.1.227+. Upstream added a second argument to the model-selector option-list wrapper, so the selector-option and always-show anchors missed. Trailing arguments are now tolerated and replayed.
+- Fixed the `agents-md` fallback never firing on Claude Code 2.1.196-2.1.226. The reroute was wired only into the "content is null" branch, but the upstream read helper stats the path first, so a missing CLAUDE.md rejects with `ENOENT` and lands in the catch branch. The patch applied cleanly and silently never fell back to AGENTS.md. Every reader variant now reroutes from both branches through one shared helper, which also removes a hardcoded loop variable that could shadow a minified parameter.
+
 ## [0.11.4] - 2026-08-08
 
 ### Added
