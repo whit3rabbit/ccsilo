@@ -1,9 +1,9 @@
 {
   "binary": {
-    "entryBytes": 25004391,
-    "entryModule": "src/entrypoints/cli.js"
+    "entryBytes": 26596328,
+    "entryModule": "cli"
   },
-  "generatedAt": "2026-08-15T17:03:05.644813Z",
+  "generatedAt": "2026-08-15T17:00:55.807715Z",
   "ok": true,
   "patches": [
     {
@@ -168,7 +168,7 @@
       "id": "no-prompt-steganography",
       "name": "No prompt steganography",
       "notes": [
-        "stego function not found in 2.1.228; Anthropic removed it upstream (verified clean)"
+        "stego function not found in 2.1.233; Anthropic removed it upstream (verified clean)"
       ],
       "ok": true,
       "status": "skipped",
@@ -211,7 +211,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'patches-applied-indication' not tested against version 2.1.228; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']"
+        "patch 'patches-applied-indication' not tested against version 2.1.233; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']"
       ]
     },
     {
@@ -227,7 +227,7 @@
       "warnings": []
     },
     {
-      "detail": "remember-skill: version 2.1.228 not in supported range '>=2.1.0,<2.1.42'",
+      "detail": "remember-skill: version 2.1.233 not in supported range '>=2.1.0,<2.1.42'",
       "group": "prompts",
       "id": "remember-skill",
       "name": "Remember skill",
@@ -253,7 +253,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'session-memory' not tested against version 2.1.228; tested ranges: ['>=2.1.0,<=2.1.195', '>=2.1.216,<=2.1.218']"
+        "patch 'session-memory' not tested against version 2.1.233; tested ranges: ['>=2.1.0,<=2.1.195', '>=2.1.216,<=2.1.218']"
       ]
     },
     {
@@ -269,15 +269,15 @@
       "warnings": []
     },
     {
-      "detail": "",
+      "detail": "statusline-update-throttle: version 2.1.233 not in supported range '>=2.0.0,<=2.1.232'",
       "group": "ui",
       "id": "statusline-update-throttle",
       "name": "Statusline update throttling correction",
       "notes": [],
       "ok": true,
-      "status": "applied",
-      "supported": true,
-      "tested": true,
+      "status": "unsupported",
+      "supported": false,
+      "tested": false,
       "warnings": []
     },
     {
@@ -293,7 +293,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'suppress-model-launch-notice' not tested against version 2.1.228; tested ranges: ['>=2.1.0,<=2.1.195']"
+        "patch 'suppress-model-launch-notice' not tested against version 2.1.233; tested ranges: ['>=2.1.0,<=2.1.195']"
       ]
     },
     {
@@ -307,7 +307,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'suppress-line-numbers' not tested against version 2.1.228; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']"
+        "patch 'suppress-line-numbers' not tested against version 2.1.233; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']"
       ]
     },
     {
@@ -335,7 +335,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'suppress-prompt-caching-warning' not tested against version 2.1.228; tested ranges: ['>=2.1.0,<=2.1.195']"
+        "patch 'suppress-prompt-caching-warning' not tested against version 2.1.233; tested ranges: ['>=2.1.0,<=2.1.195']"
       ]
     },
     {
@@ -403,11 +403,11 @@
       "<patched-binary>",
       "--version"
     ],
-    "durationMs": 15523,
+    "durationMs": 17192,
     "exitCode": 0,
-    "expectedVersion": "2.1.228",
+    "expectedVersion": "2.1.233",
     "ok": true,
-    "outputSha256": "71c67196438d273e6d08eea6a6f7f5a882d4216459856b96b056e0af4e41bac8",
+    "outputSha256": "0f74f09cd1cc7bf09ae696725d8d4a06549e4312806bdbdafaceaa295fcc7d4f",
     "patches": {
       "applied": [
         "agents-md",
@@ -429,7 +429,6 @@
         "prompt-overlays",
         "session-memory",
         "show-more-items-in-select-menus",
-        "statusline-update-throttle",
         "suppress-line-numbers",
         "suppress-prompt-caching-warning",
         "suppress-rate-limit-options",
@@ -458,7 +457,6 @@
         "prompt-overlays",
         "session-memory",
         "show-more-items-in-select-menus",
-        "statusline-update-throttle",
         "suppress-model-launch-notice",
         "suppress-line-numbers",
         "suppress-native-installer-warning",
@@ -475,28 +473,28 @@
         "suppress-native-installer-warning"
       ],
       "warnings": [
-        "patch 'patches-applied-indication' not tested against version 2.1.228; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']",
-        "patch 'session-memory' not tested against version 2.1.228; tested ranges: ['>=2.1.0,<=2.1.195', '>=2.1.216,<=2.1.218']",
-        "patch 'suppress-model-launch-notice' not tested against version 2.1.228; tested ranges: ['>=2.1.0,<=2.1.195']",
-        "patch 'suppress-line-numbers' not tested against version 2.1.228; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']",
-        "patch 'suppress-prompt-caching-warning' not tested against version 2.1.228; tested ranges: ['>=2.1.0,<=2.1.195']"
+        "patch 'patches-applied-indication' not tested against version 2.1.233; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']",
+        "patch 'session-memory' not tested against version 2.1.233; tested ranges: ['>=2.1.0,<=2.1.195', '>=2.1.216,<=2.1.218']",
+        "patch 'suppress-model-launch-notice' not tested against version 2.1.233; tested ranges: ['>=2.1.0,<=2.1.195']",
+        "patch 'suppress-line-numbers' not tested against version 2.1.233; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']",
+        "patch 'suppress-prompt-caching-warning' not tested against version 2.1.233; tested ranges: ['>=2.1.0,<=2.1.195']"
       ]
     },
     "platformKey": "linux-x64",
     "stage": "run",
     "status": "passed",
     "stderr": "",
-    "stdout": "2.1.228 (Claude Code)\n",
+    "stdout": "2.1.233 (Claude Code)\n",
     "versionMatched": true
   },
   "summary": {
-    "applied": 26,
+    "applied": 25,
     "failed": 0,
     "ok": 30,
     "skipped": 3,
     "total": 30,
-    "unsupported": 1,
-    "untested": 6
+    "unsupported": 2,
+    "untested": 7
   },
-  "version": "2.1.228"
+  "version": "2.1.233"
 }

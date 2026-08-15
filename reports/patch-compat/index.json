@@ -1,6 +1,46 @@
 {
-  "generatedAt": "2026-08-13T14:49:03.579259Z",
+  "generatedAt": "2026-08-15T17:04:21.178573Z",
   "reports": [
+    {
+      "ok": true,
+      "path": "2.1.233.json",
+      "smoke": {
+        "ok": true,
+        "platformKey": "linux-x64",
+        "stage": "run",
+        "status": "passed"
+      },
+      "summary": {
+        "applied": 25,
+        "failed": 0,
+        "ok": 30,
+        "skipped": 3,
+        "total": 30,
+        "unsupported": 2,
+        "untested": 7
+      },
+      "version": "2.1.233"
+    },
+    {
+      "ok": true,
+      "path": "2.1.232.json",
+      "smoke": {
+        "ok": true,
+        "platformKey": "linux-x64",
+        "stage": "run",
+        "status": "passed"
+      },
+      "summary": {
+        "applied": 26,
+        "failed": 0,
+        "ok": 30,
+        "skipped": 3,
+        "total": 30,
+        "unsupported": 1,
+        "untested": 6
+      },
+      "version": "2.1.232"
+    },
     {
       "ok": true,
       "path": "2.1.231.json",
@@ -17,7 +57,7 @@
         "skipped": 3,
         "total": 30,
         "unsupported": 1,
-        "untested": 7
+        "untested": 6
       },
       "version": "2.1.231"
     },
@@ -37,7 +77,7 @@
         "skipped": 3,
         "total": 30,
         "unsupported": 1,
-        "untested": 7
+        "untested": 6
       },
       "version": "2.1.229"
     },
@@ -57,7 +97,7 @@
         "skipped": 3,
         "total": 30,
         "unsupported": 1,
-        "untested": 7
+        "untested": 6
       },
       "version": "2.1.228"
     },
@@ -77,7 +117,7 @@
         "skipped": 3,
         "total": 30,
         "unsupported": 1,
-        "untested": 7
+        "untested": 6
       },
       "version": "2.1.227"
     },
@@ -97,7 +137,7 @@
         "skipped": 2,
         "total": 30,
         "unsupported": 1,
-        "untested": 8
+        "untested": 7
       },
       "version": "2.1.226"
     }

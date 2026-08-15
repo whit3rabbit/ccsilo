@@ -3,7 +3,7 @@
     "entryBytes": 23983305,
     "entryModule": "src/entrypoints/cli.js"
   },
-  "generatedAt": "2026-08-13T14:48:49.027745Z",
+  "generatedAt": "2026-08-15T17:04:05.709708Z",
   "ok": true,
   "patches": [
     {
@@ -199,7 +199,7 @@
       "supported": true,
       "tested": false,
       "warnings": [
-        "patch 'opusplan1m' not tested against version 2.1.226; tested ranges: ['>=2.1.0,<=2.1.195', '>=2.1.227,<=2.1.231']"
+        "patch 'opusplan1m' not tested against version 2.1.226; tested ranges: ['>=2.1.0,<=2.1.195', '>=2.1.227,<=2.1.233']"
       ]
     },
     {
@@ -279,10 +279,8 @@
       "ok": true,
       "status": "applied",
       "supported": true,
-      "tested": false,
-      "warnings": [
-        "patch 'statusline-update-throttle' not tested against version 2.1.226; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']"
-      ]
+      "tested": true,
+      "warnings": []
     },
     {
       "detail": "",
@@ -405,11 +403,11 @@
       "<patched-binary>",
       "--version"
     ],
-    "durationMs": 14040,
+    "durationMs": 14950,
     "exitCode": 0,
     "expectedVersion": "2.1.226",
     "ok": true,
-    "outputSha256": "3b9f328e741f5f30d56e51dc80f5193fe77b4437d342baf948ff02dc873f9806",
+    "outputSha256": "7c0795584b37f21c9aa0beb13f2336bc89be96a1e6e7b130cbb9fa3f58c5a7e5",
     "patches": {
       "applied": [
         "agents-md",
@@ -477,10 +475,9 @@
         "suppress-model-launch-notice"
       ],
       "warnings": [
-        "patch 'opusplan1m' not tested against version 2.1.226; tested ranges: ['>=2.1.0,<=2.1.195', '>=2.1.227,<=2.1.231']",
+        "patch 'opusplan1m' not tested against version 2.1.226; tested ranges: ['>=2.1.0,<=2.1.195', '>=2.1.227,<=2.1.233']",
         "patch 'patches-applied-indication' not tested against version 2.1.226; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']",
         "patch 'session-memory' not tested against version 2.1.226; tested ranges: ['>=2.1.0,<=2.1.195', '>=2.1.216,<=2.1.218']",
-        "patch 'statusline-update-throttle' not tested against version 2.1.226; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']",
         "patch 'suppress-model-launch-notice' not tested against version 2.1.226; tested ranges: ['>=2.1.0,<=2.1.195']",
         "patch 'suppress-line-numbers' not tested against version 2.1.226; tested ranges: ['>=2.0.20,<2.1', '>=2.1.0,<=2.1.195']",
         "patch 'suppress-prompt-caching-warning' not tested against version 2.1.226; tested ranges: ['>=2.1.0,<=2.1.195']"
@@ -500,7 +497,7 @@
     "skipped": 2,
     "total": 30,
     "unsupported": 1,
-    "untested": 8
+    "untested": 7
   },
   "version": "2.1.226"
 }
