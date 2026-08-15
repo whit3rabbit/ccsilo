@@ -142,8 +142,8 @@ SYNTHETIC = {
     "suppress-rate-limit-options": (
         'R.createElement(X,{messages:ko.messages,deferMessages:ko.isMain&&!_a&&jo,'
         'placeholderElement:!x?R.createElement(Y,{param:{text:"z",type:"text"}}):null,'
-        'tools:T,commands:N,screen:S,streamingToolUses:U,showAllInTranscript:A,'
-        'agentDefinitions:B,onOpenRateLimitOptions:C,other:true})'
+        'tools:T,commands:N,screen:S,agentDefinitions:B,streamingToolUses:U,'
+        'showAllInTranscript:A,onOpenRateLimitOptions:C,other:true})'
     ),
     "thinking-visibility": (
         'case"thinking":{if(!D&&!H)return null;'

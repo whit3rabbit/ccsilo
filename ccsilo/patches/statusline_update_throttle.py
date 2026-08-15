@@ -66,8 +66,11 @@ PATCH = Patch(
     id="statusline-update-throttle",
     name="Statusline update throttling correction",
     group="ui",
-    versions_supported=">=2.0.0,<3",
-    versions_tested=(">=2.0.20,<2.1", ">=2.1.0,<=2.1.195"),
+    # 2.1.233 replaced the React-hook statusline debounce with a
+    # class-based controller (setInputs + private-field setTimeout), so the
+    # anchored shape no longer exists there.
+    versions_supported=">=2.0.0,<=2.1.232",
+    versions_tested=(">=2.0.20,<2.1", ">=2.1.0,<=2.1.232"),
     apply=_apply,
     description="Replace flawed statusline debounce behavior with throttle pacing. Defaults to 300ms.",
 )

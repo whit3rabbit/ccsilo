@@ -7,10 +7,14 @@ from ._pinned_default import DEFAULT_VERSION_RANGES
 
 
 def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
+    # 2.1.232 reordered the messages-list props from
+    # showAllInTranscript,agentDefinitions to
+    # agentDefinitions,streamingToolUses,showAllInTranscript; accept both.
     match = re.search(
         r"\.(?:createElement|jsx|jsxs)\([.$\w]+,\{messages:.{0,900},"
-        r"showAllInTranscript:[$\w]+,"
-        r"agentDefinitions:[$\w]+,onOpenRateLimitOptions:([$\w]+)",
+        r"(?:showAllInTranscript:[$\w]+,agentDefinitions:[$\w]+,"
+        r"|agentDefinitions:[$\w]+,streamingToolUses:[$\w]+,showAllInTranscript:[$\w]+,)"
+        r"onOpenRateLimitOptions:([$\w]+)",
         js,
         re.DOTALL,
     )
