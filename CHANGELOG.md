@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.11.6] - 2026-08-15
+
+### Added
+- Added Claude Code prompt catalogs for 2.1.232 and 2.1.233.
+- Added Claude Code patch compatibility reports for 2.1.232 and 2.1.233 (Docker smoke passed, 30/30 patches ok), and regenerated 2.1.226 through 2.1.231.
+
+### Changed
+- Changed the Z.ai default Opus/Sonnet model to `glm-5.3[1m]`. Haiku stays `glm-4.5-air`.
+- Widened the shared tested version range and the `opencode-gateway-discovery` range to 2.1.233, with the registry sentinel moved to 2.1.234.
+- Widened the `opusplan1m` tested range to cover 2.1.227-2.1.233.
+- Narrowed `statusline-update-throttle` to `versions_supported <=2.1.232` and widened its tested range to 2.1.232. Claude Code 2.1.233 replaced the React-hook statusline debounce with a class-based controller, so the patch now reports unsupported there instead of silently missing.
+
+### Fixed
+- Fixed `suppress-rate-limit-options` for Claude Code 2.1.232+. Upstream reordered the messages-list props from `showAllInTranscript,agentDefinitions` to `agentDefinitions,streamingToolUses,showAllInTranscript`, so the anchor missed. Both orders are now accepted.
+- Corrected `docs/RELEASE.md`: pushing a tag does not publish; the release workflow triggers only on `release: published` and `workflow_dispatch`.
+
 ## [0.11.5] - 2026-08-13
 
 ### Added
