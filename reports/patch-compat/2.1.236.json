@@ -1,9 +1,9 @@
 {
   "binary": {
-    "entryBytes": 27044794,
+    "entryBytes": 27713782,
     "entryModule": "cli"
   },
-  "generatedAt": "2026-08-23T15:29:07.090047Z",
+  "generatedAt": "2026-08-23T15:28:05.842064Z",
   "ok": true,
   "patches": [
     {
@@ -168,7 +168,7 @@
       "id": "no-prompt-steganography",
       "name": "No prompt steganography",
       "notes": [
-        "stego function not found in 2.1.234; Anthropic removed it upstream (verified clean)"
+        "stego function not found in 2.1.236; Anthropic removed it upstream (verified clean)"
       ],
       "ok": true,
       "status": "skipped",
@@ -225,7 +225,7 @@
       "warnings": []
     },
     {
-      "detail": "remember-skill: version 2.1.234 not in supported range '>=2.1.0,<2.1.42'",
+      "detail": "remember-skill: version 2.1.236 not in supported range '>=2.1.0,<2.1.42'",
       "group": "prompts",
       "id": "remember-skill",
       "name": "Remember skill",
@@ -265,7 +265,7 @@
       "warnings": []
     },
     {
-      "detail": "statusline-update-throttle: version 2.1.234 not in supported range '>=2.0.0,<=2.1.232'",
+      "detail": "statusline-update-throttle: version 2.1.236 not in supported range '>=2.0.0,<=2.1.232'",
       "group": "ui",
       "id": "statusline-update-throttle",
       "name": "Statusline update throttling correction",
@@ -393,11 +393,11 @@
       "<patched-binary>",
       "--version"
     ],
-    "durationMs": 15298,
+    "durationMs": 15707,
     "exitCode": 0,
-    "expectedVersion": "2.1.234",
+    "expectedVersion": "2.1.236",
     "ok": true,
-    "outputSha256": "cb2bfb87b49c127cad3ba48adfe418b196c6fded07850357038ef031238b9c03",
+    "outputSha256": "4a37595a9d1f9016ee8d94ab9ba3b59320166857c7cc42235c8d78ca5fd5a17b",
     "patches": {
       "applied": [
         "agents-md",
@@ -468,7 +468,7 @@
     "stage": "run",
     "status": "passed",
     "stderr": "",
-    "stdout": "2.1.234 (Claude Code)\n",
+    "stdout": "2.1.236 (Claude Code)\n",
     "versionMatched": true
   },
   "summary": {
@@ -480,5 +480,5 @@
     "unsupported": 2,
     "untested": 2
   },
-  "version": "2.1.234"
+  "version": "2.1.236"
 }
