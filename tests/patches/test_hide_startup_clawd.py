@@ -12,6 +12,14 @@ def test_synthetic_applies(cli_js_synthetic):
     assert "return null;" in outcome.js
 
 
+def test_new_head_art_synthetic_applies(cli_js_synthetic):
+    # 2.1.236+ head row art gained a trailing arm block character.
+    js = cli_js_synthetic("hide-startup-clawd-v2")
+    outcome = PATCH.apply(js, PatchContext(claude_version=None))
+    assert outcome.status == "applied"
+    assert "return null;" in outcome.js
+
+
 @pytest.mark.parametrize("version", resolve_tested_versions(PATCH))
 def test_real_l1(cli_js_real, version):
     js = cli_js_real(version)

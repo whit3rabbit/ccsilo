@@ -14,6 +14,11 @@ SYNTHETIC = {
         'function inner(){return"\\u259B\\u2588\\u2588\\u2588\\u259C"}'
         'function wrapper(){return R.createElement(inner,{})}'
     ),
+    "hide-startup-clawd-v2": (
+        # 2.1.236+ head row art gained a trailing arm block character.
+        'function inner(){return"\\u259B\\u2588\\u2588\\u2588\\u259B\\u2588"}'
+        'function wrapper(){return R.createElement(inner,{})}'
+    ),
     "hide-ctrl-g-to-edit": 'if(v&&P)p("tengu_external_editor_hint_shown",{})',
     "show-more-items-in-select-menus": 'function menu({visibleOptionCount:A=5}){return A}',
     "model-customizations": (
@@ -143,6 +148,13 @@ SYNTHETIC = {
         'R.createElement(X,{messages:ko.messages,deferMessages:ko.isMain&&!_a&&jo,'
         'placeholderElement:!x?R.createElement(Y,{param:{text:"z",type:"text"}}):null,'
         'tools:T,commands:N,screen:S,agentDefinitions:B,streamingToolUses:U,'
+        'showAllInTranscript:A,onOpenRateLimitOptions:C,other:true})'
+    ),
+    "suppress-rate-limit-options-v2": (
+        # 2.1.235+ dropped agentDefinitions from the messages-list props.
+        'R.createElement(X,{messages:ko.messages,deferMessages:ko.isMain&&!_a&&jo,'
+        'placeholderElement:!x?R.createElement(Y,{param:{text:"z",type:"text"}}):null,'
+        'tools:T,commands:N,screen:S,streamingToolUses:U,'
         'showAllInTranscript:A,onOpenRateLimitOptions:C,other:true})'
     ),
     "thinking-visibility": (

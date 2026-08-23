@@ -10,7 +10,13 @@ from ._pinned_default import DEFAULT_VERSION_RANGES
 
 
 def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
-    match = re.search(r"▛███▜|\\u259B\\u2588\\u2588\\u2588\\u259C", js, re.IGNORECASE)
+    # 2.1.236+ redrew the head row art from ▛███▜ (▜ close) to a
+    # ▛█ arm suffix; match both drawings.
+    match = re.search(
+        r"▛███▜|\\u259B\\u2588\\u2588\\u2588\\u259C|\\u259B\\u2588\\u2588\\u2588\\u259B\\u2588",
+        js,
+        re.IGNORECASE,
+    )
     if not match:
         return PatchOutcome(js=js, status="missed")
     lookback_start = max(0, match.start() - 2000)

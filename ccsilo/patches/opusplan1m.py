@@ -154,7 +154,7 @@ PATCH = Patch(
     versions_supported=">=2.1.0,<3",
     # 2.1.196-2.1.226 were never proven for this patch; 2.1.227+ is covered
     # after the selector-wrapper argument fix.
-    versions_tested=(">=2.1.0,<=2.1.195", ">=2.1.227,<=2.1.233"),
+    versions_tested=(">=2.1.0,<=2.1.195", ">=2.1.227,<=2.1.241"),
     apply=_apply,
     description=(
         "Add an Architect Mode model alias that uses a planner model in plan mode and a worker model otherwise. "

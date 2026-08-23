@@ -9,11 +9,13 @@ from ._pinned_default import DEFAULT_VERSION_RANGES
 def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
     # 2.1.232 reordered the messages-list props from
     # showAllInTranscript,agentDefinitions to
-    # agentDefinitions,streamingToolUses,showAllInTranscript; accept both.
+    # agentDefinitions,streamingToolUses,showAllInTranscript; 2.1.235 then
+    # dropped agentDefinitions from the list. Accept all three shapes.
     match = re.search(
         r"\.(?:createElement|jsx|jsxs)\([.$\w]+,\{messages:.{0,900},"
         r"(?:showAllInTranscript:[$\w]+,agentDefinitions:[$\w]+,"
-        r"|agentDefinitions:[$\w]+,streamingToolUses:[$\w]+,showAllInTranscript:[$\w]+,)"
+        r"|agentDefinitions:[$\w]+,streamingToolUses:[$\w]+,showAllInTranscript:[$\w]+,"
+        r"|streamingToolUses:[$\w]+,showAllInTranscript:[$\w]+,)"
         r"onOpenRateLimitOptions:([$\w]+)",
         js,
         re.DOTALL,

@@ -26,6 +26,14 @@ def test_jsx_runtime_synthetic_applies():
     assert "onOpenRateLimitOptions:()=>{}" in outcome.js
 
 
+def test_no_agent_definitions_synthetic_applies(cli_js_synthetic):
+    # 2.1.235+ dropped agentDefinitions from the messages-list props.
+    js = cli_js_synthetic("suppress-rate-limit-options-v2")
+    outcome = PATCH.apply(js, PatchContext(claude_version="2.1.235"))
+    assert outcome.status == "applied"
+    assert "onOpenRateLimitOptions:()=>{}" in outcome.js
+
+
 def test_metadata():
     assert PATCH.id == "suppress-rate-limit-options"
     assert PATCH.group == "ui"
