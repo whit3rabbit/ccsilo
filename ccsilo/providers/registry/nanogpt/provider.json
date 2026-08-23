@@ -13,9 +13,9 @@
   "models": {
     "default": "",
     "smallFast": "",
-    "opus": "moonshotai/kimi-k2.5",
-    "sonnet": "moonshotai/kimi-k2.5",
-    "haiku": "moonshotai/kimi-k2.5",
+    "opus": "moonshotai/kimi-k3",
+    "sonnet": "moonshotai/kimi-k3",
+    "haiku": "moonshotai/kimi-k3",
     "subagent": "",
     "requiresModelMapping": true
   },
@@ -56,7 +56,7 @@
     "headline": "NanoGPT",
     "features": [
       "Gateway to hundreds of models",
-      "Kimi K2.5 defaults",
+      "Kimi K3 defaults",
       "Model aliases remain editable"
     ],
     "setupLinks": {

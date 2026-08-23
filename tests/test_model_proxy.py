@@ -653,6 +653,54 @@ def test_model_proxy_openai_mode_passes_minimax_models_through_anthropic_message
         backend.close()
 
 
+def test_model_proxy_openai_mode_passes_cased_minimax_models_through_anthropic_messages():
+    # Provider registry ids use official casing (MiniMax-M3); passthrough must not depend on lowercase ids.
+    def backend_response(_record):
+        body = json.dumps({"type": "message", "content": [], "usage": {"input_tokens": 1, "output_tokens": 2}}).encode("utf-8")
+        return 200, {"content-type": "application/json"}, body
+
+    backend = _RecordingServer(backend_response)
+    proxy = start_model_proxy(
+        ModelProxyConfig(
+            mode="openai",
+            backend_url=f"{backend.url}/v1/chat/completions",
+            backend_auth="bearer",
+            backend_format="openai-chat",
+            backend_models=("MiniMax-M3",),
+            anthropic_models=(),
+            backend_provider_key="opencode-go",
+            backend_provider_label="OpenCode Go",
+        ),
+        api_key="backend-key",
+        auth_nonce=NONCE,
+        port=0,
+    )
+    thread = threading.Thread(target=proxy.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        raw = _post_json(
+            f"http://127.0.0.1:{proxy.server_address[1]}/{NONCE}/v1/messages",
+            {
+                "model": "anthropic/opencode-go/MiniMax-M3",
+                "messages": [{"role": "user", "content": [{"type": "text", "text": "work"}]}],
+            },
+        )
+
+        assert json.loads(raw.decode("utf-8"))["usage"] == {"input_tokens": 1, "output_tokens": 2}
+        assert backend.records[0]["path"] == "/v1/messages"
+        payload = json.loads(backend.records[0]["body"].decode("utf-8"))
+        assert payload == {
+            "model": "MiniMax-M3",
+            "messages": [{"role": "user", "content": [{"type": "text", "text": "work"}]}],
+        }
+    finally:
+        proxy.shutdown()
+        proxy.server_close()
+        thread.join(timeout=2)
+        backend.close()
+
+
 def test_model_proxy_openai_mode_transforms_streaming_chat_response():
     def backend_response(_record):
         body = (

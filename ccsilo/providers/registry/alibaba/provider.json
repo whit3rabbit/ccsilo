@@ -13,9 +13,9 @@
   "models": {
     "default": "",
     "smallFast": "",
-    "opus": "qwen3-coder-plus",
-    "sonnet": "qwen3.5-plus",
-    "haiku": "qwen3-coder-next",
+    "opus": "qwen3.7-plus",
+    "sonnet": "qwen3.7-plus",
+    "haiku": "qwen3.7-plus",
     "subagent": "",
     "requiresModelMapping": false
   },
@@ -57,8 +57,7 @@
     "headline": "Alibaba Coding Plan",
     "features": [
       "Coding Plan endpoint for Singapore region",
-      "qwen3-coder-plus Opus, qwen3.5-plus Sonnet",
-      "qwen3-coder-next Haiku"
+      "qwen3.7-plus defaults across all tiers"
     ],
     "setupLinks": {
       "subscribe": "https://www.alibabacloud.com/help/en/model-studio/coding-plan",

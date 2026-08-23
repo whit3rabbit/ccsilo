@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+- Updated MiniMax China defaults from `MiniMax-M2.7` to `MiniMax-M3` across all tiers; the China Anthropic-compatible endpoint now serves MiniMax-M3.
+- Updated Alibaba Coding Plan defaults to `qwen3.7-plus` across all tiers, matching Alibaba's official Claude Code coding-plan guidance.
+- Updated NanoGPT defaults from `moonshotai/kimi-k2.5` to `moonshotai/kimi-k3`.
+- Corrected the Kimi Code provider description: `kimi-for-coding` now routes to Kimi K2.7 Code, not K2.5.
+
+### Fixed
+- Fixed MiniMax Anthropic passthrough in the local model proxy for cased model ids. `_is_anthropic_passthrough_backend_model` matched only lowercase `minimax-` prefixes, so registry ids like `MiniMax-M3` silently skipped passthrough and went through OpenAI chat-completions conversion instead.
+
 ## [0.11.6] - 2026-08-15
 
 ### Added

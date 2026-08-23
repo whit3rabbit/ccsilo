@@ -574,7 +574,8 @@ def _needs_placeholder_reasoning(model: str) -> bool:
 
 
 def _is_anthropic_passthrough_backend_model(model: str) -> bool:
-    return str(model or "").startswith("minimax-")
+    # Provider model ids use official casing (MiniMax-M3), so compare case-insensitively.
+    return str(model or "").lower().startswith("minimax-")
 
 
 def _int_value(value: Any) -> int:

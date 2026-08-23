@@ -465,7 +465,7 @@ def test_ported_provider_defaults_match_cc_mirror_update():
         "targets": ["ANTHROPIC_API_KEY", "MINIMAX_CN_API_KEY"],
     }
     assert minimax_cn.env["ANTHROPIC_BASE_URL"] == "https://api.minimaxi.com/anthropic"
-    assert minimax_cn.env["ANTHROPIC_MODEL"] == "MiniMax-M2.7"
+    assert minimax_cn.env["ANTHROPIC_MODEL"] == "MiniMax-M3"
     assert "MCP_TOOL_TIMEOUT" not in minimax_cn.env
 
     deepseek = build_provider_env("deepseek")
@@ -475,9 +475,9 @@ def test_ported_provider_defaults_match_cc_mirror_update():
 
     alibaba = build_provider_env("alibaba")
     assert alibaba.env["ANTHROPIC_BASE_URL"] == "https://coding-intl.dashscope.aliyuncs.com/apps/anthropic"
-    assert alibaba.env["ANTHROPIC_DEFAULT_OPUS_MODEL"] == "qwen3-coder-plus"
-    assert alibaba.env["ANTHROPIC_DEFAULT_SONNET_MODEL"] == "qwen3.5-plus"
-    assert alibaba.env["ANTHROPIC_DEFAULT_HAIKU_MODEL"] == "qwen3-coder-next"
+    assert alibaba.env["ANTHROPIC_DEFAULT_OPUS_MODEL"] == "qwen3.7-plus"
+    assert alibaba.env["ANTHROPIC_DEFAULT_SONNET_MODEL"] == "qwen3.7-plus"
+    assert alibaba.env["ANTHROPIC_DEFAULT_HAIKU_MODEL"] == "qwen3.7-plus"
 
     poe = build_provider_env("poe")
     assert poe.credential["source"] == "POE_API_KEY"

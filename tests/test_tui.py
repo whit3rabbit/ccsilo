@@ -990,7 +990,7 @@ def _provider_selector_fixture():
             "baseUrl": "https://api.z.ai/api/anthropic",
             "requiresModelMapping": False,
             "noPromptPack": False,
-            "models": {"sonnet": "glm-5.2[1m]", "opus": "glm-5.2[1m]", "haiku": "glm-4.5-air"},
+            "models": {"sonnet": "glm-5.3[1m]", "opus": "glm-5.3[1m]", "haiku": "glm-4.5-air"},
             "mcpServers": ["web-reader"],
             "settingsPermissionsDeny": ["mcp__zai__web_search"],
             "envUnset": ["CLAUDE_CODE_USE_BEDROCK"],
