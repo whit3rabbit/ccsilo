@@ -2,15 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.11.7] - 2026-08-23
+
+### Added
+- Added Claude Code prompt catalogs for 2.1.234 through 2.1.241.
+- Added Claude Code patch compatibility reports for 2.1.234 through 2.1.241 (Docker smoke passed, 30/30 patches ok).
 
 ### Changed
 - Updated MiniMax China defaults from `MiniMax-M2.7` to `MiniMax-M3` across all tiers; the China Anthropic-compatible endpoint now serves MiniMax-M3.
 - Updated Alibaba Coding Plan defaults to `qwen3.7-plus` across all tiers, matching Alibaba's official Claude Code coding-plan guidance.
 - Updated NanoGPT defaults from `moonshotai/kimi-k2.5` to `moonshotai/kimi-k3`.
 - Corrected the Kimi Code provider description: `kimi-for-coding` now routes to Kimi K2.7 Code, not K2.5.
+- Widened the shared tested version range and the `opencode-gateway-discovery` range to 2.1.241, with the registry sentinel moved to 2.1.242.
+- Widened the `opusplan1m` tested range to cover 2.1.227-2.1.241.
 
 ### Fixed
+- Fixed `hide-startup-clawd` for Claude Code 2.1.236+. Upstream redrew the head-row art from the `▛███▜` close to a `▛█` arm suffix, so the anchor missed. Both drawings are now accepted.
+- Fixed `suppress-rate-limit-options` for Claude Code 2.1.235+. Upstream dropped `agentDefinitions` from the messages-list props, a third shape after the 2.1.232 reorder. All three prop orders are now accepted.
 - Fixed MiniMax Anthropic passthrough in the local model proxy for cased model ids. `_is_anthropic_passthrough_backend_model` matched only lowercase `minimax-` prefixes, so registry ids like `MiniMax-M3` silently skipped passthrough and went through OpenAI chat-completions conversion instead.
 
 ## [0.11.6] - 2026-08-15
