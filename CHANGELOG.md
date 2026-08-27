@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.12.0] - 2026-08-27
+
+Claude Code 2.1.242 split its bundle: the ~28MB monolithic `cli` entry became a ~20KB entry plus ~1400 JS modules and 166 whole-file text modules. Everything that assumed "the entry file contains the prompts and patch anchors" broke at once; this release moves ccsilo to bundle-wide extraction and patching.
+
+### Added
+- Added Claude Code prompt catalogs for 2.1.242, 2.1.243, 2.1.245, 2.1.246, and 2.1.247.
+- Added Claude Code patch compatibility reports for 2.1.242 through 2.1.247 (Docker linux/amd64 smoke passed, 30/30 patches ok per version).
+- Added module-set patch application (`apply_patches_to_modules`, `Patch.apply_modules` cross-module hooks, `Patch.module_scope`) so curated tweaks apply wherever their anchors live in split bundles. Dashboard tweak builds, variant builds, patch reports, and runtime smoke all patch across every loader-js module; entry-scoped positional patches (such as `filter-scroll-escape-sequences`) still target only the entry module.
+
+### Changed
+- Prompt extraction now scans all loader-js modules for string literals, ingests loader-13 whole-file text modules as prompts (their content was previously embedded as literals in the monolithic entry), and runs catalog recovery against the combined source corpus.
+- `themes` now applies when its three anchors (name map, picker options, resolver switch) live in three different modules; a resolver case-injection fallback covers variable-return switch shapes the legacy matcher rejects.
+- `opusplan1m` treats 2.1.242+ as native: upstream ships the `[1m]` opusplan gate itself, so the patch layers the alias list and treats reshaped selector UI pieces as optional when the gate is already present.
+- Widened shared and patch-specific tested ranges to 2.1.247 after Docker runtime smoke, with the registry sentinel moved to 2.1.248.
+- Patch compatibility reports deduplicate per-module preflight warnings and classify notes-less anchor misses as `missed` instead of `no-op`.
+
+### Fixed
+- Fixed `suppress-rate-limit-options` for Claude Code 2.1.242+. The callback moved into a props-object pass-through and a compact message-item JSX call; both shapes are accepted.
+- Fixed `session-memory` for Claude Code 2.1.242+. The memory-enable module lost the cowork guidelines marker, so the file-memory detector rejected it and the obsolete-gate skip never fired. Either memory marker plus the missing experiment gate now identifies the rewrite.
+
 ## [0.11.7] - 2026-08-23
 
 ### Added
