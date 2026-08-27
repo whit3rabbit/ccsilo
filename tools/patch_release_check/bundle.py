@@ -24,6 +24,36 @@ def extract_entry_js(binary_path: Path) -> Tuple[str, Dict[str, Any]]:
         "entryBytes": len(entry_bytes),
     }
 
+def extract_js_modules(binary_path: Path) -> Tuple[str, Dict[str, str], Dict[str, Any]]:
+    """Read every loader-js module source directly from the binary.
+
+    Claude Code >= 2.1.242 splits the bundle into many JS modules, so patch
+    anchor checks must scan all of them. Returns (entry_module_name, sources,
+    binary meta). Legacy monolithic bundles return a single-entry map and keep
+    the old entry-only behavior.
+    """
+    data = binary_path.read_bytes()
+    info = parse_bun_binary(data)
+    entry = None
+    if 0 <= info.entry_point_id < len(info.modules):
+        entry = info.modules[info.entry_point_id].name
+    sources: Dict[str, str] = {}
+    total_bytes = 0
+    for module in info.modules:
+        if module.loader != "js":
+            continue
+        start = info.data_start + module.cont_off
+        source = data[start : start + module.cont_len].decode("utf-8", errors="replace")
+        sources[module.name] = source
+        total_bytes += len(source)
+    if not sources:
+        raise RuntimeError(f"no JS modules found inside {binary_path}")
+    return entry or "", sources, {
+        "entryModule": entry or "",
+        "moduleCount": len(sources),
+        "moduleBytes": total_bytes,
+    }
+
 def file_sha256(path: Path) -> str:
     import hashlib
 

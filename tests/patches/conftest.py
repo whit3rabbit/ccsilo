@@ -32,25 +32,31 @@ _CLI_JS_CACHE = {}
 
 
 def _extract_cli_js(binary_path: Path) -> str:
-    """Extract the entry-point JS module bytes from a Claude Code Bun binary.
+    """Extract the patchable JS surface from a Claude Code Bun binary.
 
     Entry module name varies across versions: 2.0.x uses `claude`, 2.1.x
     uses `cli.js`. Use `info.entry_point_id` as the source of truth.
 
-    Field naming: BunModule uses `cont_off` / `cont_len`, not `data_offset` /
-    `data_size`. Module content lives at `info.data_start + module.cont_off`.
+    Claude Code >= 2.1.242 splits the bundle into many JS modules with a tiny
+    entry, so single-module bundles return their entry source while split
+    bundles return every loader-js module joined into one string. Real
+    single-js patch semantics for split bundles are covered by the module-set
+    application path and Docker runtime smoke; L1 here proves anchors exist
+    and the patch rewrites them.
     """
     data = binary_path.read_bytes()
     info = parse_bun_binary(data)
-    if 0 <= info.entry_point_id < len(info.modules):
-        module = info.modules[info.entry_point_id]
-        start = info.data_start + module.cont_off
-        return data[start : start + module.cont_len].decode("utf-8", errors="replace")
-    for module in info.modules:
-        if module.name and module.name.endswith("cli.js"):
-            start = info.data_start + module.cont_off
-            return data[start : start + module.cont_len].decode("utf-8", errors="replace")
-    raise RuntimeError(f"entry module not found inside {binary_path}")
+    sources = [
+        data[info.data_start + module.cont_off : info.data_start + module.cont_off + module.cont_len]
+        .decode("utf-8", errors="replace")
+        for module in info.modules
+        if module.loader == "js"
+    ]
+    if not sources:
+        raise RuntimeError(f"no JS modules found inside {binary_path}")
+    if len(sources) == 1:
+        return sources[0]
+    return "\n;\n".join(sources)
 
 
 @pytest.fixture(scope="session")

@@ -26,6 +26,7 @@ from .variants.tweaks import (  # noqa: F401
     TweakPatchError,
     TweakResult,
     apply_variant_tweaks,
+    apply_variant_tweaks_to_modules,
     available_tweaks,
     compose_prompt_overlays,
     default_tweak_ids_for_provider,

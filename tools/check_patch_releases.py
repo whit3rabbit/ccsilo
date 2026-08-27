@@ -16,7 +16,6 @@ if str(REPO_ROOT) not in sys.path:
 from ccsilo.downloader import download_binary
 from ccsilo.patches import (
     Patch,
-    PatchAnchorMissError,
     PatchBlacklistedError,
     PatchContext,
     PatchUnsupportedVersionError,
@@ -24,7 +23,7 @@ from ccsilo.patches import (
 )
 from ccsilo.patches._registry import REGISTRY
 
-from tools.patch_release_check.bundle import extract_entry_js, file_sha256
+from tools.patch_release_check.bundle import extract_entry_js, extract_js_modules, file_sha256
 from tools.patch_release_check.io import index_entry, print_result_summary, write_json, write_run_index
 from tools.patch_release_check.models import (
     DEFAULT_CONFIG,
@@ -66,6 +65,7 @@ __all__ = [
     "check_patch",
     "check_version",
     "extract_entry_js",
+    "extract_js_modules",
     "file_sha256",
     "index_entry",
     "is_version",
@@ -93,14 +93,18 @@ __all__ = [
 ]
 
 def check_patch(
-    js: str,
+    modules,
     patch: Patch,
     version: str,
     *,
+    entry_path: Optional[str] = None,
     registry: Mapping[str, Patch],
     config: Optional[Mapping[str, Any]] = None,
     overlays: Optional[Mapping[str, str]] = None,
 ) -> PatchCheck:
+    # Accept a bare JS string for legacy single-module callers.
+    if isinstance(modules, str):
+        modules = {entry_path or "cli": modules}
     ctx = PatchContext(
         claude_version=version,
         provider_label="Patch compatibility",
@@ -112,22 +116,52 @@ def check_patch(
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             try:
-                result = apply_patches(js, [patch.id], ctx, registry=registry)
+                applied = False
+                skipped = False
+                missed_any = False
+                applied_notes: List[str] = []
+                miss_notes: List[str] = []
+                if patch.apply_modules is not None:
+                    outcome = patch.apply_modules(modules, ctx)
+                    if outcome.status == "applied":
+                        applied = True
+                        applied_notes = applied_notes or list(outcome.notes)
+                    elif outcome.status == "skipped":
+                        skipped = True
+                    else:
+                        missed_any = True
+                        miss_notes = list(outcome.notes)
+                else:
+                    for path, js in modules.items():
+                        if patch.module_scope == "entry" and entry_path and path != entry_path:
+                            continue
+                        result = apply_patches(
+                            js,
+                            [patch.id],
+                            ctx,
+                            registry=registry,
+                            fatal_miss="collect",
+                        )
+                        if result.applied:
+                            applied = True
+                            applied_notes = applied_notes or list(result.notes)
+                        elif result.skipped:
+                            skipped = True
+                        else:
+                            missed_any = True
+                            for note in result.notes:
+                                if note not in miss_notes:
+                                    miss_notes.append(note)
             finally:
-                caught_warnings = [str(item.message) for item in caught]
-    except PatchAnchorMissError as exc:
-        return PatchCheck(
-            patch.id,
-            patch.name,
-            patch.group,
-            "missed",
-            False,
-            patch_supported(patch, version),
-            patch_tested(patch, version),
-            caught_warnings,
-            [],
-            str(exc),
-        )
+                # Per-module application re-runs preflight per module, so the
+                # same "not tested" warning repeats; keep one copy of each.
+                seen_warnings = set()
+                caught_warnings = []
+                for item in caught:
+                    message = str(item.message)
+                    if message not in seen_warnings:
+                        seen_warnings.add(message)
+                        caught_warnings.append(message)
     except PatchUnsupportedVersionError as exc:
         return PatchCheck(
             patch.id,
@@ -168,18 +202,22 @@ def check_patch(
             str(exc),
         )
 
-    if result.applied:
+    if applied:
         status = "applied"
         ok = True
-    elif result.skipped:
+        detail_notes = applied_notes
+    elif skipped:
         status = "skipped"
         ok = True
-    elif result.missed:
+        detail_notes = []
+    elif missed_any:
         status = "missed"
         ok = False
+        detail_notes = miss_notes or ["anchor not found"]
     else:
         status = "no-op"
         ok = False
+        detail_notes = []
     return PatchCheck(
         patch.id,
         patch.name,
@@ -189,7 +227,8 @@ def check_patch(
         patch_supported(patch, version),
         patch_tested(patch, version),
         caught_warnings,
-        list(result.notes),
+        detail_notes,
+        "; ".join(detail_notes),
     )
 
 def check_version(
@@ -202,9 +241,9 @@ def check_version(
     smoke_runner=None,
 ) -> Dict[str, Any]:
     binary_path = Path(downloader(version=version))
-    js, binary = extract_entry_js(binary_path)
+    entry, js_modules, binary = extract_js_modules(binary_path)
     checks = [
-        check_patch(js, patch, version, registry=registry)
+        check_patch(js_modules, patch, version, entry_path=entry, registry=registry)
         for patch in registry.values()
     ]
     summary = summarize_checks(checks)

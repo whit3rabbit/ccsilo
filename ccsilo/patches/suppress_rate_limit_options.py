@@ -20,10 +20,26 @@ def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
         js,
         re.DOTALL,
     )
-    if not match:
-        return PatchOutcome(js=js, status="missed")
-    new_js = js[:match.start(1)] + "()=>{}" + js[match.end(1):]
-    return PatchOutcome(js=new_js, status="applied")
+    if match:
+        new_js = js[:match.start(1)] + "()=>{}" + js[match.end(1):]
+        return PatchOutcome(js=new_js, status="applied")
+    # 2.1.242+ splits the bundle: the callback is threaded through a props
+    # object as `onOpenRateLimitOptions:m?.openRateLimitOptions` instead of a
+    # JSX object literal. Neutralize the pass-through value.
+    match = re.search(r"onOpenRateLimitOptions:[$\w]+\?\.openRateLimitOptions\b", js)
+    if match:
+        new_js = js[: match.start()] + "onOpenRateLimitOptions:()=>{}" + js[match.end() :]
+        return PatchOutcome(js=new_js, status="applied")
+    # 2.1.242-2.1.246 thread it through a compact message-item JSX call:
+    # o(Vg,{text:$e,onOpenRateLimitOptions:vO,onRateLimitAutoQueueContinue:YO})
+    match = re.search(
+        r"onOpenRateLimitOptions:[$\w]+,(?=onRateLimitAutoQueueContinue:[$\w]+\})",
+        js,
+    )
+    if match:
+        new_js = js[: match.start()] + "onOpenRateLimitOptions:()=>{}," + js[match.end() :]
+        return PatchOutcome(js=new_js, status="applied")
+    return PatchOutcome(js=js, status="missed")
 
 
 PATCH = Patch(

@@ -8,13 +8,14 @@ import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
-from ccsilo._utils import atomic_write_text_no_symlink
+from ccsilo._utils import atomic_write_text_no_symlink, safe_child_path
 from ccsilo.binary_patcher.codesign import try_adhoc_sign
 from ccsilo.bundler import pack_bundle
+from ccsilo.bun_extract import read_js_modules
 from ccsilo.downloader import get_platform_key
 from ccsilo.extractor import extract_all
 from ccsilo.patch_workflow import _entry_path
-from ccsilo.patches import Patch, PatchContext, apply_patches
+from ccsilo.patches import Patch, PatchContext, apply_patches_to_modules
 from ccsilo.patches._registry import REGISTRY
 
 from .bundle import file_sha256
@@ -139,8 +140,8 @@ def run_binary_smoke(
                 str(extract_dir),
                 source_version=version,
             )
-            entry_path = _entry_path(extract_dir, manifest_data)
-            js = entry_path.read_text(encoding="utf-8")
+            _entry_path(extract_dir, manifest_data)
+            entry_rel, js_modules = read_js_modules(extract_dir, manifest_data)
 
             stage = "baseline-pack"
             pack_bundle(str(extract_dir), str(baseline_binary), str(binary_path))
@@ -197,8 +198,8 @@ def run_binary_smoke(
             stage = "patch"
             with warnings.catch_warnings(record=True) as caught:
                 warnings.simplefilter("always")
-                patch_result = apply_patches(
-                    js,
+                patch_result = apply_patches_to_modules(
+                    js_modules,
                     patch_ids,
                     PatchContext(
                         claude_version=version,
@@ -206,9 +207,12 @@ def run_binary_smoke(
                         config=DEFAULT_CONFIG,
                         overlays=DEFAULT_OVERLAYS,
                     ),
+                    entry_path=entry_rel,
                     registry=registry,
                 )
-            atomic_write_text_no_symlink(entry_path, patch_result.js)
+            for rel_path, patched_js in patch_result.js_by_path.items():
+                module_path = safe_child_path(extract_dir, rel_path, label="module path")
+                atomic_write_text_no_symlink(module_path, patched_js)
 
             stage = "pack"
             pack_bundle(str(extract_dir), str(patched_binary), str(binary_path))

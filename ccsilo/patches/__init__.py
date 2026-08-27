@@ -3,7 +3,7 @@ import logging
 import re
 import warnings
 from dataclasses import dataclass, field
-from typing import Any, Callable, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from ._versions import SemverRangeError, version_in_range
 
@@ -70,6 +70,24 @@ class AggregateResult:
 
 
 @dataclass(frozen=True)
+class ModuleSetResult:
+    # Changed module JS keyed by module path; unchanged modules are omitted.
+    js_by_path: Mapping[str, str]
+    applied: Tuple[str, ...]
+    skipped: Tuple[str, ...]
+    missed: Tuple[str, ...]
+    notes: Tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ModuleSetOutcome:
+    # Cross-module patch outcome: changed module JS keyed by module path.
+    js_by_path: Mapping[str, str]
+    status: str  # "applied" | "skipped" | "missed"
+    notes: Tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class Patch:
     id: str
     name: str
@@ -80,6 +98,13 @@ class Patch:
     versions_blacklisted: Tuple[str, ...] = ()
     on_miss: str = "fatal"  # "fatal" | "skip" | "warn"
     description: str = ""
+    # "any": anchor-driven, safe wherever the anchor lives (split bundles move
+    # anchors between modules). "entry": positional patch that must target the
+    # entry module only, such as prepend-style runtime shims.
+    module_scope: str = "any"  # "any" | "entry"
+    # Optional cross-module application hook for patches whose anchors span
+    # several JS modules in split bundles (e.g. theme registry + picker).
+    apply_modules: Optional[Callable[[Mapping[str, str], "PatchContext"], Any]] = field(default=None, repr=False)
 
 
 class PatchAnchorMissError(ValueError):
@@ -113,6 +138,7 @@ def apply_patches(
     ctx: "PatchContext",
     *,
     registry: Optional[Mapping[str, "Patch"]] = None,
+    fatal_miss: str = "raise",
 ) -> "AggregateResult":
     if registry is None:
         from ._registry import REGISTRY as _REGISTRY  # late import: avoids cycle
@@ -136,7 +162,7 @@ def apply_patches(
             skipped.append(patch_id)
         elif outcome.status == "missed":
             detail = "; ".join(outcome.notes)
-            if patch.on_miss == "fatal":
+            if patch.on_miss == "fatal" and fatal_miss == "raise":
                 raise PatchAnchorMissError(patch_id, detail)
             if patch.on_miss == "warn":
                 warning = f"patch {patch_id!r}: anchor not found"
@@ -154,6 +180,115 @@ def apply_patches(
 
     return AggregateResult(
         js=js,
+        applied=tuple(applied),
+        skipped=tuple(skipped),
+        missed=tuple(missed),
+        notes=tuple(notes),
+    )
+
+
+def apply_patches_to_modules(
+    modules: Mapping[str, str],
+    ids: Sequence[str],
+    ctx: "PatchContext",
+    *,
+    entry_path: Optional[str] = None,
+    registry: Optional[Mapping[str, "Patch"]] = None,
+) -> "ModuleSetResult":
+    """Apply patches across a split bundle's JS modules.
+
+    Claude Code >= 2.1.242 spreads patch anchors over many JS modules instead
+    of one monolithic entry. Each patch is attempted on every module
+    (entry-scoped patches only on the entry module) and counts as applied when
+    it applies anywhere. Per-module misses are expected, so miss notes are kept
+    only for patches that missed everywhere.
+    """
+    if registry is None:
+        from ._registry import REGISTRY as _REGISTRY  # late import: avoids cycle
+        registry = _REGISTRY
+
+    for patch_id in ids:
+        if patch_id not in registry:
+            raise KeyError(f"unknown patch: {patch_id!r}")
+        _preflight(registry[patch_id], ctx)
+
+    entry_ids = {
+        patch_id
+        for patch_id in ids
+        if registry[patch_id].module_scope == "entry"
+    }
+    module_set_ids = {
+        patch_id
+        for patch_id in ids
+        if registry[patch_id].apply_modules is not None
+    }
+
+    applied_anywhere: set = set()
+    skipped_anywhere: set = set()
+    miss_notes: Dict[str, Tuple[str, ...]] = {}
+    js_by_path: Dict[str, str] = {}
+    current: Dict[str, str] = dict(modules)
+
+    for patch_id in sorted(module_set_ids):
+        outcome = registry[patch_id].apply_modules(current, ctx)
+        if outcome.status == "applied":
+            applied_anywhere.add(patch_id)
+            current.update(outcome.js_by_path)
+            js_by_path.update(outcome.js_by_path)
+        elif outcome.status == "skipped":
+            skipped_anywhere.add(patch_id)
+        elif outcome.status == "missed":
+            if outcome.notes:
+                miss_notes.setdefault(patch_id, outcome.notes)
+        else:
+            raise ValueError(
+                f"patch {patch_id!r} returned unknown status {outcome.status!r}"
+            )
+
+    for path, original_js in current.items():
+        js = original_js
+        for patch_id in ids:
+            if patch_id in entry_ids and path != entry_path:
+                continue
+            if patch_id in module_set_ids:
+                continue
+            outcome = registry[patch_id].apply(js, ctx)
+            if outcome.status == "applied":
+                applied_anywhere.add(patch_id)
+                js = outcome.js
+            elif outcome.status == "skipped":
+                skipped_anywhere.add(patch_id)
+            elif outcome.status == "missed":
+                if patch_id not in miss_notes and outcome.notes:
+                    miss_notes[patch_id] = outcome.notes
+            else:
+                raise ValueError(
+                    f"patch {patch_id!r} returned unknown status {outcome.status!r}"
+                )
+        if js != original_js:
+            js_by_path[path] = js
+
+    applied: List[str] = []
+    skipped: List[str] = []
+    missed: List[str] = []
+    notes: List[str] = []
+    for patch_id in ids:
+        if patch_id in applied_anywhere:
+            applied.append(patch_id)
+        elif patch_id in skipped_anywhere:
+            skipped.append(patch_id)
+        else:
+            missed.append(patch_id)
+            notes.extend(miss_notes.get(patch_id, ()))
+            if registry[patch_id].on_miss == "warn":
+                warning = f"patch {patch_id!r}: anchor not found"
+                detail = "; ".join(miss_notes.get(patch_id, ()))
+                if detail:
+                    warning = f"{warning}: {detail}"
+                warnings.warn(warning, UserWarning, stacklevel=2)
+
+    return ModuleSetResult(
+        js_by_path=js_by_path,
         applied=tuple(applied),
         skipped=tuple(skipped),
         missed=tuple(missed),

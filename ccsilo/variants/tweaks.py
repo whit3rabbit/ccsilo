@@ -415,3 +415,154 @@ def apply_variant_tweaks(
                 missing.append(note[len("prompt overlay miss: "):])
 
     return TweakResult(js=js, applied=applied, skipped=skipped, missing=missing)
+
+
+@dataclass
+class ModuleTweakResult:
+    # Changed module JS keyed by module path; unchanged modules are omitted.
+    js_by_path: Dict[str, str]
+    applied: List[str]
+    skipped: List[str]
+    missing: List[str]
+
+
+def apply_variant_tweaks_to_modules(
+    modules: Dict[str, str],
+    *,
+    entry_path: Optional[str],
+    tweak_ids: Iterable[str],
+    config: Optional[Dict] = None,
+    overlays: Optional[Dict[str, str]] = None,
+    provider_label: str = "ccsilo",
+    claude_version: Optional[str] = None,
+    force: bool = False,
+) -> ModuleTweakResult:
+    """Apply curated tweaks across a split bundle's JS modules.
+
+    Claude Code >= 2.1.242 spreads tweak anchors over many JS modules instead
+    of one monolithic entry. Mirrors apply_variant_tweaks semantics: env-only
+    and setup-only ids never patch JS, prompt-only ids map to the
+    prompt-overlays patch, entry-scoped patches only run on the entry module,
+    and a fatal patch that misses everywhere still raises TweakPatchError.
+    """
+    config = config or {}
+    overlays = overlays or {}
+    normalized = normalize_tweak_ids(tweak_ids)
+
+    setup_only_ids = {*SETUP_ENV_ONLY_TWEAK_IDS, *SETUP_CONFIG_TWEAK_IDS}
+    wants_overlays = bool(overlays) and any(tid in PROMPT_ONLY_TWEAK_IDS for tid in normalized)
+
+    patch_ids: List[str] = []
+    for tweak_id in normalized:
+        if tweak_id in ENV_TWEAK_IDS or (tweak_id in setup_only_ids and tweak_id not in _PATCH_REGISTRY):
+            continue
+        if tweak_id in PROMPT_ONLY_TWEAK_IDS:
+            continue
+        if tweak_id not in _PATCH_REGISTRY:
+            raise TweakPatchError(tweak_id, "unknown tweak (not registered)")
+        if tweak_id not in patch_ids:
+            patch_ids.append(tweak_id)
+
+    ctx = _PatchCtx(
+        claude_version=claude_version,
+        provider_label=provider_label,
+        config=config,
+        overlays=overlays,
+        force=force,
+    )
+    entry_scoped = {
+        patch_id
+        for patch_id in patch_ids
+        if _PATCH_REGISTRY[patch_id].module_scope == "entry"
+    }
+    # Cross-module patches (anchors spanning several modules) run once against
+    # the whole module set, in tweak order, before per-module patches.
+    module_set_ids = [
+        patch_id
+        for patch_id in patch_ids
+        if _PATCH_REGISTRY[patch_id].apply_modules is not None
+    ]
+    per_module_patch_ids = [
+        patch_id
+        for patch_id in patch_ids
+        if patch_id not in module_set_ids
+    ]
+
+    js_by_path: Dict[str, str] = {}
+    applied_any: set = set()
+    skipped_any: set = set()
+    overlay_applied = False
+    # Overlay keys are only missing when they missed in every module.
+    overlay_missing: Optional[set] = None
+    current: Dict[str, str] = dict(modules)
+
+    for patch_id in module_set_ids:
+        outcome = _PATCH_REGISTRY[patch_id].apply_modules(current, ctx)
+        if outcome.status == "applied":
+            applied_any.add(patch_id)
+            current.update(outcome.js_by_path)
+            js_by_path.update(outcome.js_by_path)
+        elif outcome.status == "skipped":
+            skipped_any.add(patch_id)
+
+    for path, original_js in current.items():
+        js = original_js
+        module_ids = [
+            patch_id
+            for patch_id in per_module_patch_ids
+            if patch_id not in entry_scoped or path == entry_path
+        ]
+        if module_ids:
+            sub = _apply_patches(
+                js,
+                module_ids,
+                ctx,
+                registry=_PATCH_REGISTRY,
+                fatal_miss="collect",
+            )
+            js = sub.js
+            applied_any.update(sub.applied)
+            skipped_any.update(sub.skipped)
+        if wants_overlays:
+            overlay_sub = _apply_patches(
+                js,
+                ["prompt-overlays"],
+                ctx,
+                registry=_PATCH_REGISTRY,
+            )
+            js = overlay_sub.js
+            if "prompt-overlays" in overlay_sub.applied:
+                overlay_applied = True
+            missing_here = {
+                note[len("prompt overlay miss: "):]
+                for note in overlay_sub.notes
+                if note.startswith("prompt overlay miss: ")
+            }
+            overlay_missing = (
+                missing_here if overlay_missing is None else overlay_missing & missing_here
+            )
+        if js != modules[path]:
+            js_by_path[path] = js
+
+    for patch_id in patch_ids:
+        if patch_id in applied_any or patch_id in skipped_any:
+            continue
+        if _PATCH_REGISTRY[patch_id].on_miss == "fatal":
+            raise TweakPatchError(patch_id, "failed to find anchor")
+
+    applied: List[str] = []
+    skipped: List[str] = []
+    for tweak_id in normalized:
+        if tweak_id in PROMPT_ONLY_TWEAK_IDS:
+            (applied if overlay_applied else skipped).append(tweak_id)
+        elif tweak_id in patch_ids and tweak_id in applied_any:
+            applied.append(tweak_id)
+        else:
+            skipped.append(tweak_id)
+
+    return ModuleTweakResult(
+        js_by_path=js_by_path,
+        applied=applied,
+        skipped=skipped,
+        missing=sorted(overlay_missing) if overlay_missing is not None else [],
+    )

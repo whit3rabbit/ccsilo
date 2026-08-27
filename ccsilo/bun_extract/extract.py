@@ -20,6 +20,41 @@ class ExtractAllResult:
     manifest: Optional[dict] = None
 
 
+def read_js_modules(
+    extract_dir: Path,
+    manifest_data: Optional[dict],
+) -> tuple:
+    """Read loader-js module sources back from an extracted bundle tree.
+
+    Returns (entry_rel_path, {rel_path: js}). Claude Code >= 2.1.242 spreads
+    patch anchors across many JS modules, so callers patch every JS module and
+    keep entry_rel_path for positional entry-scoped patches. Legacy monolithic
+    bundles return a single-entry map and behave exactly like entry-only
+    patching.
+    """
+    if manifest_data is None:
+        manifest_path = Path(extract_dir) / ".bundle_manifest.json"
+        if not manifest_path.is_file():
+            return None, {}
+        manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    modules: dict = {}
+    entry_rel = None
+    entry_id = manifest_data.get("entryPointId")
+    for module in manifest_data.get("modules", []):
+        rel = module.get("rel_path") or module.get("sourceFile")
+        if not rel:
+            continue
+        if entry_id is not None and module.get("index") == entry_id:
+            entry_rel = rel
+        if module.get("loader") != "js":
+            continue
+        path = Path(extract_dir) / rel
+        if path.is_file():
+            modules[rel] = path.read_text(encoding="utf-8", errors="replace")
+    return entry_rel, modules
+
+
 def extract_all(data, info, out_dir, write_sourcemaps=False, manifest=True):
     out_root = Path(out_dir)
     out_root.mkdir(parents=True, exist_ok=True)

@@ -11,10 +11,11 @@ from typing import Iterable, List, Sequence
 
 from ._utils import atomic_write_text_no_symlink, safe_child_path, utc_now as _utc_now
 from .bundler import pack_bundle
+from .bun_extract import read_js_modules
 from .extractor import extract_all
 from .patcher import apply_patch
 from .patches._registry import REGISTRY as PATCH_REGISTRY
-from .variant_tweaks import DASHBOARD_TWEAK_IDS, apply_variant_tweaks
+from .variant_tweaks import DASHBOARD_TWEAK_IDS, apply_variant_tweaks_to_modules
 from .workspace import (
     NativeArtifact,
     PATCHED_METADATA,
@@ -132,17 +133,19 @@ def apply_dashboard_tweaks_to_native(
             str(extract_dir),
             source_version=source_artifact.version,
         )
-        entry_path = _entry_path(extract_dir, manifest_data)
-        js = entry_path.read_text(encoding="utf-8")
-        tweak_result = apply_variant_tweaks(
-            js,
+        entry_rel, js_modules = read_js_modules(extract_dir, manifest_data)
+        tweak_result = apply_variant_tweaks_to_modules(
+            js_modules,
+            entry_path=entry_rel,
             tweak_ids=normalized_ids,
             config={},
             overlays={},
             provider_label="ccsilo",
             claude_version=source_artifact.version,
         )
-        atomic_write_text_no_symlink(entry_path, tweak_result.js)
+        for rel_path, patched_js in tweak_result.js_by_path.items():
+            module_path = safe_child_path(extract_dir, rel_path, label="module path")
+            atomic_write_text_no_symlink(module_path, patched_js)
 
         pack_bundle(str(extract_dir), str(staged_output), str(source_artifact.path))
         output_sha256 = file_sha256(staged_output)

@@ -34,6 +34,35 @@ def test_no_agent_definitions_synthetic_applies(cli_js_synthetic):
     assert "onOpenRateLimitOptions:()=>{}" in outcome.js
 
 
+def test_props_pass_through_synthetic_applies(cli_js_synthetic):
+    # 2.1.242+ splits the bundle and threads the callback through a props
+    # object as `onOpenRateLimitOptions:m?.openRateLimitOptions`.
+    js = (
+        "let wt=ru===\"transcript\";"
+        "function render(SO){let{messages:Kn,screen:ru,onOpenRateLimitOptions:m?.openRateLimitOptions,"
+        "onRateLimitAutoQueueContinue:m?.armRateLimitAutoContinue}=SO;return null}"
+    )
+    outcome = PATCH.apply(js, PatchContext(claude_version="2.1.247"))
+    assert outcome.status == "applied"
+    assert "onOpenRateLimitOptions:()=>{}" in outcome.js
+    assert "m?.openRateLimitOptions" not in outcome.js
+
+
+def test_message_item_jsx_call_synthetic_applies(cli_js_synthetic):
+    # 2.1.242-2.1.246 thread the callback through a compact JSX call:
+    # o(Vg,{text:$e,onOpenRateLimitOptions:vO,onRateLimitAutoQueueContinue:YO})
+    js = (
+        "function Gx(Tle){let ho=R(34);"
+        "if(vx(Fe)){let te;"
+        "te=o(Sg,{text:Fe,onOpenRateLimitOptions:rO,onRateLimitAutoQueueContinue:sO}),"
+        "ho[0]=rO,ho[1]=sO;return te}}"
+    )
+    outcome = PATCH.apply(js, PatchContext(claude_version="2.1.246"))
+    assert outcome.status == "applied"
+    assert "onOpenRateLimitOptions:()=>{}," in outcome.js
+    assert "onRateLimitAutoQueueContinue:sO" in outcome.js
+
+
 def test_metadata():
     assert PATCH.id == "suppress-rate-limit-options"
     assert PATCH.group == "ui"

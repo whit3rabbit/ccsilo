@@ -91,8 +91,8 @@ def test_check_version_omits_local_binary_path(tmp_path, monkeypatch):
 
     monkeypatch.setattr(
         check_patch_releases,
-        "extract_entry_js",
-        lambda _path: ("js", {"entryModule": "cli.js", "entryBytes": 2}),
+        "extract_js_modules",
+        lambda _path: ("cli.js", {"cli.js": "js"}, {"entryModule": "cli.js", "entryBytes": 2}),
     )
 
     report = check_patch_releases.check_version(
@@ -115,8 +115,8 @@ def test_check_version_can_include_runtime_smoke(tmp_path, monkeypatch):
 
     monkeypatch.setattr(
         check_patch_releases,
-        "extract_entry_js",
-        lambda _path: ("js", {"entryModule": "cli.js", "entryBytes": 2}),
+        "extract_js_modules",
+        lambda _path: ("cli.js", {"cli.js": "js"}, {"entryModule": "cli.js", "entryBytes": 2}),
     )
 
     def smoke_runner(path, version, *, registry, timeout):
@@ -183,8 +183,8 @@ def test_check_version_smoke_failure_fails_report(tmp_path, monkeypatch):
 
     monkeypatch.setattr(
         check_patch_releases,
-        "extract_entry_js",
-        lambda _path: ("js", {"entryModule": "cli.js", "entryBytes": 2}),
+        "extract_js_modules",
+        lambda _path: ("cli.js", {"cli.js": "js"}, {"entryModule": "cli.js", "entryBytes": 2}),
     )
 
     report = check_patch_releases.check_version(
@@ -207,8 +207,8 @@ def test_check_version_smoke_blocked_keeps_patch_report_ok(tmp_path, monkeypatch
 
     monkeypatch.setattr(
         check_patch_releases,
-        "extract_entry_js",
-        lambda _path: ("js", {"entryModule": "cli.js", "entryBytes": 2}),
+        "extract_js_modules",
+        lambda _path: ("cli.js", {"cli.js": "js"}, {"entryModule": "cli.js", "entryBytes": 2}),
     )
 
     report = check_patch_releases.check_version(

@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from ..bun_extract import read_js_modules
 from .._utils import atomic_write_text_no_symlink, safe_child_path, safe_read_json as _safe_read_json
 from ..patcher import apply_patch
 from ..providers import (
@@ -21,7 +22,6 @@ from ..providers import (
 from ..workspace import (
     NativeArtifact,
     load_patch_profile,
-    read_json,
     scan_patch_packages,
     workspace_root,
 )
@@ -31,8 +31,9 @@ from .tweaks import (
     SETUP_CONFIG_TWEAK_IDS,
     SETUP_ONLY_TWEAK_IDS,
     SETUP_ENV_ONLY_TWEAK_IDS,
+    ModuleTweakResult,
     TweakResult,
-    apply_variant_tweaks,
+    apply_variant_tweaks_to_modules,
     compose_prompt_overlays,
 )
 
@@ -97,28 +98,29 @@ def apply_patch_refs(
 
 
 def patch_entry_js(extract_dir: Path, manifest_data: Dict, *, provider_key: str, tweak_ids: List[str], claude_version: Optional[str] = None):
+    # Despite the legacy name, split bundles (Claude Code >= 2.1.242) carry
+    # tweak anchors across many JS modules, so tweaks are applied to every JS
+    # module and changed modules are written back ahead of repacking.
     entry = manifest_data.get("entryPoint")
     if not entry:
-        manifest_path = extract_dir / ".bundle_manifest.json"
-        if manifest_path.exists():
-            entry = read_json(manifest_path).get("entryPoint")
-    if not entry:
         raise ValueError("Extracted bundle manifest did not include entryPoint")
+    # Keep validating entryPoint even though tweaks no longer write through it:
+    # the guard rejects tampered manifests pointing outside extract_dir.
     try:
-        entry_path = safe_child_path(extract_dir, entry, label="entryPoint")
+        safe_child_path(extract_dir, entry, label="entryPoint")
     except ValueError as exc:
         raise ValueError(str(exc)) from exc
-    if not entry_path.exists():
-        raise ValueError(f"Entry JS not found in extracted bundle: {entry}")
-    js = entry_path.read_text(encoding="utf-8")
+    entry_rel, js_modules = read_js_modules(extract_dir, manifest_data)
+    entry_js = js_modules.get(entry_rel, "")
     provider = get_provider(provider_key)
     provider_overlays = provider_prompt_overlays(provider_key) if "prompt-overlays" in tweak_ids else {}
     setup_only_ids = {*SETUP_ENV_ONLY_TWEAK_IDS, *SETUP_CONFIG_TWEAK_IDS}
     setup_only_tweaks = [tweak_id for tweak_id in tweak_ids if tweak_id in setup_only_ids]
     patch_tweak_ids = [tweak_id for tweak_id in tweak_ids if tweak_id not in setup_only_ids]
     if patch_tweak_ids:
-        result = apply_variant_tweaks(
-            js,
+        result = apply_variant_tweaks_to_modules(
+            js_modules,
+            entry_path=entry_rel,
             tweak_ids=patch_tweak_ids,
             config=provider_patch_config(provider_key),
             overlays=compose_prompt_overlays(provider_overlays, tweak_ids),
@@ -126,16 +128,23 @@ def patch_entry_js(extract_dir: Path, manifest_data: Dict, *, provider_key: str,
             claude_version=claude_version,
         )
     else:
-        result = TweakResult(js=js, applied=[], skipped=[], missing=[])
-    atomic_write_text_no_symlink(entry_path, result.js)
+        result = ModuleTweakResult(js_by_path={}, applied=[], skipped=[], missing=[])
+    for rel_path, patched_js in result.js_by_path.items():
+        module_path = safe_child_path(extract_dir, rel_path, label="module path")
+        atomic_write_text_no_symlink(module_path, patched_js)
     if setup_only_tweaks:
         return TweakResult(
-            js=result.js,
+            js=result.js_by_path.get(entry_rel, entry_js),
             applied=[*result.applied, *setup_only_tweaks],
             skipped=result.skipped,
             missing=result.missing,
         )
-    return result
+    return TweakResult(
+        js=result.js_by_path.get(entry_rel, entry_js),
+        applied=result.applied,
+        skipped=result.skipped,
+        missing=result.missing,
+    )
 
 
 def can_use_in_place_variant_patch(source_artifact: NativeArtifact, manifest: Dict) -> bool:

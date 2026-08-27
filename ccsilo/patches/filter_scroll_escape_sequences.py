@@ -64,4 +64,5 @@ PATCH = Patch(
     versions_tested=DEFAULT_VERSION_RANGES,
     apply=_apply,
     description="Filter stdout escape sequences that set/reset scroll regions or scroll terminal content.",
+    module_scope="entry",
 )
