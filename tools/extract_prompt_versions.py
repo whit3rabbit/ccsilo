@@ -43,6 +43,36 @@ def prompt_output_path(prompts_dir: Path, version: str) -> Path:
     return prompts_dir / f"{version}.json"
 
 
+def bundle_scan_paths(extract_dir: Path) -> Tuple[List[str], List[str]]:
+    """Split extracted bundle modules into literal-scan and whole-file inputs.
+
+    Claude Code >= 2.1.242 ships a tiny entry module plus ~1400 JS modules, and
+    bundles markdown/text assets as whole-file modules (manifest loader byte 13,
+    left numeric by LOADER_NAMES). Loader "js" modules are scanned for string
+    literals; loader 13 modules contribute their full text because that same
+    content used to be embedded as literals in the monolithic entry.
+    """
+    js_paths: List[str] = []
+    text_paths: List[str] = []
+    manifest_path = extract_dir / ".bundle_manifest.json"
+    if not manifest_path.exists():
+        return js_paths, text_paths
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    for module in manifest.get("modules", []):
+        rel = module.get("rel_path") or module.get("sourceFile")
+        if not rel:
+            continue
+        candidate = extract_dir / rel
+        if not candidate.is_file():
+            continue
+        loader = module.get("loader")
+        if loader == "js":
+            js_paths.append(str(candidate))
+        elif loader == 13:
+            text_paths.append(str(candidate))
+    return js_paths, text_paths
+
+
 def bundled_cli_path(extract_dir: Path) -> Path:
     manifest_path = extract_dir / ".bundle_manifest.json"
     if manifest_path.exists():
@@ -245,10 +275,13 @@ def extract_version_prompts(
         output_path,
         force_prompts,
     )
+    scan_paths, text_paths = bundle_scan_paths(extract_dir)
     data = extract_prompts(
         str(cli_path),
         version=version,
         existing_prompts=load_existing_prompts(existing_path),
+        scan_paths=scan_paths,
+        text_paths=text_paths,
     )
     write_validated_prompt_data(data, output_path, version)
     summary = prompt_summary(data)

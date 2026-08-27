@@ -1080,17 +1080,60 @@ def extract_prompts(
     min_length: int = 500,
     version: Optional[str] = None,
     existing_prompts: Optional[Sequence[Prompt]] = None,
+    scan_paths: Optional[Sequence[str]] = None,
+    text_paths: Optional[Sequence[str]] = None,
 ) -> Dict[str, Any]:
+    # Claude Code >= 2.1.242 splits the bundle into many JS modules plus
+    # whole-file text modules, so prompt strings no longer live in the entry
+    # file alone. Literal scanning covers input_path plus scan_paths; text
+    # modules are ingested whole because their raw content used to be embedded
+    # as string literals in the monolithic entry.
     extractor = PromptExtractor()
-    extracted = extractor.extract_strings(
-        input_path,
-        min_length=min_length,
-        version=version,
-    )
+    literal_paths: List[str] = []
+    for path in [input_path, *(scan_paths or [])]:
+        if path and path not in literal_paths:
+            literal_paths.append(path)
+
+    extracted: List[Prompt] = []
+    source_texts: List[str] = []
+    for path in literal_paths:
+        extracted.extend(
+            extractor.extract_strings(
+                path,
+                min_length=min_length,
+                version=version,
+            )
+        )
+        source_texts.append(Path(path).read_text(encoding="utf-8"))
+
+    if text_paths:
+        seen_keys = {_prompt_match_key(prompt) for prompt in extracted}
+        for path in text_paths:
+            content = Path(path).read_text(encoding="utf-8", errors="replace")
+            source_texts.append(content)
+            if not validate_input(content, min_length):
+                continue
+            value = _apply_placeholders(content, version)
+            prompt: Prompt = {
+                "name": "",
+                "id": "",
+                "description": "",
+                "pieces": [value],
+                "identifiers": [],
+                "identifierMap": {},
+                "start": 0,
+                "end": len(value),
+            }
+            key = _prompt_match_key(prompt)
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            extracted.append(prompt)
+
     merged = merge_with_existing(extracted, existing_prompts or [], version)
 
     if existing_prompts:
-        source_text = Path(input_path).read_text(encoding="utf-8")
+        source_text = "\n".join(source_texts)
         merged.extend(
             _recover_existing_prompts(
                 existing_prompts,

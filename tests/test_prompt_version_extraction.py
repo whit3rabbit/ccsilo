@@ -139,7 +139,9 @@ def test_extract_version_prompts_uses_nearest_local_catalog_as_seed(tmp_path, mo
         cli_path.write_text("prompt source", encoding="utf-8")
         return cli_path
 
-    def fake_extract_prompts(input_path, version=None, existing_prompts=None):
+    def fake_extract_prompts(
+        input_path, version=None, existing_prompts=None, scan_paths=None, text_paths=None
+    ):
         captured["existing_prompts"] = existing_prompts
         return {
             "version": version,
@@ -205,7 +207,9 @@ def test_force_prompts_prefers_exact_vendor_catalog_over_existing_output(
         cli_path.write_text("prompt source", encoding="utf-8")
         return cli_path
 
-    def fake_extract_prompts(input_path, version=None, existing_prompts=None):
+    def fake_extract_prompts(
+        input_path, version=None, existing_prompts=None, scan_paths=None, text_paths=None
+    ):
         captured["existing_prompts"] = existing_prompts
         return {
             "version": version,
@@ -283,7 +287,9 @@ def test_force_prompts_without_exact_catalog_prefers_nearest_named_vendor_seed(
         cli_path.write_text("prompt source", encoding="utf-8")
         return cli_path
 
-    def fake_extract_prompts(input_path, version=None, existing_prompts=None):
+    def fake_extract_prompts(
+        input_path, version=None, existing_prompts=None, scan_paths=None, text_paths=None
+    ):
         captured["existing_prompts"] = existing_prompts
         return {
             "version": version,
