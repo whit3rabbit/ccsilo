@@ -63,6 +63,17 @@ def test_batch_size_synthetic_helper_shape_respects_config(cli_js_synthetic):
     assert "return e>0?e:7" in outcome.js
 
 
+def test_batch_size_synthetic_applies_env_object_shape(cli_js_synthetic):
+    # 2.1.248+ reads the env through a typed env object with a nullish
+    # coalescing default; the local batch default is rewritten, the remote
+    # one is left alone.
+    js = cli_js_synthetic("mcp-batch-size-v3")
+    outcome = MCP_BATCH_SIZE_PATCH.apply(js, PatchContext(claude_version=None))
+    assert outcome.status == "applied"
+    assert "MCP_SERVER_CONNECTION_BATCH_SIZE??10" in outcome.js
+    assert "MCP_REMOTE_SERVER_CONNECTION_BATCH_SIZE??20" in outcome.js
+
+
 def test_metadata():
     assert MCP_NON_BLOCKING_PATCH.id == "mcp-non-blocking"
     assert MCP_BATCH_SIZE_PATCH.id == "mcp-batch-size"

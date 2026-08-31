@@ -37,6 +37,10 @@ def _batch_size(js: str, ctx: PatchContext) -> PatchOutcome:
         js,
     )
     if not match:
+        # 2.1.248+ reads the env through a typed env object and defaults with
+        # a nullish coalescing literal (`a.MCP_SERVER_CONNECTION_BATCH_SIZE??3`).
+        match = re.search(r"([$\w]+)\.MCP_SERVER_CONNECTION_BATCH_SIZE\?\?(\d+)", js)
+    if not match:
         return PatchOutcome(js=js, status="missed")
     new_js = js[:match.start(2)] + batch_size + js[match.end(2):]
     return PatchOutcome(js=new_js, status="applied")

@@ -23,6 +23,19 @@ def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
     before = js[lookback_start:match.start()]
     funcs = list(re.finditer(r"function ([$\w]+)\([^)]*\)\{", before))
     if not funcs:
+        # 2.1.248+ hoisted the glyph tables above the render functions, so
+        # no function precedes the anchor. Target the first function after
+        # the tables whose body references the clawd color token; other
+        # banner-adjacent functions (OAuth page handler) never mention it.
+        forward = js[match.end():match.end() + 2000]
+        for fn in re.finditer(r"function ([$\w]+)\([^)]*\)\{", forward):
+            if "clawd" not in forward[fn.end():fn.end() + 500]:
+                continue
+            body_start = match.end() + fn.end()
+            if js[body_start:body_start + 32].lstrip().startswith("return null;"):
+                return PatchOutcome(js=js, status="skipped")
+            new_js = js[:body_start] + "return null;" + js[body_start:]
+            return PatchOutcome(js=new_js, status="applied")
         return PatchOutcome(js=js, status="missed")
     inner_name = funcs[-1].group(1)
     for wrapper in re.finditer(r"function ([$\w]+)\([^)]*\)\{", js):

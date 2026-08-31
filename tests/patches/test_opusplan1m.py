@@ -66,6 +66,16 @@ def test_synthetic_v4_applies_when_wrapper_takes_extra_arg(cli_js_synthetic):
     assert outcome.js.count('value:"opusplan[1m]"') == 2
 
 
+def test_synthetic_v5_applies_when_native_gate_is_alias_mapping(cli_js_synthetic):
+    # 2.1.251+ ships opusplan[1m] natively via an alias-to-tier mapping
+    # instead of the plan-mode gate; the native gate satisfies the mode
+    # switch piece and the alias list is still extended.
+    js = cli_js_synthetic("opusplan1m-v5")
+    outcome = PATCH.apply(js, PatchContext(claude_version=None))
+    assert outcome.status == "applied"
+    assert '"sonnet[1m]","opusplan","opusplan[1m]"' in outcome.js
+
+
 def test_miss_when_anchor_absent():
     outcome = PATCH.apply("function unrelated(){return null}", PatchContext(claude_version=None))
     assert outcome.status == "missed"

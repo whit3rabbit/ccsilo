@@ -19,6 +19,11 @@ SYNTHETIC = {
         'function inner(){return"\\u259B\\u2588\\u2588\\u2588\\u259B\\u2588"}'
         'function wrapper(){return R.createElement(inner,{})}'
     ),
+    "hide-startup-clawd-v3": (
+        # 2.1.248+ hoists the glyph tables above the render functions.
+        'var x={default:{r1E:"\\u259B\\u2588\\u2588\\u2588\\u259B\\u2588"}};'
+        'function sq(R){let l=x[R];return e(t,{color:"clawd_body",children:l.r1E})}'
+    ),
     "hide-ctrl-g-to-edit": 'if(v&&P)p("tengu_external_editor_hint_shown",{})',
     "show-more-items-in-select-menus": 'function menu({visibleOptionCount:A=5}){return A}',
     "model-customizations": (
@@ -187,6 +192,12 @@ SYNTHETIC = {
         'function tRt(){let e=zl(process.env.MCP_SERVER_CONNECTION_BATCH_SIZE);'
         'return e>0?e:3}function V9r(){return 0}'
     ),
+    "mcp-batch-size-v3": (
+        # 2.1.248+ reads the env through a typed env object and defaults via
+        # nullish coalescing instead of the parse-helper ternary.
+        'function Dr(){return a.MCP_SERVER_CONNECTION_BATCH_SIZE??3}'
+        'function xr(){return a.MCP_REMOTE_SERVER_CONNECTION_BATCH_SIZE??20}'
+    ),
     "token-count-rounding": (
         'let overrideMessage:true,count=format(inputTokens+outputTokens),'
         'view={key:"tokens"},count," tokens";'
@@ -260,6 +271,13 @@ SYNTHETIC = {
         'else if(selected==="opusplan")return wrap([...opts,opusPlanOption()]);return wrap(opts)}'
     ),
     # 2.1.227+ passes a second argument to the option-list wrapper.
+    "opusplan1m-v5": (
+        # 2.1.251+ ships opusplan[1m] natively via an alias-to-tier mapping
+        # instead of the plan-mode gate; the native gate satisfies the mode
+        # switch piece and the alias list is still extended.
+        'function qde(e){if(e==="opusplan"||e==="opusplan[1m]")return"opus";return null}'
+        'let aliases=["sonnet","opus","haiku","sonnet[1m]","opusplan"];'
+    ),
     "opusplan1m-v4": (
         'let aliases=["sonnet","opus","haiku","fable","best","sonnet[1m]","opus[1m]","fable[1m]","opusplan"];'
         'function select(ctx){let{permissionMode:mode,mainLoopModel:model,exceeds200kTokens:overLimit=!1}=ctx,current=currentModel();'

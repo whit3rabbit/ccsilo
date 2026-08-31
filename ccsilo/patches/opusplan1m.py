@@ -135,10 +135,17 @@ def _already_patched(js: str) -> bool:
 def _native_1m_support(js: str) -> bool:
     # 2.1.242+ ships the [1m] opusplan gate natively, e.g.
     # if((o==="opusplan"||o==="opusplan[1m]")&&t==="plan"&&!r){...}
+    # 2.1.251+ replaced the plan-mode gate with an alias-to-tier mapping,
+    # e.g. if(e==="opusplan"||e==="opusplan[1m]")return"opus";
     return bool(
         re.search(
             r'\(\s*[$\w]+\s*===\s*"opusplan"\s*\|\|\s*[$\w]+\s*===\s*"opusplan\[1m\]"\s*\)'
             r'\s*&&\s*[$\w]+\s*===\s*"plan"',
+            js,
+        )
+        or re.search(
+            r'\(\s*[$\w]+\s*===\s*"opusplan"\s*\|\|\s*[$\w]+\s*===\s*"opusplan\[1m\]"\s*\)'
+            r'\s*return\s*"opus"',
             js,
         )
     )
@@ -239,7 +246,7 @@ PATCH = Patch(
     versions_supported=">=2.1.0,<3",
     # 2.1.196-2.1.226 were never proven for this patch; 2.1.227+ is covered
     # after the selector-wrapper argument fix.
-    versions_tested=(">=2.1.0,<=2.1.195", ">=2.1.227,<=2.1.247"),
+    versions_tested=(">=2.1.0,<=2.1.195", ">=2.1.227,<=2.1.252"),
     apply=_apply,
     apply_modules=_apply_modules,
     description=(
