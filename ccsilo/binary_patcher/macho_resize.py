@@ -89,7 +89,15 @@ def repack_macho(data, info, new_raw_bytes, new_offsets_struct):
     if bun_segment is not None and new_linkedit_fileoff is not None:
         bun_filesize = new_linkedit_fileoff - bun_segment["fileoff"]
         _update_segment_filesize(pre_section, bun_segment, bun_filesize)
-        _update_segment_vmsize(pre_section, bun_segment, _align_up(bun_filesize, PAGE_ALIGN))
+        new_bun_vmsize = _align_up(bun_filesize, PAGE_ALIGN)
+        _update_segment_vmsize(pre_section, bun_segment, new_bun_vmsize)
+        if linkedit is not None:
+            # __BUN grew past its old page-aligned size: slide __LINKEDIT's
+            # vmaddr so the segments stay contiguous. Overlapping segments
+            # get the binary SIGKILLed at exec, even after ad-hoc re-signing.
+            vm_delta = new_bun_vmsize - bun_segment["vmsize"]
+            if vm_delta:
+                _update_segment_vmaddr(pre_section, linkedit, linkedit["vmaddr"] + vm_delta)
 
     struct.pack_into("<Q", pre_section, section_header_offset + 40, new_section_payload_size)
 
@@ -202,6 +210,10 @@ def _update_segment_filesize(data, segment, value):
 
 def _update_segment_vmsize(data, segment, value):
     struct.pack_into("<Q", data, segment["lc_offset"] + 32, value)
+
+
+def _update_segment_vmaddr(data, segment, value):
+    struct.pack_into("<Q", data, segment["lc_offset"] + 24, value)
 
 
 def _align_up(value, alignment):

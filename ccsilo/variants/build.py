@@ -14,6 +14,7 @@ from ..providers import get_provider, provider_patch_config, provider_prompt_ove
 from ..workspace import NativeArtifact, file_sha256, native_artifact_from_path, native_binary_filename, write_json
 from .builder import (
     apply_patch_refs as _apply_patch_refs,
+    bundle_is_split as _bundle_is_split,
     can_use_in_place_variant_patch as _can_use_in_place_variant_patch,
     patch_entry_js as _patch_entry_js,
     resolve_source_version as _resolve_source_version,
@@ -434,6 +435,9 @@ def _should_use_unpacked_node_runtime(source_artifact: NativeArtifact, manifest:
         source_artifact.platform.startswith("darwin")
         and not manifest.get("patches")
         and not tweak_ids.issubset(_IN_PLACE_TWEAKS)
+        # Split bundles cannot run under the unpacked Node runtime: their
+        # modules import /$bunfs/root/* paths that only resolve inside Bun.
+        and not _bundle_is_split(source_artifact.path)
     )
 
 def _copy_unpack_node_runtime_variant(

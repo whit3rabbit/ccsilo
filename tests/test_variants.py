@@ -3426,3 +3426,23 @@ def test_provider_shortcut_resolves_single_matching_setup_from_workspace(monkeyp
     resolved = cli._resolve_provider_variant("zai", required=True)
 
     assert resolved.variant_id == "custom-zai"
+
+
+def test_split_bundle_bypasses_in_place_fast_path(monkeypatch, tmp_path):
+    from ccsilo.variants import builder
+
+    monkeypatch.setattr(builder, "bundle_is_split", lambda path: True)
+    artifact = SimpleNamespace(platform="darwin-arm64", path=tmp_path / "claude")
+    manifest = {"tweaks": ["themes", "prompt-overlays"]}
+
+    assert builder.can_use_in_place_variant_patch(artifact, manifest) is False
+
+
+def test_split_bundle_bypasses_unpacked_node_runtime(monkeypatch, tmp_path):
+    from ccsilo.variants import build as build_module
+
+    monkeypatch.setattr(build_module, "_bundle_is_split", lambda path: True)
+    artifact = SimpleNamespace(platform="darwin-arm64", path=tmp_path / "claude")
+    manifest = {"tweaks": ["themes", "opusplan1m"]}
+
+    assert build_module._should_use_unpacked_node_runtime(artifact, manifest) is False

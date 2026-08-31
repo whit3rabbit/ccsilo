@@ -367,6 +367,7 @@ Important distinctions:
 * Real ELF payloads can contain unreferenced prefix bytes before the first module name. When a base binary is available, use the base payload as the template and replace relocated ranges.
 * On Mach-O, prompt overlays that grow the entry module must force the unpacked Node runtime fallback even if later shrink tweaks make the final byte length fit.
 * Mach-O repacking must preserve and relocate non-signature `__LINKEDIT` data. The `__BUN` section starts with an 8-byte size header for the full inner payload.
+* When Mach-O `__BUN` growth crosses a page boundary, slide `__LINKEDIT` vmaddr along with its fileoff. Overlapping vm ranges get the binary SIGKILLed at exec even after ad-hoc re-signing.
 * After Mach-O repack changes, check `otool -l <binary>` for `past end of file`, run `codesign --verify --strict --verbose=4 -- <binary>` after ad-hoc signing, and verify `--version`.
 * Bun CJS entry modules must keep a valid `// @bun ... @bun-cjs` function wrapper. Inject runtime code inside the existing wrapper, immediately after the opening `{`.
 * `extractor.py` and `bundler.py` are compatibility wrappers, not independent implementations.

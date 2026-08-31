@@ -327,6 +327,35 @@ def test_replace_entry_js_strips_macho_code_signature_and_preserves_linkedit():
     assert _content(out, reparsed, 1) == "Y" * 32
 
 
+def test_replace_entry_js_grown_macho_keeps_linkedit_vmaddr_contiguous():
+    # A grown __BUN segment must slide __LINKEDIT's vmaddr along with its
+    # file offset. Overlapping vm ranges get the binary SIGKILLed at exec
+    # even after ad-hoc re-signing (seen with Claude Code 2.1.248+ arm64
+    # variant builds whose patched modules grew the section past a page).
+    data, meta = _build_signed_macho_with_linkedit()
+    bun_segment_off = 32
+    linkedit_off = meta["linkedit_off"]
+    header = bytearray(data)
+    old_section_size = struct.unpack_from("<Q", header, bun_segment_off + 32)[0]
+    base = 0x100000
+    struct.pack_into("<Q", header, bun_segment_off + 24, base)
+    struct.pack_into("<Q", header, linkedit_off + 24, base + old_section_size)
+    data = bytes(header)
+
+    info = parse_bun_binary(data)
+    old_bun_vmsize = struct.unpack_from("<Q", data, bun_segment_off + 32)[0]
+
+    result = replace_entry_js(data, info, b"G" * 20000)
+
+    out = result.buf
+    bun_vmaddr = struct.unpack_from("<Q", out, bun_segment_off + 24)[0]
+    bun_vmsize = struct.unpack_from("<Q", out, bun_segment_off + 32)[0]
+    linkedit_vmaddr = struct.unpack_from("<Q", out, linkedit_off + 24)[0]
+    assert bun_vmsize > old_bun_vmsize
+    assert linkedit_vmaddr == base + old_section_size + (bun_vmsize - old_bun_vmsize)
+    assert bun_vmaddr + bun_vmsize == linkedit_vmaddr
+
+
 def test_pe_last_section_guard_rejects_not_last_bun_section():
     fixture = build_bun_fixture(
         platform="pe",

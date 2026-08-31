@@ -11,7 +11,7 @@ import os
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from ..bun_extract import read_js_modules
+from ..bun_extract import parse_bun_binary, read_js_modules
 from .._utils import atomic_write_text_no_symlink, safe_child_path, safe_read_json as _safe_read_json
 from ..patcher import apply_patch
 from ..providers import (
@@ -153,7 +153,20 @@ def can_use_in_place_variant_patch(source_artifact: NativeArtifact, manifest: Di
         source_artifact.platform.startswith("darwin")
         and not manifest.get("patches")
         and requested_tweaks.issubset(IN_PLACE_TWEAK_IDS)
+        and not bundle_is_split(source_artifact.path)
     )
+
+
+def bundle_is_split(binary_path) -> bool:
+    """True when the bundle spreads JS over many modules (Claude Code 2.1.242+).
+
+    The in-place and unpacked-node fast paths only patch the entry module;
+    split bundles keep theme/prompt/tweak anchors in separate modules, so
+    they must go through the extract/patch/repack workflow.
+    """
+    data = Path(binary_path).read_bytes()
+    info = parse_bun_binary(data)
+    return sum(1 for module in info.modules if module.loader == "js") > 1
 
 
 @contextlib.contextmanager
