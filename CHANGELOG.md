@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.13.0] - 2026-08-31
+
+Claude Code 2.1.248 through 2.1.252 tracking plus two darwin build fixes. Split-bundle variants could not be built at all, and repacked Mach-O binaries were killed at exec when patched modules grew the bundle section past a page.
+
+### Added
+- Added Claude Code prompt catalogs for 2.1.248, 2.1.250, 2.1.251, and 2.1.252.
+- Added Claude Code patch compatibility reports for 2.1.248 through 2.1.252. Docker linux/amd64 smoke passed; 30/30 patches ok per version.
+
+### Changed
+- Variant builds on split bundles (Claude Code 2.1.242+) now always run the extract/patch/repack workflow. Both darwin fast paths only patch the entry module, which no longer holds the anchors. The unpacked Node runtime cannot resolve `/$bunfs/root/*` imports either. `bundle_is_split` routes around both.
+- Widened shared and patch-specific tested ranges to 2.1.252 after Docker runtime smoke. The registry sentinel moved to 2.1.253.
+
+### Fixed
+- Fixed `hide-startup-clawd` for Claude Code 2.1.248+. Upstream hoisted the glyph tables above the render functions, so the lookback found no function. The first clawd-referencing function after the tables is now targeted; the OAuth page handler is untouched.
+- Fixed `mcp-batch-size` for Claude Code 2.1.248+. The env read moved to a typed env object with a nullish coalescing default (`a.MCP_SERVER_CONNECTION_BATCH_SIZE??3`). The local default is rewritten there; the remote batch default is left alone.
+- Fixed `opusplan1m` for Claude Code 2.1.251+. Upstream replaced the plan-mode gate with an alias-to-tier mapping that already handles `opusplan[1m]`. It is now recognized as native support.
+- Fixed repacked Mach-O binaries being SIGKILLed at exec on arm64. Patched modules could grow the `__BUN` section past a page: `__LINKEDIT`'s fileoff moved but its vmaddr did not, leaving overlapping vm ranges that re-signing cannot repair. The vmaddr now slides by the same page delta.
+
 ## [0.12.0] - 2026-08-27
 
 Claude Code 2.1.242 split its bundle: the ~28MB monolithic `cli` entry became a ~20KB entry plus ~1400 JS modules and 166 whole-file text modules. Everything that assumed "the entry file contains the prompts and patch anchors" broke at once; this release moves ccsilo to bundle-wide extraction and patching.
