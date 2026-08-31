@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-08-27T12:51:10.671981Z",
+  "generatedAt": "2026-08-31T23:13:16.102062Z",
   "reports": [
     {
       "ok": true,
-      "path": "2.1.247.json",
+      "path": "2.1.252.json",
       "smoke": {
         "ok": true,
         "platformKey": "linux-x64",
@@ -11,19 +11,19 @@
         "status": "passed"
       },
       "summary": {
-        "applied": 25,
+        "applied": 24,
         "failed": 0,
         "ok": 30,
-        "skipped": 3,
+        "skipped": 4,
         "total": 30,
         "unsupported": 2,
         "untested": 4
       },
-      "version": "2.1.247"
+      "version": "2.1.252"
     },
     {
       "ok": true,
-      "path": "2.1.246.json",
+      "path": "2.1.251.json",
       "smoke": {
         "ok": true,
         "platformKey": "linux-x64",
@@ -31,19 +31,19 @@
         "status": "passed"
       },
       "summary": {
-        "applied": 25,
+        "applied": 24,
         "failed": 0,
         "ok": 30,
-        "skipped": 3,
+        "skipped": 4,
         "total": 30,
         "unsupported": 2,
         "untested": 4
       },
-      "version": "2.1.246"
+      "version": "2.1.251"
     },
     {
       "ok": true,
-      "path": "2.1.245.json",
+      "path": "2.1.250.json",
       "smoke": {
         "ok": true,
         "platformKey": "linux-x64",
@@ -51,19 +51,19 @@
         "status": "passed"
       },
       "summary": {
-        "applied": 25,
+        "applied": 24,
         "failed": 0,
         "ok": 30,
-        "skipped": 3,
+        "skipped": 4,
         "total": 30,
         "unsupported": 2,
         "untested": 4
       },
-      "version": "2.1.245"
+      "version": "2.1.250"
     },
     {
       "ok": true,
-      "path": "2.1.243.json",
+      "path": "2.1.248.json",
       "smoke": {
         "ok": true,
         "platformKey": "linux-x64",
@@ -71,35 +71,15 @@
         "status": "passed"
       },
       "summary": {
-        "applied": 25,
+        "applied": 24,
         "failed": 0,
         "ok": 30,
-        "skipped": 3,
+        "skipped": 4,
         "total": 30,
         "unsupported": 2,
         "untested": 4
       },
-      "version": "2.1.243"
-    },
-    {
-      "ok": true,
-      "path": "2.1.242.json",
-      "smoke": {
-        "ok": true,
-        "platformKey": "linux-x64",
-        "stage": "run",
-        "status": "passed"
-      },
-      "summary": {
-        "applied": 25,
-        "failed": 0,
-        "ok": 30,
-        "skipped": 3,
-        "total": 30,
-        "unsupported": 2,
-        "untested": 4
-      },
-      "version": "2.1.242"
+      "version": "2.1.248"
     }
   ],
   "schemaVersion": 1
