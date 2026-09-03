@@ -33,6 +33,26 @@ def _hide_prompt_border_var(js: str):
     return js[:style_start] + "borderStyle:undefined" + js[style_start + len(old):], True
 
 
+def _hide_prompt_border_helper(js: str):
+    """Claude Code >= 2.1.257 factors the main input border config into a
+    helper: function nU(w,I){if(I)return{};return{borderColor:eto(w),
+    borderStyle:"round",borderLeft:!1,borderRight:!1,borderBottom:!0}}."""
+    helper = re.search(
+        r'function [$\w]+\([$\w]+,[$\w]+\)\{if\([$\w]+\)return\{\};'
+        r'return\{borderColor:[$\w]+\([$\w]+\),borderStyle:"round"'
+        r',borderLeft:!1,borderRight:!1,borderBottom:!0\}\}',
+        js,
+    )
+    if not helper:
+        return js, False
+    old = 'borderStyle:"round"'
+    rel = helper.group(0).find(old)
+    if rel == -1:
+        return js, False
+    style_start = helper.start() + rel
+    return js[:style_start] + "borderStyle:undefined" + js[style_start + len(old):], True
+
+
 def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
     new_js = js
     patched = False
@@ -77,6 +97,9 @@ def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
 
     new_js, new_main_input_patched = _hide_prompt_border_var(new_js)
     patched = patched or new_main_input_patched
+
+    new_js, helper_patched = _hide_prompt_border_helper(new_js)
+    patched = patched or helper_patched
 
     editor = re.search(
         r'borderStyle:"round"(,borderLeft:!1,borderRight:!1,borderBottom:!0,width:"100%"\}.+?Save and close editor)',

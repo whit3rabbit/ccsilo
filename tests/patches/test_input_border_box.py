@@ -30,6 +30,19 @@ def test_new_prompt_border_object_shape_applies():
     assert "borderStyle:undefined" in outcome.js
 
 
+def test_border_helper_function_shape_applies():
+    # Claude Code >= 2.1.257 factors the main input border config into a
+    # helper function instead of an inline conditional object.
+    js = (
+        'function nU(w,I){if(I)return{};return{borderColor:eto(w),'
+        'borderStyle:"round",borderLeft:!1,borderRight:!1,borderBottom:!0}}'
+    )
+    outcome = PATCH.apply(js, PatchContext(claude_version="2.1.259"))
+    assert outcome.status == "applied"
+    assert 'borderStyle:"round"' not in outcome.js
+    assert "borderStyle:undefined" in outcome.js
+
+
 def test_metadata():
     assert PATCH.id == "input-box-border"
     assert PATCH.group == "ui"

@@ -1,10 +1,10 @@
 {
   "binary": {
     "entryModule": "cli",
-    "moduleBytes": 33417195,
-    "moduleCount": 1795
+    "moduleBytes": 32265477,
+    "moduleCount": 1626
   },
-  "generatedAt": "2026-09-03T20:54:51.013760Z",
+  "generatedAt": "2026-09-03T20:54:10.056872Z",
   "ok": true,
   "patches": [
     {
@@ -224,7 +224,7 @@
       "warnings": []
     },
     {
-      "detail": "remember-skill: version 2.1.252 not in supported range '>=2.1.0,<2.1.42'",
+      "detail": "remember-skill: version 2.1.257 not in supported range '>=2.1.0,<2.1.42'",
       "group": "prompts",
       "id": "remember-skill",
       "name": "Remember skill",
@@ -264,7 +264,7 @@
       "warnings": []
     },
     {
-      "detail": "statusline-update-throttle: version 2.1.252 not in supported range '>=2.0.0,<=2.1.232'",
+      "detail": "statusline-update-throttle: version 2.1.257 not in supported range '>=2.0.0,<=2.1.232'",
       "group": "ui",
       "id": "statusline-update-throttle",
       "name": "Statusline update throttling correction",
@@ -388,11 +388,11 @@
       "<patched-binary>",
       "--version"
     ],
-    "durationMs": 24137,
+    "durationMs": 23138,
     "exitCode": 0,
-    "expectedVersion": "2.1.252",
+    "expectedVersion": "2.1.257",
     "ok": true,
-    "outputSha256": "5094393b9d5fccbc4fd22767aebf2faf6bb077b2e273ef80674b878123c4de42",
+    "outputSha256": "b82d5105ed7493d5585386301bd5ec912373b955aacea23b53671bf343880050",
     "patches": {
       "applied": [
         "agents-md",
@@ -463,7 +463,7 @@
     "stage": "run",
     "status": "passed",
     "stderr": "",
-    "stdout": "2.1.252 (Claude Code, Patch compatibility smoke variant)\n",
+    "stdout": "2.1.257 (Claude Code, Patch compatibility smoke variant)\n",
     "versionMatched": true
   },
   "summary": {
@@ -475,5 +475,5 @@
     "unsupported": 2,
     "untested": 2
   },
-  "version": "2.1.252"
+  "version": "2.1.257"
 }

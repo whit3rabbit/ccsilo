@@ -246,7 +246,7 @@ PATCH = Patch(
     versions_supported=">=2.1.0,<3",
     # 2.1.196-2.1.226 were never proven for this patch; 2.1.227+ is covered
     # after the selector-wrapper argument fix.
-    versions_tested=(">=2.1.0,<=2.1.195", ">=2.1.227,<=2.1.252"),
+    versions_tested=(">=2.1.0,<=2.1.195", ">=2.1.227,<=2.1.259"),
     apply=_apply,
     apply_modules=_apply_modules,
     description=(

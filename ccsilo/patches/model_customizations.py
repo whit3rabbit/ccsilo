@@ -32,8 +32,12 @@ def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
     model_var = match.group(1)
     search_start = max(0, match.start() - 1500)
     chunk = js[search_start:match.start()]
+    # Claude Code >= 2.1.257 hoists the models array into a later declarator of
+    # the entry let statement (let r=_ro(e,n),o=r??gro(e),...), so the var may
+    # not sit immediately after the function brace. Stay within the first
+    # statement: [^;] keeps the match from crossing into later statements.
     func_pattern = re.compile(
-        rf"function [$\w]+\([^)]*\)\{{(?:let|var|const) {re.escape(model_var)}=.+?;"
+        rf"function [$\w]+\([^)]*\)\{{(?:let|var|const) [^;]*?{re.escape(model_var)}=[^;]*;"
     )
     last = None
     for found in func_pattern.finditer(chunk):

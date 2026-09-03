@@ -12,6 +12,18 @@ def test_synthetic_applies(cli_js_synthetic):
     assert "claude-sonnet-4-6" in outcome.js
 
 
+def test_multi_declarator_entry_let_applies():
+    # Claude Code >= 2.1.257 declares the models array as a later declarator
+    # of the function-entry let statement instead of the first one.
+    js = (
+        'function wro(e,n){let r=_ro(e,n),o=r??gro(e),f=1;'
+        'if(f)o.push({value:U,label:U,description:"Custom model"});return o}'
+    )
+    outcome = PATCH.apply(js, PatchContext(claude_version="2.1.259"))
+    assert outcome.status == "applied"
+    assert "claude-sonnet-4-6" in outcome.js
+
+
 def test_metadata():
     assert PATCH.id == "model-customizations"
 
