@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.14.0] - 2026-09-04
+
+Claude Code 2.1.257 through 2.1.260 tracking. The 2.1.257 minification shift broke two UI anchors, and the statusline throttle patch is restored on the class controller upstream introduced in 2.1.233.
+
+### Added
+- Added Claude Code prompt catalogs for 2.1.257, 2.1.258, 2.1.259, and 2.1.260.
+- Added Claude Code patch compatibility reports for 2.1.252 through 2.1.260. Docker linux/amd64 smoke passed; 30/30 patches ok per version, with only `remember-skill` unsupported by design.
+- Added `statusline-update-throttle` support for the 2.1.233+ class-based statusline controller. It rewrites the 300ms render-debounce constant from `statuslineThrottleMs`; fixed-interval mode is superseded there by the native `statusLine.refreshInterval` setting and notes that instead of emulating it. `versions_supported` is restored to `>=2.0.0,<3` with three tested buckets covering both shapes.
+
+### Changed
+- Widened shared and patch-specific tested ranges to 2.1.260 after Docker runtime smoke. The registry sentinel moved to 2.1.261.
+- Retired `remember-skill` in docs and description only: Claude Code >=2.1.42 ships native auto-memory (Memory tool, `/memory` command, automatic extraction, `sessionMemories` state), so the `<2.1.42` cap stands with nothing to re-anchor.
+- The release checker config now sets `statuslineThrottleMs`, the key the patch reads, instead of the dead `statusLineUpdateThrottleMs`.
+
+### Fixed
+- Fixed `input-box-border` for Claude Code 2.1.257+. Upstream factored the main input border config into a helper function (`function nU(w,I){if(I)return{};return{borderColor:...}}`); a new anchor hides it there.
+- Fixed `model-customizations` for Claude Code 2.1.257+. The models array moved to a later declarator of the function-entry `let` statement; the declaration scan now finds it without crossing into later statements.
+
 ## [0.13.0] - 2026-08-31
 
 Claude Code 2.1.248 through 2.1.252 tracking plus two darwin build fixes. Split-bundle variants could not be built at all, and repacked Mach-O binaries were killed at exec when patched modules grew the bundle section past a page.
