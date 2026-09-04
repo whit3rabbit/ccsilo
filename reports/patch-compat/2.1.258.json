@@ -4,7 +4,7 @@
     "moduleBytes": 32266190,
     "moduleCount": 1626
   },
-  "generatedAt": "2026-09-04T01:04:56.189303Z",
+  "generatedAt": "2026-09-04T18:24:12.646174Z",
   "ok": true,
   "patches": [
     {
@@ -388,7 +388,7 @@
       "<patched-binary>",
       "--version"
     ],
-    "durationMs": 24187,
+    "durationMs": 22920,
     "exitCode": 0,
     "expectedVersion": "2.1.258",
     "ok": true,

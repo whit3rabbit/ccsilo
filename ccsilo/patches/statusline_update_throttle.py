@@ -105,7 +105,7 @@ PATCH = Patch(
     # and >=2.1.233 class-based controller where only the debounce constant
     # var pair is rewritten.
     versions_supported=">=2.0.0,<3",
-    versions_tested=(">=2.0.20,<2.1", ">=2.1.0,<=2.1.232", ">=2.1.233,<=2.1.259"),
+    versions_tested=(">=2.0.20,<2.1", ">=2.1.0,<=2.1.232", ">=2.1.233,<=2.1.260"),
     apply=_apply,
     description=(
         "Throttle statusline update pacing via statuslineThrottleMs (default 300ms). "
