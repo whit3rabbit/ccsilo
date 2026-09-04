@@ -68,6 +68,21 @@ users can tell which sub-anchor failed. If upstream removed a sub-feature, eithe
 narrow `versions_tested` or explicitly skip that obsolete sub-anchor with a note.
 Do not return `applied` for a no-op.
 
+### Superseded upstream
+
+Some patches are intentionally capped because Claude Code absorbed the
+feature natively:
+
+- `remember-skill` supports only `<2.1.42`. Newer versions ship native
+  auto-memory (Memory tool, `/memory` command, automatic extraction, and
+  `sessionMemories` state by 2.1.259); there is no standalone skill left to
+  register.
+- `statusline-update-throttle` fixed-interval mode only applies to the
+  pre-2.1.233 React-hook shape. On 2.1.233+ the class-controller rewrite
+  honors `statuslineThrottleMs` alone and skips when it equals the 300ms
+  default; fixed-interval pacing is covered natively by the
+  `statusLine.refreshInterval` setting (seconds).
+
 ## Release compatibility reports
 
 Use the patch release checker to validate curated regex patches against newly

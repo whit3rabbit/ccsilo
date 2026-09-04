@@ -15,7 +15,7 @@ DEFAULT_CONFIG = {
         ],
         "misc": {
             "tokenCountRounding": 1000,
-            "statusLineUpdateThrottleMs": 300,
+            "statuslineThrottleMs": 750,
             "mcpServerConnectionBatchSize": 10,
         },
         "claudeMdAltNames": ["AGENTS.md", "CLAUDE.md"],

@@ -4,7 +4,7 @@
     "moduleBytes": 32266190,
     "moduleCount": 1626
   },
-  "generatedAt": "2026-09-03T20:53:29.525680Z",
+  "generatedAt": "2026-09-04T01:04:56.189303Z",
   "ok": true,
   "patches": [
     {
@@ -264,15 +264,15 @@
       "warnings": []
     },
     {
-      "detail": "statusline-update-throttle: version 2.1.258 not in supported range '>=2.0.0,<=2.1.232'",
+      "detail": "",
       "group": "ui",
       "id": "statusline-update-throttle",
       "name": "Statusline update throttling correction",
       "notes": [],
       "ok": true,
-      "status": "unsupported",
-      "supported": false,
-      "tested": false,
+      "status": "applied",
+      "supported": true,
+      "tested": true,
       "warnings": []
     },
     {
@@ -388,11 +388,11 @@
       "<patched-binary>",
       "--version"
     ],
-    "durationMs": 23213,
+    "durationMs": 24187,
     "exitCode": 0,
     "expectedVersion": "2.1.258",
     "ok": true,
-    "outputSha256": "1d3d56846a52ceb5e4c2f676884773ac1df3bee262c6a9a53370af37d08dd8ab",
+    "outputSha256": "d31a8007f0368416620494f5be819424536c7d212cb7db78ea69253c9ceb402c",
     "patches": {
       "applied": [
         "agents-md",
@@ -413,6 +413,7 @@
         "prompt-overlays",
         "session-memory",
         "show-more-items-in-select-menus",
+        "statusline-update-throttle",
         "suppress-line-numbers",
         "suppress-prompt-caching-warning",
         "suppress-rate-limit-options",
@@ -441,6 +442,7 @@
         "prompt-overlays",
         "session-memory",
         "show-more-items-in-select-menus",
+        "statusline-update-throttle",
         "suppress-model-launch-notice",
         "suppress-line-numbers",
         "suppress-native-installer-warning",
@@ -467,13 +469,13 @@
     "versionMatched": true
   },
   "summary": {
-    "applied": 24,
+    "applied": 25,
     "failed": 0,
     "ok": 30,
     "skipped": 4,
     "total": 30,
-    "unsupported": 2,
-    "untested": 2
+    "unsupported": 1,
+    "untested": 1
   },
   "version": "2.1.258"
 }

@@ -1,4 +1,9 @@
-"""Register the /remember skill on versions before it was bundled."""
+"""Register the /remember skill on versions before it was bundled.
+
+Superseded upstream: Claude Code >=2.1.42 replaced the standalone skill with
+native auto-memory (Memory tool, /memory command, automatic extraction, and
+sessionMemories state by 2.1.259). No anchor to extend onto newer versions.
+"""
 
 import re
 
@@ -38,5 +43,9 @@ PATCH = Patch(
     versions_supported=">=2.1.0,<2.1.42",
     versions_tested=(">=2.1.0,<=2.1.41",),
     apply=_apply,
-    description="Register the built-in /remember skill for older Claude Code versions that do not bundle it.",
+    description=(
+        "Register the built-in /remember skill on versions before 2.1.42. Superseded on "
+        "newer versions by native auto-memory (Memory tool, /memory command, automatic "
+        "extraction, sessionMemories state)."
+    ),
 )

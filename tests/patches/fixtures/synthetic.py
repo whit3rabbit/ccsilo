@@ -211,6 +211,9 @@ SYNTHETIC = {
         '$(($H)=>{if($H.statusLineText===D)return $H;return{...$H,statusLineText:D}})}},[H,$]),'
         'u=Dr_(()=>{I()},300);'
     ),
+    "statusline-update-throttle-v3": (
+        'var N1e=300,L1e=1000;function Wot(w,I,D,G){if(!w.current)return;w.current=!1,G(I,D())}'
+    ),
     "session-memory": (
         'function enabled(){return gate("tengu_session_memory",!1)}'
         'if(gate("tengu_coral_fern",!1)){searchPastSessions()}'
