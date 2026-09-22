@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.14.1] - 2026-09-22
+
+Claude Code 2.1.261 through 2.1.278 tracking. Upstream reworked the model-picker fallback push in 2.1.261 and grew the picker body, which broke `model-customizations` on every release newer than 2.1.260; this also made the daily release-tracking workflow fail since 2.1.261 shipped.
+
+### Added
+- Added Claude Code prompt catalogs for 2.1.261 through 2.1.278 (2.1.261, 2.1.263, 2.1.265-2.1.278). Two fuzzy metadata candidates were verified and applied explicitly (WebFetch authenticated-URL tool description wording in 2.1.265, remote-control CLI help gaining `--[no-]chrome` lines in 2.1.273); `no_candidate` extras stay unnamed.
+- Added Claude Code patch compatibility reports for 2.1.261 through 2.1.278. Docker linux/amd64 smoke passed; 30/30 patches ok per version, with only `remember-skill` unsupported by design.
+
+### Changed
+- Widened shared and patch-specific tested ranges to 2.1.278 after Docker runtime smoke on 2.1.260-2.1.278. The registry sentinel moved to 2.1.279.
+
+### Fixed
+- Fixed `model-customizations` for Claude Code 2.1.261+. Upstream pushes the fallback entry through a coalescing label helper (`s.push(h5(O)??{value:O,label:O,description:"Custom model"})`) and grew the picker to ~2000-2300 chars between the entry `let` statement and the anchor, past the old 1500-char lookback window. The anchor accepts the coalesced push shape and the declaration scan window is 3000.
+
 ## [0.14.0] - 2026-09-04
 
 Claude Code 2.1.257 through 2.1.260 tracking. The 2.1.257 minification shift broke two UI anchors, and the statusline throttle patch is restored on the class controller upstream introduced in 2.1.233.
