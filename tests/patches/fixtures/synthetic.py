@@ -30,6 +30,14 @@ SYNTHETIC = {
         'function models(){let L=[]; '
         'L.push({value:M,label:N,description:"Custom model"});return L}'
     ),
+    "model-customizations-coalesced": (
+        # 2.1.261+ pushes the fallback entry through a label helper and keeps
+        # ~2000+ chars of picker logic between the entry let statement and the
+        # anchor (generated body stands in for the grown picker).
+        'function picker(e,n){let r=grp(e,n),s=r??grp2(e),d=1;'
+        + 'pad();' * 400
+        + 'return s.push(h5(O)??{value:O,label:O,description:"Custom model"}),s}'
+    ),
     "opencode-gateway-discovery": (
         'async function discover(){if(!process.env.CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY)return;'
         'let H=process.env.ANTHROPIC_BASE_URL;if(!H)return;'

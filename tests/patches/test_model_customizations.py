@@ -24,6 +24,18 @@ def test_multi_declarator_entry_let_applies():
     assert "claude-sonnet-4-6" in outcome.js
 
 
+def test_coalesced_push_and_grown_picker_applies(cli_js_synthetic):
+    # Claude Code >= 2.1.261 pushes the fallback entry as
+    # `s.push(h5(O)??{...})` and sits >2000 chars after the entry let
+    # statement, past the old 1500-char lookback window.
+    js = cli_js_synthetic("model-customizations-coalesced")
+    outcome = PATCH.apply(js, PatchContext(claude_version="2.1.261"))
+    assert outcome.status == "applied"
+    assert "claude-sonnet-4-6" in outcome.js
+    # Injection lands right after the entry let statement, before the padding.
+    assert js.index("let r=grp") < outcome.js.index("claude-sonnet-4-6") < outcome.js.index("pad();")
+
+
 def test_metadata():
     assert PATCH.id == "model-customizations"
 

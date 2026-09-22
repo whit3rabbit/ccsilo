@@ -24,18 +24,25 @@ CUSTOM_MODELS = [
 
 
 def _apply(js: str, ctx: PatchContext) -> PatchOutcome:
+    # 2.1.261+ pushes the fallback entry as `s.push(h5(O)??{value:O,label:O,
+    # description:"Custom model"})`, coalescing a label helper in front of the
+    # object literal; older versions push the literal directly.
     match = re.search(
-        r"(?:^|[^$\w])([$\w]+)\.push\(\{value:[$\w]+,label:[$\w]+,\s*description:\"Custom model\"\}\)", js
+        r"(?:^|[^$\w])([$\w]+)\.push\((?:[$\w]+\([$\w]*\)\?\?)?\{value:[$\w]+,label:[$\w]+,\s*description:\"Custom model\"\}\)",
+        js,
     )
     if not match:
         return PatchOutcome(js=js, status="missed")
     model_var = match.group(1)
-    search_start = max(0, match.start() - 1500)
-    chunk = js[search_start:match.start()]
     # Claude Code >= 2.1.257 hoists the models array into a later declarator of
     # the entry let statement (let r=_ro(e,n),o=r??gro(e),...), so the var may
     # not sit immediately after the function brace. Stay within the first
     # statement: [^;] keeps the match from crossing into later statements.
+    # The 2.1.261+ picker grew (available-models loop, opus branches) to
+    # ~2000-2300 chars between that let statement and the anchor, so look back
+    # 3000.
+    search_start = max(0, match.start() - 3000)
+    chunk = js[search_start:match.start()]
     func_pattern = re.compile(
         rf"function [$\w]+\([^)]*\)\{{(?:let|var|const) [^;]*?{re.escape(model_var)}=[^;]*;"
     )
